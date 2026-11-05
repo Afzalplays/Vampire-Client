@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, Blocks, ChevronDown, CircleUserRound, Cpu, Download, ExternalLink, Gamepad2, Gauge, HardDrive, Layers3, Monitor, Package, Play, Plus, Search, Settings2, ShieldCheck, Sparkles, Terminal, X, Zap } from "lucide-react";
 
 function requiredJavaMajor(version: string): number {
-  const match = version.match(/^(\\d+)\\.(\\d+)(?:\\.(\\d+))?/);
+  const match = version.match(/^(\d+)\.(\d+)(?:\.(\d+))?/);
   if (!match) return 21;
   const major = Number(match[1]);
   const minor = Number(match[2]);
@@ -15,9 +15,9 @@ function requiredJavaMajor(version: string): number {
 }
 
 function detectedJavaMajor(version: string): number | null {
-  const legacy = version.match(/^1\\.(\\d+)/);
+  const legacy = version.match(/^1\.(\d+)/);
   if (legacy) return Number(legacy[1]);
-  const current = version.match(/^(\\d+)/);
+  const current = version.match(/^(\d+)/);
   return current ? Number(current[1]) : null;
 }
 
