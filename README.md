@@ -69,3 +69,12 @@ No open-source license has been selected or added yet. Until a license is added,
 Minecraft is a trademark of Mojang Studios. Vampire Client is an independent community project and is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft.
 
 **Vampire Studios** ❤️
+
+
+## Official project website
+
+The website source is in [website/](website/). GitHub Pages deployment is automated with [pages.yml](.github/workflows/pages.yml). After enabling **Settings → Pages → Build and deployment → GitHub Actions**, the site is published at:
+
+https://afzalplays.github.io/Vampire-Client/
+
+The website intentionally links to GitHub Releases and does not claim that installers exist until a verified release is published.
