@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { totalmem, freemem } from "node:os";
 import { launch, Version } from "@xmcl/core";
@@ -14,8 +14,15 @@ let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
-const gameRoot = (version?: string, loader = "vanilla") => version ? path.join(dataRoot(), "instances", version + "-" + loader) : path.join(dataRoot(), "game");
-const modsRoot = (version?: string, loader = "vanilla") => path.join(gameRoot(version, loader), "mods");
+const gameRoot = (version?: string, loader = "vanilla", instanceId = "default") => {
+  if (!version) return path.join(dataRoot(), "game");
+  return instanceId === "default"
+    ? path.join(dataRoot(), "instances", version + "-" + loader)
+    : path.join(dataRoot(), "instances", "named", instanceId);
+};
+const modsRoot = (version?: string, loader = "vanilla", instanceId = "default") => path.join(gameRoot(version, loader, instanceId), "mods");
+const instancesFile = () => path.join(dataRoot(), "instances.json");
+const instanceKey = (version: string, loader: string, instanceId = "default") => version + ":" + loader + (instanceId === "default" ? "" : ":" + instanceId);
 const profilesFile = () => path.join(dataRoot(), "profiles.json");
 const settingsFile = () => path.join(dataRoot(), "settings.json");
 const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
@@ -67,10 +74,11 @@ async function verifyModrinthDownload(response: Response, file: any) {
   return bytes;
 }
 
-function safeInstance(version: string, loader: string) {
+function safeInstance(version: string, loader: string, instanceId = "default") {
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(version || ""))) throw new Error("Invalid Minecraft instance version.");
   if (!["vanilla", "fabric"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
-  return { root: gameRoot(version, loader), mods: modsRoot(version, loader) };
+  if (instanceId !== "default" && !/^[a-f0-9-]{36}$/.test(String(instanceId))) throw new Error("Invalid Minecraft instance ID.");
+  return { root: gameRoot(version, loader, instanceId), mods: modsRoot(version, loader, instanceId) };
 }
 function safeName(value: string) {
   const name = value.trim();
@@ -107,6 +115,28 @@ async function listVersions() {
     .map((v: any) => ({ id: v.id, type: v.type, releaseTime: v.releaseTime }));
 }
 
+ipcMain.handle("instances:list", async () => readJson<Array<{ id: string; name: string; createdAt: string }>>(instancesFile(), [{ id: "default", name: "Default", createdAt: "" }]));
+ipcMain.handle("instances:create", async (_event, nameValue: string) => {
+  const name = String(nameValue || "").trim();
+  if (name.length < 2 || name.length > 32 || !/^[A-Za-z0-9 _.-]+$/.test(name)) throw new Error("Instance name must be 2–32 letters, numbers, spaces, dots or dashes.");
+  const instances = await readJson<Array<{ id: string; name: string; createdAt: string }>>(instancesFile(), [{ id: "default", name: "Default", createdAt: "" }]);
+  if (instances.length >= 30) throw new Error("You can create up to 30 instances.");
+  if (instances.some(item => item.name.toLowerCase() === name.toLowerCase())) throw new Error("An instance with this name already exists.");
+  const instance = { id: randomUUID(), name, createdAt: new Date().toISOString() };
+  instances.push(instance); await writeJson(instancesFile(), instances); return instance;
+});
+ipcMain.handle("instances:delete", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  if (id === "default" || !/^[a-f0-9-]{36}$/.test(id)) throw new Error("The default or invalid instance cannot be deleted.");
+  if (gameProcess && gameProcess.exitCode === null) throw new Error("Stop Minecraft before deleting an instance.");
+  const instances = await readJson<Array<{ id: string; name: string; createdAt: string }>>(instancesFile(), [{ id: "default", name: "Default", createdAt: "" }]);
+  if (!instances.some(item => item.id === id)) throw new Error("Instance not found.");
+  await fs.rm(path.join(dataRoot(), "instances", "named", id), { recursive: true, force: true });
+  await writeJson(instancesFile(), instances.filter(item => item.id !== id));
+  const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
+  for (const key of Object.keys(installed)) if (key.endsWith(":" + id)) delete installed[key];
+  await writeJson(installedVersionsFile(), installed); return { success: true };
+});
 ipcMain.handle("profile:get", async () =>
   readJson<{ active: string; names: string[] }>(profilesFile(), { active: "Player", names: ["Player"] })
 );
@@ -155,20 +185,21 @@ ipcMain.handle("auth:login", async (_event, clientId: string) => {
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
 });
 ipcMain.handle("settings:get", async () => {
-  const saved = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string } | null>(settingsFile(), null);
+  const saved = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string } | null>(settingsFile(), null);
   if (saved) return saved;
   const manifest = await getVersionList();
   const latestRelease = manifest.versions.find((item: any) => item.type === "release")?.id || "1.21.1";
-  return { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "" };
+  return { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "", instanceId: "default" };
 });
-ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => {
-  const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
+ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }) => {
+  const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default" });
   const next = {
     ram: Math.max(1, Math.min(16, Number(settings.ram ?? current.ram))),
     javaPath: typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : current.javaPath,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
     loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader,
-    clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId
+    clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId,
+    instanceId: typeof settings.instanceId === "string" && (settings.instanceId === "default" || /^[a-f0-9-]{36}$/.test(settings.instanceId)) ? settings.instanceId : (current.instanceId || "default")
   };
   await writeJson(settingsFile(), next);
   return next;
@@ -207,7 +238,7 @@ ipcMain.handle("system:memory", async () => ({ totalBytes: totalmem(), freeBytes
 
 ipcMain.handle("versions:list", async () => listVersions());
 
-ipcMain.handle("game:install", async (_event, args: { version: string; loader: string }) => {
+ipcMain.handle("game:install", async (_event, args: { version: string; loader: string; instanceId?: string }) => {
   const versionId = String(args.version || "");
   const loader = String(args.loader || "vanilla");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId)) throw new Error("Invalid Minecraft version ID.");
@@ -216,7 +247,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
   if (!metadata) throw new Error("Minecraft version was not found in the official manifest.");
-  const root = gameRoot(versionId, loader);
+  const root = safeInstance(versionId, loader, args.instanceId || "default").root;
   await fs.mkdir(root, { recursive: true });
   await install(metadata, root);
 
@@ -232,22 +263,22 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   }
 
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
-  installed[versionId + ":" + loader] = launchVersion;
+  installed[instanceKey(versionId, loader, args.instanceId || "default")] = launchVersion;
   await writeJson(installedVersionsFile(), installed);
   sendStatus("Minecraft " + versionId + (loader === "fabric" ? " + Fabric" : "") + " is installed.");
   return { success: true, version: versionId, launchVersion };
 });
 
-ipcMain.handle("game:installStatus", async (_event, args: { version: string; loader: string }) => {
+ipcMain.handle("game:installStatus", async (_event, args: { version: string; loader: string; instanceId?: string }) => {
   const versionId = String(args.version || "");
   const loader = String(args.loader || "");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric"].includes(loader)) {
     throw new Error("Invalid Minecraft version or loader.");
   }
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
-  const launchVersion = installed[versionId + ":" + loader];
+  const launchVersion = installed[instanceKey(versionId, loader, args.instanceId || "default")] || (args.instanceId === "default" || !args.instanceId ? installed[versionId + ":" + loader] : undefined);
   if (!launchVersion) return { installed: false, launchVersion: null, reason: "not-installed" };
-  const root = safeInstance(versionId, loader).root;
+  const root = safeInstance(versionId, loader, args.instanceId || "default").root;
   try {
     await fs.access(root);
     await Version.parse(root, launchVersion);
@@ -257,19 +288,20 @@ ipcMain.handle("game:installStatus", async (_event, args: { version: string; loa
   }
 });
 
-ipcMain.handle("game:launch", async (_event, args: { username: string; version: string; ram: number; javaPath?: string }) => {
+ipcMain.handle("game:launch", async (_event, args: { username: string; version: string; ram: number; javaPath?: string; instanceId?: string }) => {
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Minecraft is already running.");
   const username = safeName(args.username);
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
   const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const activeLoader = ["vanilla", "fabric"].includes(settings.loader) ? settings.loader : "vanilla";
-  const installKey = args.version + ":" + activeLoader;
-  const launchVersion = installed[installKey];
+  const activeInstanceId = args.instanceId || settings.instanceId || "default";
+  const installKey = instanceKey(args.version, activeLoader, activeInstanceId);
+  const launchVersion = installed[installKey] || (activeInstanceId === "default" ? installed[args.version + ":" + activeLoader] : undefined);
   if (!launchVersion) {
     throw new Error("Minecraft " + args.version + " (" + activeLoader + ") is not installed yet. Open Versions and install it before launching.");
   }
-  const root = safeInstance(args.version, activeLoader).root;
+  const root = safeInstance(args.version, activeLoader, activeInstanceId).root;
   try {
     await fs.access(root);
     await Version.parse(root, launchVersion);
@@ -323,7 +355,7 @@ ipcMain.handle("game:stop", async () => {
 });
 
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string }) => {
-  const directory = safeInstance(args.version, args.loader).mods;
+  const directory = safeInstance(args.version, args.loader, args.instanceId || "default").mods;
   await fs.mkdir(directory, { recursive: true });
   const files = await fs.readdir(directory, { withFileTypes: true });
   return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
@@ -341,13 +373,13 @@ async function fetchModrinthVersion(projectId: string, mcVersion: string, loader
   return selected;
 }
 
-async function installModrinthTree(projectId: string, mcVersion: string, loader: string) {
+async function installModrinthTree(projectId: string, mcVersion: string, loader: string, instanceId = "default") {
   const visited = new Set<string>();
   const incompatibleProjects = new Set<string>();
   const installedFiles: string[] = [];
   const installedEntries: Array<{ projectId: string; versionId: string; fileName: string }> = [];
   const skippedOptional: string[] = [];
-  const directory = modsRoot(mcVersion, loader);
+  const directory = modsRoot(mcVersion, loader, instanceId);
   await fs.mkdir(directory, { recursive: true });
 
   async function installProject(id: string, pinnedVersionId?: string): Promise<void> {
@@ -426,14 +458,14 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
   return { installedFiles, skippedOptional: Array.from(new Set(skippedOptional)) };
 }
 
-ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecraftVersion: string; loader: string }) => {
+ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecraftVersion: string; loader: string; instanceId?: string }) => {
   const projectId = String(args.projectId || "");
   if (!/^[A-Za-z0-9_-]{3,64}$/.test(projectId)) throw new Error("Invalid Modrinth project ID.");
   const loader = String(args.loader || "fabric");
   if (loader !== "fabric") throw new Error("Mod downloads in this preview are configured for Fabric profiles only.");
   const mcVersion = String(args.minecraftVersion || "");
   if (!/^[0-9A-Za-z._-]{1,32}$/.test(mcVersion)) throw new Error("Invalid Minecraft version.");
-  const result = await installModrinthTree(projectId, mcVersion, loader);
+  const result = await installModrinthTree(projectId, mcVersion, loader, args.instanceId || "default");
   return { success: true, fileName: result.installedFiles[result.installedFiles.length - 1], installedFiles: result.installedFiles, skippedOptional: result.skippedOptional };
 });
 ipcMain.handle("mods:bulkToggle", async (_event, args: { version: string; loader: string; enabled: boolean }) => {
@@ -483,7 +515,7 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
   const failed: string[] = [];
   let installed = 0;
   for (const projectId of projects) {
-    try { await installModrinthTree(projectId, args.version, args.loader); installed++; }
+    try { await installModrinthTree(projectId, args.version, args.loader, args.instanceId || "default"); installed++; }
     catch (error) { failed.push(projectId + ": " + (error instanceof Error ? error.message : "install failed")); }
   }
   return { canceled: false, installed, failed };
@@ -634,7 +666,7 @@ ipcMain.handle("shaders:remove", async (_event, args: { version: string; loader:
   return { success: true };
 });
 
-ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string; version: string; loader: string }) => {
+ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string; version: string; loader: string; instanceId?: string }) => {
   const presets: Record<string, Record<string, string>> = {
     "celeron-low": { renderDistance: "5", simulationDistance: "4", graphicsMode: "0", particles: "0", entityDistanceScaling: "0.5", biomeBlendRadius: "0", mipmapLevels: "0", ao: "false", enableVsync: "false", clouds: "fast", entityShadows: "false", maxFps: "260" },
     "i3-balanced": { renderDistance: "8", simulationDistance: "5", graphicsMode: "0", particles: "1", entityDistanceScaling: "0.75", biomeBlendRadius: "1", mipmapLevels: "2", ao: "false", enableVsync: "false", clouds: "fast", entityShadows: "false", maxFps: "500" }
@@ -657,7 +689,7 @@ ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string;
   return { success: true, preset: args.preset, optionsFile };
 });
 
-ipcMain.handle("performance:set", async (_event, args: { profile: string; version: string; loader: string }) => {
+ipcMain.handle("performance:set", async (_event, args: { profile: string; version: string; loader: string; instanceId?: string }) => {
   const profile = String(args.profile || "");
   if (!["sodium", "vulkanmod"].includes(profile)) throw new Error("Unknown performance renderer profile.");
   if (args.loader !== "fabric") throw new Error("Performance renderer profiles require a Fabric instance.");
