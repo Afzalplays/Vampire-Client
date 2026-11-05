@@ -49,6 +49,13 @@
             "x64",
             "ia32"
           ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
         }
       ]
     },
@@ -56,7 +63,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "createStartMenuShortcut": true
+      "createStartMenuShortcut": true,
+      "artifactName": "VampireClient-Setup-${version}-${arch}.${ext}"
     },
     "linux": {
       "target": [
@@ -71,6 +79,10 @@
         "zip"
       ],
       "category": "public.app-category.games"
+    },
+    "artifactName": "VampireClient-Setup-${version}-${arch}.${ext}",
+    "portable": {
+      "artifactName": "VampireClient-Portable-${version}-${arch}.${ext}"
     }
   }
 }
