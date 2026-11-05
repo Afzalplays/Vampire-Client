@@ -245,8 +245,18 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const activeLoader = ["vanilla", "fabric"].includes(settings.loader) ? settings.loader : "vanilla";
-  const launchVersion = installed[args.version + ":" + activeLoader] || args.version;
+  const installKey = args.version + ":" + activeLoader;
+  const launchVersion = installed[installKey];
+  if (!launchVersion) {
+    throw new Error("Minecraft " + args.version + " (" + activeLoader + ") is not installed yet. Open Versions and install it before launching.");
+  }
   const root = safeInstance(args.version, activeLoader).root;
+  try {
+    await fs.access(root);
+    await Version.parse(root, launchVersion);
+  } catch {
+    throw new Error("The installed Minecraft files are missing or damaged. Reinstall this version from the Versions page.");
+  }
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
   const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
   const accountState = await readJson<{ type: string }>(accountFile(), { type: "offline" });
