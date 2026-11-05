@@ -3,7 +3,8 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getFabricLoaders, installFabric, installDependencies } from "@xmcl/installer";
-import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";\nimport { PublicClientApplication } from "@azure/msal-node";
+import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
+import { PublicClientApplication } from "@azure/msal-node";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
 let mainWindow: BrowserWindow | null = null;
@@ -14,7 +15,9 @@ const gameRoot = () => path.join(dataRoot(), "game");
 const modsRoot = () => path.join(gameRoot(), "mods");
 const profilesFile = () => path.join(dataRoot(), "profiles.json");
 const settingsFile = () => path.join(dataRoot(), "settings.json");
-const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");\nconst microsoftSessionFile = () => path.join(dataRoot(), "microsoft-session.bin");\nlet memoryMicrosoftSession: { accessToken: string; expiresAt: number; profile: { id: string; name: string } } | null = null;
+const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
+const microsoftSessionFile = () => path.join(dataRoot(), "microsoft-session.bin");
+let memoryMicrosoftSession: { accessToken: string; expiresAt: number; profile: { id: string; name: string } } | null = null;
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try { return JSON.parse(await fs.readFile(file, "utf8")) as T; } catch { return fallback; }
@@ -71,7 +74,41 @@ ipcMain.handle("profile:save", async (_event, username: string) => {
   await writeJson(profilesFile(), profiles);
   return profiles;
 });
-ipcMain.handle("auth:get", async () => {\n  const session = await getMicrosoftSession();\n  return { authenticated: Boolean(session), profile: session?.profile || null };\n});\nipcMain.handle("auth:logout", async () => {\n  memoryMicrosoftSession = null;\n  await fs.unlink(microsoftSessionFile()).catch(() => undefined);\n  return { success: true };\n});\nipcMain.handle("auth:login", async (_event, clientId: string) => {\n  if (!/^[0-9a-fA-F-]{36}$/.test(String(clientId || ""))) throw new Error("Enter a valid Microsoft app Client ID first.");\n  sendStatus("Starting Microsoft device-code sign-in…");\n  const msal = new PublicClientApplication({ auth: { clientId, authority: "https://login.microsoftonline.com/consumers" } });\n  const tokenResult = await msal.acquireTokenByDeviceCode({\n    scopes: ["XboxLive.signin", "offline_access"],\n    deviceCodeCallback: (response) => sendStatus(response.message)\n  });\n  if (!tokenResult?.accessToken) throw new Error("Microsoft sign-in did not return an access token.");\n  const signal = new AbortController().signal;\n  const authenticator = new MicrosoftAuthenticator({});\n  const { minecraftXstsResponse } = await authenticator.acquireXBoxToken(tokenResult.accessToken, signal);\n  const claim = minecraftXstsResponse.DisplayClaims?.xui?.[0];\n  if (!claim?.uhs) throw new Error("Xbox authentication did not return a valid user hash.");\n  const minecraftAuth = await authenticator.loginMinecraftWithXBox(claim.uhs, minecraftXstsResponse.Token, signal);\n  const mojang = new MojangClient({});\n  const ownership = await mojang.checkGameOwnership(minecraftAuth.access_token, signal);\n  if (!ownership.items?.some((item: any) => item.name === "game_minecraft" || item.name === "product_minecraft")) throw new Error("This Microsoft account does not have Minecraft Java Edition entitlement.");\n  const gameProfile = await mojang.getProfile(minecraftAuth.access_token, signal);\n  const session = { accessToken: minecraftAuth.access_token, expiresAt: Date.now() + Math.max(60, minecraftAuth.expires_in - 120) * 1000, profile: { id: gameProfile.id, name: gameProfile.name } };\n  await saveMicrosoftSession(session);\n  await writeJson(profilesFile(), { active: gameProfile.name, names: [gameProfile.name] });\n  sendStatus("Signed in as " + gameProfile.name + ".");\n  return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };\n});\nipcMain.handle("settings:get", async () =>
+ipcMain.handle("auth:get", async () => {
+  const session = await getMicrosoftSession();
+  return { authenticated: Boolean(session), profile: session?.profile || null };
+});
+ipcMain.handle("auth:logout", async () => {
+  memoryMicrosoftSession = null;
+  await fs.unlink(microsoftSessionFile()).catch(() => undefined);
+  return { success: true };
+});
+ipcMain.handle("auth:login", async (_event, clientId: string) => {
+  if (!/^[0-9a-fA-F-]{36}$/.test(String(clientId || ""))) throw new Error("Enter a valid Microsoft app Client ID first.");
+  sendStatus("Starting Microsoft device-code sign-in…");
+  const msal = new PublicClientApplication({ auth: { clientId, authority: "https://login.microsoftonline.com/consumers" } });
+  const tokenResult = await msal.acquireTokenByDeviceCode({
+    scopes: ["XboxLive.signin", "offline_access"],
+    deviceCodeCallback: (response) => sendStatus(response.message)
+  });
+  if (!tokenResult?.accessToken) throw new Error("Microsoft sign-in did not return an access token.");
+  const signal = new AbortController().signal;
+  const authenticator = new MicrosoftAuthenticator({});
+  const { minecraftXstsResponse } = await authenticator.acquireXBoxToken(tokenResult.accessToken, signal);
+  const claim = minecraftXstsResponse.DisplayClaims?.xui?.[0];
+  if (!claim?.uhs) throw new Error("Xbox authentication did not return a valid user hash.");
+  const minecraftAuth = await authenticator.loginMinecraftWithXBox(claim.uhs, minecraftXstsResponse.Token, signal);
+  const mojang = new MojangClient({});
+  const ownership = await mojang.checkGameOwnership(minecraftAuth.access_token, signal);
+  if (!ownership.items?.some((item: any) => item.name === "game_minecraft" || item.name === "product_minecraft")) throw new Error("This Microsoft account does not have Minecraft Java Edition entitlement.");
+  const gameProfile = await mojang.getProfile(minecraftAuth.access_token, signal);
+  const session = { accessToken: minecraftAuth.access_token, expiresAt: Date.now() + Math.max(60, minecraftAuth.expires_in - 120) * 1000, profile: { id: gameProfile.id, name: gameProfile.name } };
+  await saveMicrosoftSession(session);
+  await writeJson(profilesFile(), { active: gameProfile.name, names: [gameProfile.name] });
+  sendStatus("Signed in as " + gameProfile.name + ".");
+  return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
+});
+ipcMain.handle("settings:get", async () =>
   readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric" })
 );
 ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string }) => {
