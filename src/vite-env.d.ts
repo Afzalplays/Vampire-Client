@@ -8,7 +8,7 @@ interface Window {
     getSettings(): Promise<{ ram: number; javaPath: string; version: string; loader: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string }>;
     listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;
-    installVersion(version: string): Promise<{ success: boolean; version: string }>;
+    installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     listMods(): Promise<string[]>;
     installMod(args: { projectId: string; minecraftVersion: string; loader: string }): Promise<{ success: boolean; fileName: string }>;
