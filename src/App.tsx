@@ -191,7 +191,7 @@ export default function App() {
   async function deleteNamedInstance() { if (!window.vampire || instanceId === "default") return; const selected = instances.find(item => item.id === instanceId); if (!selected || !window.confirm("Delete instance \"" + selected.name + "\" and all its local game files, mods and packs?")) return; try { await window.vampire.deleteInstance(instanceId); const next = await window.vampire.listInstances(); setInstances(next); setInstanceId("default"); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId, instanceId: "default" }); notify("Deleted instance and its files."); } catch (e) { notify(e instanceof Error ? e.message : "Could not delete instance."); } }
 
   async function saveLauncherSettings() {
-    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId, instanceId }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
+    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId, instanceId }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
   }
   async function installSelectedVersion() {
     if (!window.vampire) return notify("Version installation is available in the desktop app.");
