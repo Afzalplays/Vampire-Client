@@ -16,6 +16,7 @@ interface Window {
     readLogs(): Promise<string>;
     exportLogs(): Promise<{ canceled?: boolean; filePath?: string }>;
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
+    getInstallStatus(args: { version: string; loader: string }): Promise<{ installed: boolean; launchVersion: string | null; reason: string | null }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     stopGame(): Promise<{ success: boolean; stopped: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
