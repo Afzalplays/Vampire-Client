@@ -83,7 +83,7 @@
       ],
       "category": "public.app-category.games"
     },
-    "artifactName": "VampireClient-Setup-${version}-${arch}.${ext}",
+    "artifactName": "VampireClient-${version}-${os}-${arch}.${ext}",
     "portable": {
       "artifactName": "VampireClient-Portable-${version}-${arch}.${ext}"
     }
