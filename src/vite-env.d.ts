@@ -14,6 +14,12 @@ interface Window {
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
+    bulkToggleMods(args: { version: string; loader: string; enabled: boolean }): Promise<{ success: boolean; changed: number }>;
+    exportModpack(args: { version: string; loader: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
+    importModpack(args: { version: string; loader: string }): Promise<{ canceled?: boolean; installed: number; failed: string[] }>;
+    listResourcePacks(args: { version: string; loader: string }): Promise<string[]>;
+    importResourcePack(args: { version: string; loader: string }): Promise<{ canceled?: boolean; fileName?: string }>;
+    removeResourcePack(args: { version: string; loader: string; fileName: string }): Promise<{ success: boolean }>;
     checkModUpdates(args: { version: string; loader: string }): Promise<Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }>>;
     updateMod(args: { version: string; loader: string; projectId: string }): Promise<{ success: boolean; fileName: string }>;
     installMod(args: { projectId: string; minecraftVersion: string; loader: string }): Promise<{ success: boolean; fileName: string; installedFiles?: string[]; skippedOptional?: string[] }>;
