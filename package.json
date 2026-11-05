@@ -75,7 +75,9 @@
         "AppImage",
         "deb"
       ],
-      "category": "Game"
+      "category": "Game",
+      "maintainer": "Vampire Studios <noreply@github.com>",
+      "vendor": "Vampire Studios"
     },
     "mac": {
       "target": [
