@@ -9,6 +9,8 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Electron + React + TypeScript desktop launcher.
 - Glass UI, Vampire Studios splash screen, Home, Versions, Mods, Accounts and Settings pages.
 - Official Minecraft version manifest and vanilla game installation through XMCL.
+- Official Minecraft version browser for stable releases, snapshots, old beta and old alpha metadata; fresh installs default to the latest official stable release, with a one-click latest-release selector.
+- Vanilla installation is available for versions in the official manifest; Fabric installation depends on a compatible Fabric loader build being published for that Minecraft version.
 - Fabric loader installation for supported Minecraft versions.
 - Minecraft process launch integration with configurable Java path and RAM allocation.
 - Offline local profiles for single-player and servers that explicitly allow offline-mode connections.
