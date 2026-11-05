@@ -11,7 +11,7 @@ interface Window {
     loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;
     logoutMicrosoft(): Promise<{ success: boolean }>;
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
-    getSettings(): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
+    getSettings(instanceId?: string): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;
     getSystemMemory(): Promise<{ totalBytes: number; freeBytes: number; totalGB: number; freeGB: number }>;
