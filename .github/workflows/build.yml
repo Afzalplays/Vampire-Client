@@ -1,0 +1,36 @@
+name: Build Vampire Client
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            args: --win nsis --x64
+          - os: windows-latest
+            args: --win nsis --ia32
+          - os: ubuntu-latest
+            args: --linux AppImage deb
+          - os: macos-latest
+            args: --mac dmg zip
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install
+      - run: npm run build
+      - run: npx electron-builder ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vampire-client-${{ matrix.os }}-${{ strategy.job-index }}
+          path: release/*
+          if-no-files-found: error
