@@ -244,12 +244,14 @@ async function fetchModrinthVersion(projectId: string, mcVersion: string, loader
 
 async function installModrinthTree(projectId: string, mcVersion: string, loader: string) {
   const visited = new Set<string>();
+  const incompatibleProjects = new Set<string>();
   const installedFiles: string[] = [];
   const skippedOptional: string[] = [];
   const directory = modsRoot(mcVersion, loader);
   await fs.mkdir(directory, { recursive: true });
 
   async function installProject(id: string, pinnedVersionId?: string): Promise<void> {
+    if (incompatibleProjects.has(id)) throw new Error("Mod conflict detected: " + id + " is marked incompatible by another selected mod.");
     if (visited.has(id)) return;
     visited.add(id);
     let selected: any;
@@ -270,7 +272,10 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
       const depId = String(dependency.project_id || "");
       const depVersion = String(dependency.version_id || "");
       if (kind === "incompatible") {
-        if (depId && visited.has(depId)) throw new Error("Mod conflict detected: " + id + " conflicts with " + depId + ".");
+        if (depId) {
+          incompatibleProjects.add(depId);
+          if (visited.has(depId)) throw new Error("Mod conflict detected: " + id + " conflicts with " + depId + ".");
+        }
         continue;
       }
       if (kind === "optional") {
