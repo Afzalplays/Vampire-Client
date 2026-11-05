@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, safeStorage } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { pathToFileURL } from "node:url";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
@@ -340,8 +341,10 @@ function createWindow() {
   mainWindow.webContents.on("will-navigate", (event, url) => {
     try {
       const parsed = new URL(url);
-      const isDevServer = !app.isPackaged && parsed.origin === "http://127.0.0.1:5173";
-      if (parsed.protocol !== "file:" && !isDevServer) event.preventDefault();
+      const expectedAppUrl = pathToFileURL(path.resolve(__dirname, "../dist/index.html")).href;
+      const isAppPage = url === expectedAppUrl;
+      const isDevServer = !app.isPackaged && parsed.origin === "http://127.0.0.1:5173" && parsed.pathname === "/";
+      if (!isAppPage && !isDevServer) event.preventDefault();
     } catch { event.preventDefault(); }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
