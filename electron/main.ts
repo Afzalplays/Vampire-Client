@@ -11,8 +11,8 @@ let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
-const gameRoot = () => path.join(dataRoot(), "game");
-const modsRoot = () => path.join(gameRoot(), "mods");
+const gameRoot = (version?: string, loader = "vanilla") => version ? path.join(dataRoot(), "instances", version + "-" + loader) : path.join(dataRoot(), "game");
+const modsRoot = (version?: string, loader = "vanilla") => path.join(gameRoot(version, loader), "mods");
 const profilesFile = () => path.join(dataRoot(), "profiles.json");
 const settingsFile = () => path.join(dataRoot(), "settings.json");
 const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
@@ -134,8 +134,9 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
   if (!metadata) throw new Error("Minecraft version was not found in the official manifest.");
-  await fs.mkdir(gameRoot(), { recursive: true });
-  await install(metadata, gameRoot());
+  const root = gameRoot(versionId, loader);
+  await fs.mkdir(root, { recursive: true });
+  await install(metadata, root);
 
   let launchVersion = versionId;
   if (loader === "fabric") {
@@ -144,12 +145,12 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const selected = loaders.find((item: any) => item.stable) || loaders[0];
     if (!selected?.version) throw new Error("Fabric loader metadata is unavailable.");
     launchVersion = await installFabric({
-      minecraft: gameRoot(),
+      minecraft: root,
       minecraftVersion: versionId,
       version: selected.version,
       side: "client"
     });
-    const resolved = await Version.parse(gameRoot(), launchVersion);
+    const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   }
 
@@ -167,6 +168,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const launchVersion = installed[args.version + ":" + settings.loader] || args.version;
+  const root = gameRoot(args.version, settings.loader);
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
   const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
   const microsoft = await getMicrosoftSession();
@@ -175,7 +177,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   const accessToken = microsoft ? microsoft.accessToken : user!.accessToken;
   sendStatus("Checking installed game files…");
   const proc = await launch({
-    gamePath: gameRoot(),
+    gamePath: root,
     javaPath,
     version: launchVersion,
     gameProfile: selectedProfile,
@@ -197,10 +199,12 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   return { success: true, pid: proc.pid };
 });
 
-ipcMain.handle("mods:list", async () => {
-  await fs.mkdir(modsRoot(), { recursive: true });
-  const files = await fs.readdir(modsRoot(), { withFileTypes: true });
-  return files.filter(file => file.isFile() && file.name.toLowerCase().endsWith(".jar")).map(file => file.name);
+ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string }) => {
+  const directory = modsRoot(args.version, args.loader);
+  await fs.mkdir(directory, { recursive: true });
+  const files = await fs.readdir(directory, { withFileTypes: true });
+  return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
+    .map(file => ({ fileName: file.name, enabled: file.name.toLowerCase().endsWith(".jar") }));
 });
 ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecraftVersion: string; loader: string }) => {
   const projectId = String(args.projectId || "");
@@ -224,8 +228,9 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   if (!download.ok) throw new Error("Mod download failed (" + download.status + ").");
   const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
   if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR file.");
-  await fs.mkdir(modsRoot(), { recursive: true });
-  const destination = path.join(modsRoot(), fileName);
+  const directory = modsRoot(mcVersion, loader);
+  await fs.mkdir(directory, { recursive: true });
+  const destination = path.join(directory, fileName);
   try {
     await fs.writeFile(destination, Buffer.from(await download.arrayBuffer()), { flag: "wx" });
   } catch (error: any) {
@@ -234,11 +239,20 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   }
   return { success: true, fileName };
 });
-ipcMain.handle("mods:remove", async (_event, fileName: string) => {
-  const name = path.basename(String(fileName));
-  if (name !== fileName || !name.toLowerCase().endsWith(".jar")) throw new Error("Invalid mod filename.");
-  await fs.unlink(path.join(modsRoot(), name));
+ipcMain.handle("mods:remove", async (_event, args: { fileName: string; version: string; loader: string }) => {
+  const name = path.basename(String(args.fileName));
+  if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
+  await fs.unlink(path.join(modsRoot(args.version, args.loader), name));
   return { success: true };
+});
+ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: string; loader: string }) => {
+  const name = path.basename(String(args.fileName));
+  if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
+  const directory = modsRoot(args.version, args.loader);
+  const enabled = name.toLowerCase().endsWith(".jar");
+  const nextName = enabled ? name + ".disabled" : name.slice(0, -".disabled".length);
+  await fs.rename(path.join(directory, name), path.join(directory, nextName));
+  return { success: true, fileName: nextName, enabled: !enabled };
 });
 
 function createWindow() {
