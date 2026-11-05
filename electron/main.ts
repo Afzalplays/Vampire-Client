@@ -169,15 +169,18 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   const launchVersion = installed[args.version + ":" + settings.loader] || args.version;
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
   const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
-  const user = offline(username);
+  const microsoft = await getMicrosoftSession();
+  const user = microsoft ? null : offline(username);
+  const selectedProfile = microsoft ? microsoft.profile : user!.selectedProfile;
+  const accessToken = microsoft ? microsoft.accessToken : user!.accessToken;
   sendStatus("Checking installed game files…");
   const proc = await launch({
     gamePath: gameRoot(),
     javaPath,
     version: launchVersion,
-    gameProfile: user.selectedProfile,
-    accessToken: user.accessToken,
-    userType: "legacy",
+    gameProfile: selectedProfile,
+    accessToken,
+    userType: microsoft ? "mojang" : "legacy",
     launcherName: "Vampire Client",
     launcherBrand: "Vampire Studios",
     maxMemory: memory * 1024,
