@@ -3,6 +3,11 @@ package fun.vampire.client;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Properties;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -21,6 +26,33 @@ import org.lwjgl.glfw.GLFW;
 public final class VampireClientMod implements ClientModInitializer {
     private KeyBinding openMenu;
     private static boolean showFpsHud = true;
+    private static boolean showMemoryHud = false;
+    private static final Path CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("vampire-client.properties");
+
+    private static void loadHudSettings() {
+        Properties properties = new Properties();
+        try (InputStream input = Files.newInputStream(CONFIG_FILE)) {
+            properties.load(input);
+            showFpsHud = Boolean.parseBoolean(properties.getProperty("hud.fps", "true"));
+            showMemoryHud = Boolean.parseBoolean(properties.getProperty("hud.memory", "false"));
+        } catch (java.io.IOException ignored) {
+            // First launch: use the documented defaults.
+        }
+    }
+
+    private static void saveHudSettings() {
+        Properties properties = new Properties();
+        properties.setProperty("hud.fps", Boolean.toString(showFpsHud));
+        properties.setProperty("hud.memory", Boolean.toString(showMemoryHud));
+        try {
+            Files.createDirectories(CONFIG_FILE.getParent());
+            try (OutputStream output = Files.newOutputStream(CONFIG_FILE)) {
+                properties.store(output, "Vampire Client HUD settings");
+            }
+        } catch (java.io.IOException ignored) {
+            // Keep the in-memory setting even if the config directory is read-only.
+        }
+    }
     private static boolean benchmarkActive = false;
     private static long benchmarkStartedAt = 0L;
     private static int benchmarkTicks = 0;
@@ -28,6 +60,7 @@ public final class VampireClientMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        loadHudSettings();
         openMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.vampireclient.open_menu",
             InputUtil.Type.KEYSYM,
@@ -36,12 +69,25 @@ public final class VampireClientMod implements ClientModInitializer {
         ));
 
         HudRenderCallback.EVENT.register((drawContext, tickCounter) -> {
-            if (!showFpsHud) return;
+            if (!showFpsHud && !showMemoryHud) return;
             MinecraftClient client = MinecraftClient.getInstance();
-            drawContext.fill(8, 8, 174, 29, 0xB8101018);
-            drawContext.fill(8, 8, 10, 29, 0xFFFF596F);
-            drawContext.drawTextWithShadow(client.textRenderer,
-                "VAMPIRE  |  " + client.getCurrentFps() + " FPS", 16, 14, 0xFFFF8290);
+            int rows = (showFpsHud ? 1 : 0) + (showMemoryHud ? 1 : 0);
+            int bottom = 8 + rows * 16 + 5;
+            drawContext.fill(8, 8, 190, bottom, 0xB8101018);
+            drawContext.fill(8, 8, 10, bottom, 0xFFFF596F);
+            int y = 14;
+            if (showFpsHud) {
+                drawContext.drawTextWithShadow(client.textRenderer,
+                    "VAMPIRE  |  " + client.getCurrentFps() + " FPS", 16, y, 0xFFFF8290);
+                y += 16;
+            }
+            if (showMemoryHud) {
+                Runtime runtime = Runtime.getRuntime();
+                long used = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+                long max = runtime.maxMemory() / (1024 * 1024);
+                drawContext.drawTextWithShadow(client.textRenderer,
+                    "MEMORY  |  " + used + " / " + max + " MB", 16, y, 0xFFF2E8EC);
+            }
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -178,13 +224,20 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override protected void init() {
             toggle = addDrawableChild(ButtonWidget.builder(fpsLabel(), button -> {
                 showFpsHud = !showFpsHud;
+                saveHudSettings();
                 button.setMessage(fpsLabel());
-            }).dimensions(width / 2 - 105, height / 2 - 12, 210, 24).build());
+            }).dimensions(width / 2 - 105, height / 2 - 32, 210, 24).build());
+            addDrawableChild(ButtonWidget.builder(memoryLabel(), button -> {
+                showMemoryHud = !showMemoryHud;
+                saveHudSettings();
+                button.setMessage(memoryLabel());
+            }).dimensions(width / 2 - 105, height / 2 + 1, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen()))
-                .dimensions(width / 2 - 75, height / 2 + 28, 150, 22).build());
+                .dimensions(width / 2 - 75, height / 2 + 34, 150, 22).build());
         }
         private static Text fpsLabel() { return Text.literal("FPS HUD: " + (showFpsHud ? "ON" : "OFF")); }
+        private static Text memoryLabel() { return Text.literal("Memory HUD: " + (showMemoryHud ? "ON" : "OFF")); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "HUD & SETTINGS");
