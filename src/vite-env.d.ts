@@ -4,7 +4,7 @@ interface Window {
     version: string;
     platform: string;
     getProfile(): Promise<{ active: string; names: string[] }>;
-    getMicrosoftAccount(): Promise<{ authenticated: boolean; profile: { id: string; name: string } | null }>;
+    getMicrosoftAccount(): Promise<{ authenticated: boolean; accountType: string; profile: { id: string; name: string } | null }>;
     loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;
     logoutMicrosoft(): Promise<{ success: boolean }>;
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
