@@ -19,7 +19,7 @@ function createWindow() {
     } catch { /* reject malformed URLs */ }
     return { action: "deny" };
   });
-  if (process.env.VITE_DEV_SERVER_URL) void win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) void win.loadURL(process.env.VITE_DEV_SERVER_URL);
   else void win.loadFile(path.join(__dirname, "../dist/index.html"));
 }
 
