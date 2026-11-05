@@ -14,7 +14,7 @@ interface Window {
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
-    installMod(args: { projectId: string; minecraftVersion: string; loader: string }): Promise<{ success: boolean; fileName: string }>;
+    installMod(args: { projectId: string; minecraftVersion: string; loader: string }): Promise<{ success: boolean; fileName: string; installedFiles?: string[]; skippedOptional?: string[] }>;
     removeMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean }>;
     toggleMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean; fileName: string; enabled: boolean }>;
     setPerformanceProfile(args: { profile: string; version: string; loader: string }): Promise<{ success: boolean; profile: string; fileName: string }>;
