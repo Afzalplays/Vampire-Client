@@ -5,12 +5,12 @@
   "description": "An open-source-in-development Minecraft Java launcher by Vampire Studios.",
   "main": "dist-electron/main.js",
   "scripts": {
-    "dev": "concurrently -k \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "dev": "concurrently -k \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron .\"",
     "build": "tsc -b && vite build && tsc -p electron/tsconfig.json",
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win nsis",
     "dist:linux": "npm run build && electron-builder --linux AppImage deb",
-    "dist:mac": "npm run build && electron-builder --mac dmg zip"
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --universal"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
