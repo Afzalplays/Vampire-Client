@@ -149,6 +149,21 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
   await writeJson(settingsFile(), next);
   return next;
 });
+ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
+  const executable = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
+  if (executable.length > 1024) throw new Error("Java path is too long.");
+  const result = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
+    const { execFile } = require("node:child_process") as typeof import("node:child_process");
+    execFile(executable, ["-version"], { timeout: 7000, windowsHide: true }, (error, stdout, stderr) => {
+      if (error) reject(new Error((stderr || stdout || error.message).trim().slice(0, 1200)));
+      else resolve({ stdout: stdout || "", stderr: stderr || "" });
+    });
+  });
+  const output = (result.stderr + "\\n" + result.stdout).trim();
+  const match = output.match(/version "([^"]+)"/i);
+  return { success: true, executable, version: match?.[1] || "Detected (version string unavailable)", output: output.slice(0, 1200), platform: process.platform, architecture: process.arch };
+});
+
 ipcMain.handle("versions:list", async () => listVersions());
 
 ipcMain.handle("game:install", async (_event, args: { version: string; loader: string }) => {
@@ -386,13 +401,25 @@ ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loa
   const entries = await fs.readdir(directory, { withFileTypes: true });
   return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip")).map(entry => entry.name).sort();
 });
+async function assertZipSignature(file: string) {
+  const handle = await fs.open(file, "r");
+  try {
+    const header = Buffer.alloc(4);
+    const { bytesRead } = await handle.read(header, 0, 4, 0);
+    const signature = header.subarray(0, bytesRead).toString("hex");
+    if (!["504b0304", "504b0506", "504b0708"].includes(signature)) {
+      throw new Error("This file does not have a valid ZIP signature. Choose a real .zip pack.");
+    }
+  } finally { await handle.close(); }
+}
+
 ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; loader: string }) => {
   const root = safeInstance(args.version, args.loader).root;
   const choice = await dialog.showOpenDialog(mainWindow!, { title: "Import Minecraft resource pack", properties: ["openFile"], filters: [{ name: "Resource pack ZIP", extensions: ["zip"] }] });
   if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
   const source = choice.filePaths[0];
   const stat = await fs.stat(source);
-  if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 1 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 1 byte and 512 MB.");
+  if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 4 bytes and 512 MB.");\n  await assertZipSignature(source);
   const directory = path.join(root, "resourcepacks");
   await fs.mkdir(directory, { recursive: true });
   const name = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
@@ -493,7 +520,7 @@ ipcMain.handle("shaders:import", async (_event, args: { version: string; loader:
   const source = choice.filePaths[0];
   if (path.extname(source).toLowerCase() !== ".zip") throw new Error("Only ZIP shader packs are supported.");
   const stat = await fs.stat(source);
-  if (!stat.isFile() || stat.size < 1 || stat.size > 512 * 1024 * 1024) throw new Error("Shader ZIP must be between 1 byte and 512 MB.");
+  if (!stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Shader ZIP must be between 4 bytes and 512 MB.");\n  await assertZipSignature(source);
   const dir = path.join(instance.root, "shaderpacks");
   await fs.mkdir(dir, { recursive: true });
   const base = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
