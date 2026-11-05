@@ -246,6 +246,7 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
   const visited = new Set<string>();
   const incompatibleProjects = new Set<string>();
   const installedFiles: string[] = [];
+  const installedEntries: Array<{ projectId: string; versionId: string; fileName: string }> = [];
   const skippedOptional: string[] = [];
   const directory = modsRoot(mcVersion, loader);
   await fs.mkdir(directory, { recursive: true });
@@ -305,9 +306,14 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
       throw error;
     }
     installedFiles.push(fileName);
+    installedEntries.push({ projectId: id, versionId: String(selected.id || ""), fileName });
   }
 
   await installProject(projectId);
+  const registryFile = path.join(directory, ".vampire-mods.json");
+  const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
+  const merged = [...registry.filter(entry => !installedEntries.some(next => next.fileName === entry.fileName)), ...installedEntries];
+  await writeJson(registryFile, merged);
   return { installedFiles, skippedOptional: Array.from(new Set(skippedOptional)) };
 }
 
@@ -321,6 +327,56 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   const result = await installModrinthTree(projectId, mcVersion, loader);
   return { success: true, fileName: result.installedFiles[result.installedFiles.length - 1], installedFiles: result.installedFiles, skippedOptional: result.skippedOptional };
 });
+ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: string }) => {
+  const directory = safeInstance(args.version, args.loader).mods;
+  const registryFile = path.join(directory, ".vampire-mods.json");
+  const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
+  const updates: Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }> = [];
+  for (const entry of registry) {
+    if (!entry.projectId || !entry.versionId || !entry.fileName) continue;
+    const response = await fetch("https://api.modrinth.com/v2/project/" + encodeURIComponent(entry.projectId) +
+      "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version])) +
+      "&loaders=" + encodeURIComponent(JSON.stringify([args.loader])));
+    if (!response.ok) continue;
+    const versions = await response.json() as any[];
+    const latest = versions[0];
+    if (latest?.id && latest.id !== entry.versionId) updates.push({
+      projectId: entry.projectId, fileName: entry.fileName, currentVersion: entry.versionId,
+      latestVersion: String(latest.id), latestVersionName: String(latest.version_number || latest.name || latest.id)
+    });
+  }
+  return updates;
+});
+
+ipcMain.handle("mods:update", async (_event, args: { version: string; loader: string; projectId: string }) => {
+  const instance = safeInstance(args.version, args.loader);
+  if (args.loader !== "fabric") throw new Error("Mod updates are available for Fabric instances only.");
+  const directory = instance.mods;
+  const registryFile = path.join(directory, ".vampire-mods.json");
+  const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
+  const entry = registry.find(item => item.projectId === args.projectId);
+  if (!entry) throw new Error("This mod has no Vampire install record. Remove it and reinstall through Modrinth to enable updates.");
+  const selected = await fetchModrinthVersion(entry.projectId, args.version, args.loader);
+  const file = selected.files.find((item: any) => item.primary) || selected.files[0];
+  const url = new URL(String(file?.url || ""));
+  if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Mod update download failed (" + response.status + ").");
+  const bytes = await verifyModrinthDownload(response, file);
+  const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR file.");
+  const oldPath = path.join(directory, entry.fileName);
+  const newPath = path.join(directory, fileName);
+  const tempPath = newPath + ".vampire-tmp";
+  await fs.writeFile(tempPath, bytes, { flag: "w" });
+  if (oldPath !== newPath) await fs.unlink(oldPath).catch(() => undefined);
+  await fs.rename(tempPath, newPath);
+  entry.fileName = fileName;
+  entry.versionId = String(selected.id);
+  await writeJson(registryFile, registry);
+  return { success: true, fileName };
+});
+
 ipcMain.handle("mods:remove", async (_event, args: { fileName: string; version: string; loader: string }) => {
   const name = path.basename(String(args.fileName));
   if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
