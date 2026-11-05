@@ -18,6 +18,7 @@ interface Window {
     removeMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean }>;
     toggleMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean; fileName: string; enabled: boolean }>;
     setPerformanceProfile(args: { profile: string; version: string; loader: string }): Promise<{ success: boolean; profile: string; fileName: string }>;
+    applyPerformancePreset(args: { preset: string; version: string; loader: string }): Promise<{ success: boolean; preset: string; optionsFile: string }>;
     onGameStatus(callback: (message: string) => void): () => void;
   };
 }
