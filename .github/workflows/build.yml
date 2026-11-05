@@ -14,6 +14,9 @@ on:
       - ".github/workflows/build.yml"
 permissions:
   contents: write
+concurrency:
+  group: vampire-client-build-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   game-mod-build:
     runs-on: ubuntu-latest
