@@ -19,6 +19,9 @@ interface Window {
     toggleMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean; fileName: string; enabled: boolean }>;
     setPerformanceProfile(args: { profile: string; version: string; loader: string }): Promise<{ success: boolean; profile: string; fileName: string }>;
     applyPerformancePreset(args: { preset: string; version: string; loader: string }): Promise<{ success: boolean; preset: string; optionsFile: string }>;
+    listShaderPacks(args: { version: string; loader: string }): Promise<string[]>;
+    importShaderPack(args: { version: string; loader: string }): Promise<{ canceled?: boolean; fileName?: string }>;
+    removeShaderPack(args: { version: string; loader: string; fileName: string }): Promise<{ success: boolean }>;
     onGameStatus(callback: (message: string) => void): () => void;
   };
 }
