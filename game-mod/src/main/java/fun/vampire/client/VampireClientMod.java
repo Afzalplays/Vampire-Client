@@ -45,6 +45,11 @@ public final class VampireClientMod implements ClientModInitializer {
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (benchmarkActive) {
+                benchmarkTicks++;
+                if (benchmarkTicks % 20 == 0) benchmarkSamples.add(client.getCurrentFps());
+                if (System.currentTimeMillis() - benchmarkStartedAt >= 30_000L) benchmarkActive = false;
+            }
             while (openMenu.wasPressed()) {
                 if (client.currentScreen == null) client.setScreen(new VampireQuickMenuScreen());
                 else if (client.currentScreen instanceof VampireQuickMenuScreen) client.setScreen(null);
