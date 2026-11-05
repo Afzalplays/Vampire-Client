@@ -45,7 +45,7 @@ export default function App() {
     Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.getMicrosoftAccount()])
       .then(([savedProfile, settings, catalog, microsoftAccount]) => {
         if (!active) return;
-        setProfile(microsoftAccount.authenticated && microsoftAccount.profile ? microsoftAccount.profile.name : savedProfile.active); setAccountType(microsoftAccount.authenticated ? "Microsoft" : "Offline"); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setMicrosoftClientId(settings.clientId || ""); setVersions(catalog);
+        setProfile(microsoftAccount.authenticated && microsoftAccount.profile ? microsoftAccount.profile.name : savedProfile.active); setAccountType(microsoftAccount.accountType === "microsoft" ? "Microsoft" : "Offline"); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setMicrosoftClientId(settings.clientId || ""); setVersions(catalog);
       }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });
     return () => { active = false; unsubscribe(); };
   }, []);
