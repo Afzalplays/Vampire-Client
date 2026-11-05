@@ -80,6 +80,16 @@ function safeInstance(version: string, loader: string, instanceId = "default") {
   if (instanceId !== "default" && !/^[a-f0-9-]{36}$/.test(String(instanceId))) throw new Error("Invalid Minecraft instance ID.");
   return { root: gameRoot(version, loader, instanceId), mods: modsRoot(version, loader, instanceId) };
 }
+
+async function safeInstanceAsync(version: string, loader: string, instanceId = "default") {
+  const paths = safeInstance(version, loader, instanceId);
+  if (instanceId !== "default") {
+    const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
+    if (!instances.some(item => item.id === instanceId)) throw new Error("Minecraft instance not found. Select or create a valid instance first.");
+  }
+  return paths;
+}
+
 function safeName(value: string) {
   const name = value.trim();
   if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) throw new Error("Username must be 3–16 letters, numbers or underscores.");
@@ -193,13 +203,19 @@ ipcMain.handle("settings:get", async () => {
 });
 ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }) => {
   const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default" });
+  const requestedInstanceId = typeof settings.instanceId === "string" ? settings.instanceId : (current.instanceId || "default");
+  if (requestedInstanceId !== "default") {
+    if (!/^[a-f0-9-]{36}$/.test(requestedInstanceId)) throw new Error("Invalid Minecraft instance ID.");
+    const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
+    if (!instances.some(item => item.id === requestedInstanceId)) throw new Error("Minecraft instance not found. Select a valid instance.");
+  }
   const next = {
     ram: Math.max(1, Math.min(16, Number(settings.ram ?? current.ram))),
     javaPath: typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : current.javaPath,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
     loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader,
     clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId,
-    instanceId: typeof settings.instanceId === "string" && (settings.instanceId === "default" || /^[a-f0-9-]{36}$/.test(settings.instanceId)) ? settings.instanceId : (current.instanceId || "default")
+    instanceId: requestedInstanceId
   };
   await writeJson(settingsFile(), next);
   return next;
@@ -247,7 +263,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
   if (!metadata) throw new Error("Minecraft version was not found in the official manifest.");
-  const root = safeInstance(versionId, loader, args.instanceId || "default").root;
+  const root = await safeInstanceAsync(versionId, loader, args.instanceId || "default").root;
   await fs.mkdir(root, { recursive: true });
   await install(metadata, root);
 
@@ -355,7 +371,7 @@ ipcMain.handle("game:stop", async () => {
 });
 
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const directory = safeInstance(args.version, args.loader, args.instanceId || "default").mods;
+  const directory = await safeInstanceAsync(args.version, args.loader, args.instanceId || "default").mods;
   await fs.mkdir(directory, { recursive: true });
   const files = await fs.readdir(directory, { withFileTypes: true });
   return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
@@ -379,7 +395,7 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
   const installedFiles: string[] = [];
   const installedEntries: Array<{ projectId: string; versionId: string; fileName: string }> = [];
   const skippedOptional: string[] = [];
-  const directory = modsRoot(mcVersion, loader, instanceId);
+  const directory = (await safeInstanceAsync(mcVersion, loader, instanceId)).mods;
   await fs.mkdir(directory, { recursive: true });
 
   async function installProject(id: string, pinnedVersionId?: string): Promise<void> {
