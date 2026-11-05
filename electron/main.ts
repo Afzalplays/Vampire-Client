@@ -17,6 +17,7 @@ const profilesFile = () => path.join(dataRoot(), "profiles.json");
 const settingsFile = () => path.join(dataRoot(), "settings.json");
 const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
 const microsoftSessionFile = () => path.join(dataRoot(), "microsoft-session.bin");
+const accountFile = () => path.join(dataRoot(), "account.json");
 let memoryMicrosoftSession: { accessToken: string; expiresAt: number; profile: { id: string; name: string } } | null = null;
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
@@ -81,6 +82,7 @@ ipcMain.handle("auth:get", async () => {
 ipcMain.handle("auth:logout", async () => {
   memoryMicrosoftSession = null;
   await fs.unlink(microsoftSessionFile()).catch(() => undefined);
+  await writeJson(accountFile(), { type: "offline" });
   return { success: true };
 });
 ipcMain.handle("auth:login", async (_event, clientId: string) => {
@@ -104,6 +106,7 @@ ipcMain.handle("auth:login", async (_event, clientId: string) => {
   const gameProfile = await mojang.getProfile(minecraftAuth.access_token, signal);
   const session = { accessToken: minecraftAuth.access_token, expiresAt: Date.now() + Math.max(60, minecraftAuth.expires_in - 120) * 1000, profile: { id: gameProfile.id, name: gameProfile.name } };
   await saveMicrosoftSession(session);
+  await writeJson(accountFile(), { type: "microsoft", profile: session.profile });
   await writeJson(profilesFile(), { active: gameProfile.name, names: [gameProfile.name] });
   sendStatus("Signed in as " + gameProfile.name + ".");
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
@@ -166,7 +169,9 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   const root = gameRoot(args.version, settings.loader);
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
   const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
+  const accountState = await readJson<{ type: string }>(accountFile(), { type: "offline" });
   const microsoft = await getMicrosoftSession();
+  if (accountState.type === "microsoft" && !microsoft) throw new Error("Microsoft session expired or secure storage is unavailable. Sign in with Microsoft again.");
   const user = microsoft ? null : offline(username);
   const selectedProfile = microsoft ? microsoft.profile : user!.selectedProfile;
   const accessToken = microsoft ? microsoft.accessToken : user!.accessToken;
