@@ -398,11 +398,21 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
     const destination = path.join(directory, fileName);
     try { await fs.writeFile(destination, bytes, { flag: "wx" }); }
     catch (error: any) {
-      if (error.code === "EEXIST") {
-        if (id === projectId) throw new Error("This mod file is already installed: " + fileName);
-        return;
+      if (error.code !== "EEXIST") throw error;
+      const existingBytes = await fs.readFile(destination);
+      const hashes = file?.hashes || {};
+      const algorithm = hashes.sha512 ? "sha512" : hashes.sha1 ? "sha1" : null;
+      const expected = algorithm ? String(hashes[algorithm]).toLowerCase() : "";
+      if (!algorithm || !/^[a-f0-9]+$/.test(expected)) {
+        throw new Error("Cannot safely verify the existing mod file collision: " + fileName);
       }
-      throw error;
+      const existingHash = createHash(algorithm).update(existingBytes).digest("hex").toLowerCase();
+      if (existingHash !== expected) {
+        throw new Error("A different mod already uses the filename " + fileName + ". Remove or rename that file before installing this dependency.");
+      }
+      if (id === projectId) throw new Error("This mod file is already installed: " + fileName);
+      installedEntries.push({ projectId: id, versionId: String(selected.id || ""), fileName });
+      return;
     }
     installedFiles.push(fileName);
     installedEntries.push({ projectId: id, versionId: String(selected.id || ""), fileName });
