@@ -77,7 +77,7 @@ gradle build
 
 ## Website
 
-Website source is in [website/](website/). GitHub Pages deployment is configured in [pages.yml](.github/workflows/pages.yml). The repository owner must enable **Settings → Pages → Build and deployment → GitHub Actions** before deployment can succeed.
+Website source is in [website/](website/). GitHub Pages deployment is configured in [pages.yml](.github/workflows/pages.yml). The repository owner must enable **Settings → Pages → Build and deployment → GitHub Actions** before GitHub Pages deployment can succeed. Alternatively, import the repository into Vercel; `vercel.json` configures the `website/` folder as the static output directory.
 
 Expected URL after enabling Pages:
 
