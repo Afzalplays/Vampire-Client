@@ -559,7 +559,8 @@ ipcMain.handle("shaders:import", async (_event, args: { version: string; loader:
   const source = choice.filePaths[0];
   if (path.extname(source).toLowerCase() !== ".zip") throw new Error("Only ZIP shader packs are supported.");
   const stat = await fs.stat(source);
-  if (!stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Shader ZIP must be between 4 bytes and 512 MB.");\n  await assertZipSignature(source);
+  if (!stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Shader ZIP must be between 4 bytes and 512 MB.");
+  await assertZipSignature(source);
   const dir = path.join(instance.root, "shaderpacks");
   await fs.mkdir(dir, { recursive: true });
   const base = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
