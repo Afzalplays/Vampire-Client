@@ -201,6 +201,15 @@ export default function App() {
       setBusy(false);
     }
   }
+  async function stopGame() {
+    if (!window.vampire) return notify("Game controls are available in the desktop app.");
+    try {
+      const result = await window.vampire.stopGame();
+      notify(result.stopped ? "Stop signal sent to Minecraft." : "No Minecraft process is currently running.");
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Could not stop Minecraft.");
+    }
+  }
   async function installMod(mod: Mod) {
     if (!window.vampire) return notify("Mod installation is available in the desktop app.");
     setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader }); const files = await window.vampire.listMods({ version, loader }); setInstalled(files); const count = Array.isArray(result.installedFiles) ? result.installedFiles.length : 1; notify("Installed " + count + " mod(s), including required dependencies."); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
@@ -358,7 +367,7 @@ export default function App() {
       <header className="topbar"><div className="crumb">Vampire Client <span>/</span> {tab}</div><div className="top-actions"><span className="status-dot"/> {gameStatus} <button className="icon-button" onClick={() => setTab("Settings")}><Settings2 size={17}/></button></div></header>
       <div className="content">
         {tab === "Home" && <>
-          <section className="hero glass"><div className="hero-copy"><div className="eyebrow"><Sparkles size={14}/> YOUR GAME. YOUR RULES.</div><h1>Enter the <em>night.</em></h1><p>A cleaner Minecraft experience, built around performance, mods and control.</p><div className="hero-buttons"><button className="primary-button" onClick={() => void playGame()}><Play size={16} fill="currentColor"/> Play Minecraft</button><button className="secondary-button" onClick={() => setTab("Versions")}>Manage versions <ChevronDown size={15}/></button></div></div><div className="hero-orb"><div className="orb-ring"/><div className="orb-core">V</div><div className="orb-caption">VAMPIRE<br/>STUDIOS</div></div></section>
+          <section className="hero glass"><div className="hero-copy"><div className="eyebrow"><Sparkles size={14}/> YOUR GAME. YOUR RULES.</div><h1>Enter the <em>night.</em></h1><p>A cleaner Minecraft experience, built around performance, mods and control.</p><div className="hero-buttons"><button className="primary-button" onClick={() => void playGame()}><Play size={16} fill="currentColor"/> Play Minecraft</button><button className="secondary-button" onClick={() => void stopGame()}><X size={15}/> Stop game</button><button className="secondary-button" onClick={() => setTab("Versions")}>Manage versions <ChevronDown size={15}/></button></div></div><div className="hero-orb"><div className="orb-ring"/><div className="orb-core">V</div><div className="orb-caption">VAMPIRE<br/>STUDIOS</div></div></section>
           <div className="section-heading"><div><div className="eyebrow">OVERVIEW</div><h2>Command center</h2></div><span className="muted">{gameStatus}</span></div>
           <div className="stat-grid"><Stat icon={<Gauge/>} label="Performance profile" value="Balanced" sub="Profile selection planned"/><Stat icon={<HardDrive/>} label="Memory allocation" value={ram + " GB"} sub="Adjust in settings"/><Stat icon={<Layers3/>} label="Selected version" value={version} sub="Selected game version"/><Stat icon={<Activity/>} label="Game status" value={gameStatus.length > 22 ? "Ready" : gameStatus} sub="Local game process status"/></div>
           <div className="two-grid"><section className="panel glass"><div className="panel-title"><div><h3>Quick actions</h3><p>Jump into your setup</p></div><Zap size={18}/></div><div className="quick-grid"><Quick icon={<Package/>} title="Browse mods" text="Discover on Modrinth" onClick={() => setTab("Mods")}/><Quick icon={<Layers3/>} title="Game versions" text="Choose a Minecraft version" onClick={() => setTab("Versions")}/><Quick icon={<CircleUserRound/>} title="Accounts" text="Manage local profiles" onClick={() => setTab("Accounts")}/><Quick icon={<Settings2/>} title="Preferences" text="Memory and appearance" onClick={() => setTab("Settings")}/></div></section>
