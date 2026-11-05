@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld("vampire", {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => ipcRenderer.invoke("settings:save", settings),
   listVersions: () => ipcRenderer.invoke("versions:list"),
-  detectJava: (javaPath?: string) => ipcRenderer.invoke("java:detect", { javaPath }),
+  detectJava: (javaPath?: string) => ipcRenderer.invoke("java:detect", { javaPath }),\n  readLogs: () => ipcRenderer.invoke("logs:read"),\n  exportLogs: () => ipcRenderer.invoke("logs:export"),
   installVersion: (args: { version: string; loader: string }) => ipcRenderer.invoke("game:install", args),
   launchGame: (args: { username: string; version: string; ram: number; javaPath?: string }) => ipcRenderer.invoke("game:launch", args),
   listMods: (args: { version: string; loader: string }) => ipcRenderer.invoke("mods:list", args),
