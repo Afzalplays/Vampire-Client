@@ -23,7 +23,8 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Modrinth downloads are restricted to the official HTTPS CDN, checksum-verified, and limited to 150 MB per file.
 - Electron renderer isolation, sandboxing, restricted external navigation and encrypted Microsoft token storage when OS secure storage is available.
 - Desktop Right Shift quick menu.
-- Vampire Studio feature hub UI with cape/name-gradient previews, HUD controls, shader/replay/schematic/world-hosting controls.
+- Vampire Studio feature hub with cape/name-gradient previews, HUD controls, shader/replay/schematic/world-hosting controls.
+- Per-instance shader ZIP import/list/remove manager. ZIPs are copied into the selected instance's `shaderpacks` directory; Iris or another compatible shader loader must be installed separately.
 - Locally saved Studio preferences, including account-synced cape visibility selection and LAN + Internet world-hosting mode selection.
 - World-hosting and cosmetics architecture documented with explicit security boundaries; actual server runtime and remote cosmetics service remain pending.
 - Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout and FPS HUD toggle.
@@ -36,7 +37,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
 - Full live mod configuration, draggable HUD editor, HUD persistence and nametag/chat rendering; current Studio switches are preference scaffolding.
-- Shader ZIP pack import/management, Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
+- Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
 - Java runtime auto-download and installation.
 - Android application.
 - Branded application icons, Windows code signing and macOS notarization.
