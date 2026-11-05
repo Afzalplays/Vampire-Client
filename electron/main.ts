@@ -82,7 +82,7 @@ async function writeLauncherLog(message: string) {
     const file = launcherLogFile();
     await fs.mkdir(path.dirname(file), { recursive: true });
     const stamp = new Date().toISOString();
-    const line = "[" + stamp + "] " + String(message).replace(/[\\r\\n]+/g, " ").slice(0, 4000) + "\\n";
+    const line = "[" + stamp + "] " + String(message).replace(/[\r\n]+/g, " ").slice(0, 4000) + "\n";
     try {
       const stat = await fs.stat(file);
       if (stat.size > 2 * 1024 * 1024) {
@@ -95,6 +95,7 @@ async function writeLauncherLog(message: string) {
 }
 
 function sendStatus(message: string) {
+  void writeLauncherLog(message);
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("game:status", message);
 }
 
