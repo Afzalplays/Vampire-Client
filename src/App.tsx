@@ -68,7 +68,7 @@ export default function App() {
   async function signInMicrosoft() {
     if (!window.vampire) return notify("Microsoft sign-in is available in the desktop app.");
     if (!microsoftClientId.trim()) return notify("Enter your Microsoft app Client ID first.");
-    setBusy(true); try { const result = await window.vampire.loginMicrosoft(microsoftClientId.trim()); setProfile(result.profile.name); setAccountType("Microsoft"); notify("Microsoft account connected: " + result.profile.name); if (!result.encryptedStorage) notify("Secure token storage is unavailable; sign in again after restarting."); } catch (e) { notify(e instanceof Error ? e.message : "Microsoft sign-in failed."); } finally { setBusy(false); }
+    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId.trim() }); const result = await window.vampire.loginMicrosoft(microsoftClientId.trim()); setProfile(result.profile.name); setAccountType("Microsoft"); notify("Microsoft account connected: " + result.profile.name); if (!result.encryptedStorage) notify("Secure token storage is unavailable; sign in again after restarting."); } catch (e) { notify(e instanceof Error ? e.message : "Microsoft sign-in failed."); } finally { setBusy(false); }
   }
   async function signOutMicrosoft() {
     if (!window.vampire) return;
