@@ -16,8 +16,9 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Offline local profiles for single-player and servers that explicitly allow offline-mode connections.
 - Microsoft device-code authentication flow, Xbox/Minecraft token exchange and Java entitlement check. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
 - Modrinth project search and compatible Fabric JAR download, including automatic installation of required Modrinth dependencies and rejection of declared incompatible dependencies.
-- Per-version mod folders, installed-mod list, individual and bulk enable/disable, remove actions, Modrinth update checks and one-click updates for mods installed through Vampire Client (legacy/manual JARs need reinstalling through the launcher to register).
+- Named Minecraft instance manager: create, select and delete separate profiles with isolated game folders, mods, resource packs, shader packs and `options.txt`; active instance selection is persisted. The legacy Default instance keeps the previous version-based folder layout. RAM allocation and Java executable are still launcher-wide preferences.
 - Vampire modpack JSON manifest import/export for tracked Modrinth projects; import re-resolves compatible builds and required dependencies for the exact Minecraft/Fabric profile.
+- Per-instance mod folders with installed-mod list, individual and bulk enable/disable, remove actions, Modrinth update checks and one-click updates for mods installed through Vampire Client (legacy/manual JARs need reinstalling through the launcher to register).
 - Resource pack ZIP import/list/remove manager for each Minecraft instance; packs are copied into the standard `resourcepacks` folder and are enabled in-game through Minecraft Options.
 - One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
 - One-click low-end optimization packs that attempt compatible Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling versions from Modrinth.
@@ -37,7 +38,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 
 - Microsoft token refresh and a complete multi-account profile manager.
 - Forge, NeoForge and Quilt loader installation.
-- Broader cross-mod conflict analysis and modpack import/export.
+- Broader cross-mod conflict analysis and support for modpack formats beyond Vampire Client’s Modrinth-based JSON manifest.
 - Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
 - Full live mod configuration, draggable HUD editor, HUD persistence and nametag/chat rendering; current Studio switches are preference scaffolding.
