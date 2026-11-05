@@ -1,5 +1,6 @@
 package fun.vampire.client;
 
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
@@ -20,6 +21,10 @@ import org.lwjgl.glfw.GLFW;
 public final class VampireClientMod implements ClientModInitializer {
     private KeyBinding openMenu;
     private static boolean showFpsHud = true;
+    private static boolean benchmarkActive = false;
+    private static long benchmarkStartedAt = 0L;
+    private static int benchmarkTicks = 0;
+    private static final List<Integer> benchmarkSamples = new ArrayList<>();
 
     @Override
     public void onInitializeClient() {
@@ -120,21 +125,43 @@ public final class VampireClientMod implements ClientModInitializer {
     private static final class PerformanceScreen extends Screen {
         protected PerformanceScreen() { super(Text.literal("Vampire Performance")); }
         @Override protected void init() {
+            addDrawableChild(ButtonWidget.builder(Text.literal(benchmarkActive ? "Benchmark running..." : "Start 30s FPS benchmark"), button -> {
+                benchmarkSamples.clear();
+                benchmarkTicks = 0;
+                benchmarkStartedAt = System.currentTimeMillis();
+                benchmarkActive = true;
+                button.setMessage(Text.literal("Benchmark running..."));
+            }).dimensions(width / 2 - 125, height / 2 + 42, 250, 22).build()).active = !benchmarkActive;
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen()))
-                .dimensions(width / 2 - 75, height / 2 + 70, 150, 22).build());
+                .dimensions(width / 2 - 75, height / 2 + 72, 150, 22).build());
         }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "PERFORMANCE");
             Runtime runtime = Runtime.getRuntime();
             long used = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
+            long max = runtime.maxMemory() / (1024 * 1024);
             context.drawCenteredTextWithShadow(textRenderer, "Current FPS: " + client.getCurrentFps(),
-                width / 2, height / 2 - 45, 0xFFFFFFFF);
-            context.drawCenteredTextWithShadow(textRenderer, "Java memory in use: " + used + " MB",
-                width / 2, height / 2 - 25, 0xFFD8C5CC);
-            context.drawCenteredTextWithShadow(textRenderer, "Use Vampire Client Settings to change allocated RAM.",
-                width / 2, height / 2 + 5, 0xFFB49EA7);
+                width / 2, height / 2 - 65, 0xFFFFFFFF);
+            context.drawCenteredTextWithShadow(textRenderer, "Java memory: " + used + " / " + max + " MB",
+                width / 2, height / 2 - 45, 0xFFD8C5CC);
+            if (benchmarkActive) {
+                long elapsed = Math.max(0L, (System.currentTimeMillis() - benchmarkStartedAt) / 1000L);
+                context.drawCenteredTextWithShadow(textRenderer, "Benchmark: " + elapsed + " / 30 seconds",
+                    width / 2, height / 2 - 17, 0xFFFF8290);
+            } else if (!benchmarkSamples.isEmpty()) {
+                int min = benchmarkSamples.stream().mapToInt(Integer::intValue).min().orElse(0);
+                int maxFps = benchmarkSamples.stream().mapToInt(Integer::intValue).max().orElse(0);
+                int avg = (int) Math.round(benchmarkSamples.stream().mapToInt(Integer::intValue).average().orElse(0));
+                context.drawCenteredTextWithShadow(textRenderer, "30s result  ·  AVG " + avg + "  MIN " + min + "  MAX " + maxFps,
+                    width / 2, height / 2 - 17, 0xFFFF8290);
+            } else {
+                context.drawCenteredTextWithShadow(textRenderer, "Run a 30-second sample to measure real gameplay FPS.",
+                    width / 2, height / 2 - 17, 0xFFB49EA7);
+            }
+            context.drawCenteredTextWithShadow(textRenderer, "Close background apps and keep the same world/settings when comparing.",
+                width / 2, height / 2 + 12, 0xFFB49EA7);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
