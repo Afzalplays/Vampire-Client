@@ -18,6 +18,7 @@ contextBridge.exposeInMainWorld("vampire", {
   removeMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:remove", args),
   toggleMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:toggle", args),
   setPerformanceProfile: (args: { profile: string; version: string; loader: string }) => ipcRenderer.invoke("performance:set", args),
+  applyPerformancePreset: (args: { preset: string; version: string; loader: string }) => ipcRenderer.invoke("performance:applyPreset", args),
   onGameStatus: (callback: (message: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
     ipcRenderer.on("game:status", listener);
