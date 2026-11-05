@@ -154,9 +154,13 @@ ipcMain.handle("auth:login", async (_event, clientId: string) => {
   sendStatus("Signed in as " + gameProfile.name + ".");
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
 });
-ipcMain.handle("settings:get", async () =>
-  readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" })
-);
+ipcMain.handle("settings:get", async () => {
+  const saved = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string } | null>(settingsFile(), null);
+  if (saved) return saved;
+  const manifest = await getVersionList();
+  const latestRelease = manifest.versions.find((item: any) => item.type === "release")?.id || "1.21.1";
+  return { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "" };
+});
 ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => {
   const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const next = {
