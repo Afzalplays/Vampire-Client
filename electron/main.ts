@@ -263,6 +263,9 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
     extraJVMArgs: ["-XX:+UseG1GC"]
   });
   gameProcess = proc;
+  void writeLauncherLog("Game process started; version=" + launchVersion + "; java=" + javaPath + "; ramGB=" + memory + "; pid=" + proc.pid);
+  proc.stdout?.on("data", chunk => void writeLauncherLog("[game stdout] " + String(chunk).slice(0, 3500)));
+  proc.stderr?.on("data", chunk => void writeLauncherLog("[game stderr] " + String(chunk).slice(0, 3500)));
   sendStatus("Minecraft launched (PID " + proc.pid + ").");
   proc.once("error", error => sendStatus("Minecraft process error: " + error.message));
   proc.once("close", code => {
