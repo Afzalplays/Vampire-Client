@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, safeStorage } from "electron";
+import { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -278,6 +278,43 @@ ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: 
   const nextName = enabled ? name + ".disabled" : name.slice(0, -".disabled".length);
   await fs.rename(path.join(directory, name), path.join(directory, nextName));
   return { success: true, fileName: nextName, enabled: !enabled };
+});
+
+ipcMain.handle("shaders:list", async (_event, args: { version: string; loader: string }) => {
+  const instance = safeInstance(args.version, args.loader);
+  const dir = path.join(instance.root, "shaderpacks");
+  await fs.mkdir(dir, { recursive: true });
+  const entries = await fs.readdir(dir, { withFileTypes: true });
+  return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip"))
+    .map(entry => entry.name).sort((a, b) => a.localeCompare(b));
+});
+
+ipcMain.handle("shaders:import", async (_event, args: { version: string; loader: string }) => {
+  const instance = safeInstance(args.version, args.loader);
+  const choice = await dialog.showOpenDialog(mainWindow!, {
+    title: "Import Minecraft shader pack",
+    properties: ["openFile"],
+    filters: [{ name: "Shader pack ZIP", extensions: ["zip"] }]
+  });
+  if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
+  const source = choice.filePaths[0];
+  if (path.extname(source).toLowerCase() !== ".zip") throw new Error("Only ZIP shader packs are supported.");
+  const stat = await fs.stat(source);
+  if (!stat.isFile() || stat.size < 1 || stat.size > 512 * 1024 * 1024) throw new Error("Shader ZIP must be between 1 byte and 512 MB.");
+  const dir = path.join(instance.root, "shaderpacks");
+  await fs.mkdir(dir, { recursive: true });
+  const base = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
+  const destination = path.join(dir, base);
+  await fs.copyFile(source, destination);
+  return { canceled: false, fileName: base };
+});
+
+ipcMain.handle("shaders:remove", async (_event, args: { version: string; loader: string; fileName: string }) => {
+  const instance = safeInstance(args.version, args.loader);
+  const name = String(args.fileName || "");
+  if (!/^[A-Za-z0-9._ -]{1,180}\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid shader pack filename.");
+  await fs.unlink(path.join(instance.root, "shaderpacks", name));
+  return { success: true };
 });
 
 ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string; version: string; loader: string }) => {
