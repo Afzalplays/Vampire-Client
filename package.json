@@ -18,7 +18,8 @@
     "react-dom": "^18.3.1",
     "@xmcl/core": "^2.16.3",
     "@xmcl/installer": "^6.3.7",
-    "@xmcl/user": "^4.4.2"
+    "@xmcl/user": "^4.4.2",
+    "@azure/msal-node": "^3.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
