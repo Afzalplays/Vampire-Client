@@ -233,9 +233,10 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
   }
   const storedRam = Number(current.instanceSettings?.[requestedInstanceId]?.ram ?? current.ram ?? 2);
   const requestedRam = Number(settings.ram ?? storedRam);
+  const normalizeRam = (value: number) => Math.max(1, Math.min(16, Math.round(value * 2) / 2));
   const ram = Number.isFinite(requestedRam)
-    ? Math.max(1, Math.min(16, Math.round(requestedRam)))
-    : (Number.isFinite(storedRam) ? Math.max(1, Math.min(16, Math.round(storedRam))) : 2);
+    ? normalizeRam(requestedRam)
+    : (Number.isFinite(storedRam) ? normalizeRam(storedRam) : 2);
   const javaPath = typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : (current.instanceSettings?.[requestedInstanceId]?.javaPath || current.javaPath);
   const instanceSettings = { ...(current.instanceSettings || {}), [requestedInstanceId]: { ram, javaPath } };
   const next = {
