@@ -15,6 +15,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Microsoft device-code authentication flow, Xbox/Minecraft token exchange and Java entitlement check. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
 - Modrinth project search and compatible Fabric JAR download.
 - Per-version mod folders, installed-mod list, enable/disable and remove actions.
+- One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
 - Desktop Right Shift quick menu.
 - Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout and FPS HUD toggle.
 
