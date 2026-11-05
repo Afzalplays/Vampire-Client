@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, shell, safeStorage } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
@@ -49,6 +50,21 @@ async function saveMicrosoftSession(session: { accessToken: string; expiresAt: n
     await fs.writeFile(microsoftSessionFile(), encrypted.toString("base64"), { mode: 0o600 });
   }
 }
+
+async function verifyModrinthDownload(response: Response, file: any) {
+  const declaredSize = Number(response.headers.get("content-length") || 0);
+  if (declaredSize > 150 * 1024 * 1024) throw new Error("Mod file exceeds the 150 MB safety limit.");
+  const bytes = Buffer.from(await response.arrayBuffer());
+  if (bytes.byteLength > 150 * 1024 * 1024) throw new Error("Mod file exceeds the 150 MB safety limit.");
+  const hashes = file?.hashes || {};
+  const algorithm = hashes.sha512 ? "sha512" : hashes.sha1 ? "sha1" : null;
+  const expected = algorithm ? String(hashes[algorithm]).toLowerCase() : "";
+  if (!algorithm || !/^[a-f0-9]+$/.test(expected)) throw new Error("Modrinth did not provide a usable file checksum.");
+  const actual = createHash(algorithm).update(bytes).digest("hex").toLowerCase();
+  if (actual !== expected) throw new Error("Mod file checksum verification failed; download rejected.");
+  return bytes;
+}
+
 function safeInstance(version: string, loader: string) {
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(version || ""))) throw new Error("Invalid Minecraft instance version.");
   if (!["vanilla", "fabric"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
@@ -233,13 +249,14 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   if (fileUrl.protocol !== "https:" || fileUrl.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
   const download = await fetch(fileUrl);
   if (!download.ok) throw new Error("Mod download failed (" + download.status + ").");
+  const bytes = await verifyModrinthDownload(download, file);
   const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
   if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR file.");
   const directory = modsRoot(mcVersion, loader);
   await fs.mkdir(directory, { recursive: true });
   const destination = path.join(directory, fileName);
   try {
-    await fs.writeFile(destination, Buffer.from(await download.arrayBuffer()), { flag: "wx" });
+    await fs.writeFile(destination, bytes, { flag: "wx" });
   } catch (error: any) {
     if (error.code === "EEXIST") throw new Error("This mod file is already installed.");
     throw error;
@@ -281,6 +298,7 @@ ipcMain.handle("performance:set", async (_event, args: { profile: string; versio
   if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Renderer download host was rejected.");
   const download = await fetch(url);
   if (!download.ok) throw new Error("Renderer download failed (" + download.status + ").");
+  const bytes = await verifyModrinthDownload(download, file);
   const fileName = path.basename(String(file.filename || profile + ".jar")).replace(/[^A-Za-z0-9._-]/g, "_");
   if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR renderer file.");
   await fs.mkdir(instance.mods, { recursive: true });
@@ -300,7 +318,7 @@ ipcMain.handle("performance:set", async (_event, args: { profile: string; versio
     await fs.rename(disabledTarget, enabledTarget);
   } catch {
     try {
-      await fs.writeFile(enabledTarget, Buffer.from(await download.arrayBuffer()), { flag: "wx" });
+      await fs.writeFile(enabledTarget, bytes, { flag: "wx" });
     } catch (error: any) {
       if (error.code !== "EEXIST") throw error;
     }
@@ -318,6 +336,13 @@ function createWindow() {
       nodeIntegration: false,
       sandbox: true
     }
+  });
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    try {
+      const parsed = new URL(url);
+      const isDevServer = !app.isPackaged && parsed.origin === "http://127.0.0.1:5173";
+      if (parsed.protocol !== "file:" && !isDevServer) event.preventDefault();
+    } catch { event.preventDefault(); }
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {
