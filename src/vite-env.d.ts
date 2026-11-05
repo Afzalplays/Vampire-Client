@@ -3,7 +3,10 @@ interface Window {
   vampire?: {
     version: string;
     platform: string;
-    getProfile(): Promise<{ active: string; names: string[] }>;\n    getMicrosoftAccount(): Promise<{ authenticated: boolean; profile: { id: string; name: string } | null }>;\n    loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;\n    logoutMicrosoft(): Promise<{ success: boolean }>;
+    getProfile(): Promise<{ active: string; names: string[] }>;
+    getMicrosoftAccount(): Promise<{ authenticated: boolean; profile: { id: string; name: string } | null }>;
+    loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;
+    logoutMicrosoft(): Promise<{ success: boolean }>;
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
     getSettings(): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string }>;
