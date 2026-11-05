@@ -92,5 +92,11 @@
       "artifactName": "VampireClient-Portable-${version}-${arch}.${ext}"
     }
   },
-  "desktopName": "Vampire Client"
+  "desktopName": "Vampire Client",
+  "overrides": {
+    "@fastify/busboy": "^3.2.2",
+    "undici": "^6.29.1",
+    "minimatch": "^11.0.1",
+    "uuid": "^11.1.0"
+  }
 }
