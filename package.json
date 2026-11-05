@@ -1,6 +1,6 @@
 {
   "name": "vampire-client",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "private": true,
   "description": "An open-source-in-development Minecraft Java launcher by Vampire Studios.",
   "main": "dist-electron/main.js",
@@ -15,7 +15,10 @@
   "dependencies": {
     "lucide-react": "^0.468.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "@xmcl/core": "^2.16.3",
+    "@xmcl/installer": "^6.3.7",
+    "@xmcl/user": "^4.4.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
