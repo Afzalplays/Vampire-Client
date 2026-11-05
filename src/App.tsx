@@ -37,7 +37,7 @@ export default function App() {
   const [schematicsEnabled, setSchematicsEnabled] = useState(true);
   const [shaderSupport, setShaderSupport] = useState(true);
   const [replaySupport, setReplaySupport] = useState(false);
-  const [worldHosting, setWorldHosting] = useState(true);
+  const [worldHosting, setWorldHosting] = useState(false);
   const [hostingMode, setHostingMode] = useState<"both" | "lan" | "internet">("both");
   const [capeVisibility, setCapeVisibility] = useState<"account" | "client-only">("account");
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function App() {
       setSchematicsEnabled(saved.schematicsEnabled ?? true);
       setShaderSupport(saved.shaderSupport ?? true);
       setReplaySupport(saved.replaySupport ?? false);
-      setWorldHosting(saved.worldHosting ?? true);
+      setWorldHosting(saved.worldHosting ?? false);
       setHostingMode(saved.hostingMode === "lan" || saved.hostingMode === "internet" ? saved.hostingMode : "both");
       setCapeVisibility(saved.capeVisibility === "client-only" ? "client-only" : "account");
     } catch { /* keep safe defaults */ }
