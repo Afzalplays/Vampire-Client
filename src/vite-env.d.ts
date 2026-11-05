@@ -6,6 +6,11 @@ interface Window {
     listInstances(): Promise<Array<{ id: string; name: string; createdAt: string }>>;
     createInstance(name: string): Promise<{ id: string; name: string; createdAt: string }>;
     deleteInstance(id: string): Promise<{ success: boolean }>;
+    listWorldServers(): Promise<Array<{ id: string; name: string; version: string; createdAt: string; ramGB: number; running: boolean }>>;
+    createWorldServer(args: { name: string; version: string; ramGB?: number }): Promise<{ id: string; name: string; version: string; createdAt: string; ramGB: number; running: boolean; eulaAccepted: boolean }>;
+    startWorldServer(args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }): Promise<{ success: boolean; pid?: number }>;
+    stopWorldServer(id: string): Promise<{ success: boolean; stopped: boolean }>;
+    deleteWorldServer(id: string): Promise<{ success: boolean }>;
     getProfile(): Promise<{ active: string; names: string[] }>;
     getMicrosoftAccount(): Promise<{ authenticated: boolean; accountType: string; profile: { id: string; name: string } | null }>;
     loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;
