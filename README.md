@@ -14,7 +14,7 @@ Vampire Client is being built around a modern glassmorphism interface, performan
 
 ## Development status
 This is an early preview, not a complete Minecraft launcher. The following are **not implemented yet**:
-- Microsoft OAuth login and Minecraft entitlement verification.
+- Microsoft device-code login and Minecraft Java entitlement verification (requires your own public app Client ID; see `docs/MICROSOFT_LOGIN_SETUP.md`).
 - Downloading Minecraft assets/libraries and launching the game.
 - Installing, updating, enabling or removing mod files from the game directory.
 - A fully featured mod configuration/HUD editor.
