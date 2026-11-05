@@ -194,31 +194,42 @@ ipcMain.handle("auth:login", async (_event, clientId: string) => {
   sendStatus("Signed in as " + gameProfile.name + ".");
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
 });
-ipcMain.handle("settings:get", async () => {
-  const saved = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string } | null>(settingsFile(), null);
-  if (saved) return saved;
-  const manifest = await getVersionList();
-  const latestRelease = manifest.versions.find((item: any) => item.type === "release")?.id || "1.21.1";
-  return { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "", instanceId: "default" };
+ipcMain.handle("settings:get", async (_event, instanceIdValue?: string) => {
+  const saved = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string; instanceSettings?: Record<string, { ram?: number; javaPath?: string }> } | null>(settingsFile(), null);
+  const manifest = saved ? null : await getVersionList();
+  const latestRelease = manifest?.versions.find((item: any) => item.type === "release")?.id || "1.21.1";
+  const base = saved || { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "", instanceId: "default" };
+  const instanceId = typeof instanceIdValue === "string" ? instanceIdValue : (base.instanceId || "default");
+  if (instanceId !== "default") {
+    if (!/^[a-f0-9-]{36}$/.test(instanceId)) throw new Error("Invalid Minecraft instance ID.");
+    const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
+    if (!instances.some(item => item.id === instanceId)) throw new Error("Minecraft instance not found.");
+  }
+  const scoped = base.instanceSettings?.[instanceId] || {};
+  return { ...base, ram: Number(scoped.ram ?? base.ram), javaPath: typeof scoped.javaPath === "string" ? scoped.javaPath : base.javaPath, instanceId };
 });
 ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }) => {
-  const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default" });
+  const current = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string; instanceSettings?: Record<string, { ram?: number; javaPath?: string }> }>(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default", instanceSettings: {} });
   const requestedInstanceId = typeof settings.instanceId === "string" ? settings.instanceId : (current.instanceId || "default");
   if (requestedInstanceId !== "default") {
     if (!/^[a-f0-9-]{36}$/.test(requestedInstanceId)) throw new Error("Invalid Minecraft instance ID.");
     const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
     if (!instances.some(item => item.id === requestedInstanceId)) throw new Error("Minecraft instance not found. Select a valid instance.");
   }
+  const ram = Math.max(1, Math.min(16, Number(settings.ram ?? current.instanceSettings?.[requestedInstanceId]?.ram ?? current.ram)));
+  const javaPath = typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : (current.instanceSettings?.[requestedInstanceId]?.javaPath || current.javaPath);
+  const instanceSettings = { ...(current.instanceSettings || {}), [requestedInstanceId]: { ram, javaPath } };
   const next = {
-    ram: Math.max(1, Math.min(16, Number(settings.ram ?? current.ram))),
-    javaPath: typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : current.javaPath,
+    ram: requestedInstanceId === "default" ? ram : current.ram,
+    javaPath: requestedInstanceId === "default" ? javaPath : current.javaPath,
+    instanceSettings,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
     loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader,
     clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId,
     instanceId: requestedInstanceId
   };
   await writeJson(settingsFile(), next);
-  return next;
+  return { ...next, ram, javaPath };
 });
 ipcMain.handle("logs:read", async () => {
   try {
@@ -324,8 +335,9 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   } catch {
     throw new Error("The installed Minecraft files are missing or damaged. Reinstall this version from the Versions page.");
   }
-  const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
-  const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
+  const scopedSettings = settings.instanceSettings?.[activeInstanceId] || {};
+  const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : (scopedSettings.javaPath || settings.javaPath);
+  const memory = Math.max(1, Math.min(16, Number(args.ram) || Number(scopedSettings.ram) || settings.ram));
   const accountState = await readJson<{ type: string }>(accountFile(), { type: "offline" });
   const microsoft = await getMicrosoftSession();
   if (accountState.type === "microsoft" && !microsoft) throw new Error("Microsoft session expired or secure storage is unavailable. Sign in with Microsoft again.");
