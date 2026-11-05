@@ -64,7 +64,7 @@ export default function App() {
   }
 
   useEffect(() => { if (tab === "Mods" && mods.length === 0) void searchMods(); }, [tab]);
-  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listMods({ version, loader }).then(files => { if (active) setInstalled(files); }).catch(() => undefined); return () => { active = false; }; }, [version, loader]);
+  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listMods({ version, loader }).then(files => { if (active) { setInstalled(files); setRendererProfile(files.some(file => file.enabled && file.fileName.toLowerCase().includes("vulkanmod")) ? "vulkanmod" : "sodium"); } }).catch(() => undefined); return () => { active = false; }; }, [version, loader]);
 
   async function saveOfflineProfile() {
     try { if (!window.vampire) throw new Error("Run the desktop app to save profiles."); if (accountType === "Microsoft") { await window.vampire.logoutMicrosoft(); setAccountType("Offline"); } const saved = await window.vampire.saveProfile(profile); setProfile(saved.active); notify("Offline profile saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save profile."); }
