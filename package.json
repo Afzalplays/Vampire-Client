@@ -90,7 +90,7 @@
     "artifactName": "VampireClient-${version}-${os}-${arch}.${ext}",
     "portable": {
       "artifactName": "VampireClient-Portable-${version}-${arch}.${ext}"
-    },
-    "desktopName": "Vampire Client"
-  }
+    }
+  },
+  "desktopName": "Vampire Client"
 }
