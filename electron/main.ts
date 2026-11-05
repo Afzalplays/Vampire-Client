@@ -263,7 +263,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
   if (!metadata) throw new Error("Minecraft version was not found in the official manifest.");
-  const root = await safeInstanceAsync(versionId, loader, args.instanceId || "default").root;
+  const root = (await safeInstanceAsync(versionId, loader, args.instanceId || "default")).root;
   await fs.mkdir(root, { recursive: true });
   await install(metadata, root);
 
@@ -371,7 +371,7 @@ ipcMain.handle("game:stop", async () => {
 });
 
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const directory = await safeInstanceAsync(args.version, args.loader, args.instanceId || "default").mods;
+  const directory = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods;
   await fs.mkdir(directory, { recursive: true });
   const files = await fs.readdir(directory, { withFileTypes: true });
   return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
