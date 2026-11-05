@@ -126,7 +126,7 @@ export default function App() {
     </aside>
 
     <main className="main-area">
-      <header className="topbar"><div className="crumb">Vampire Client <span>/</span> {tab}</div><div className="top-actions"><span className="status-dot"/> Preview build <button className="icon-button" onClick={() => setTab("Settings")}><Settings2 size={17}/></button></div></header>
+      <header className="topbar"><div className="crumb">Vampire Client <span>/</span> {tab}</div><div className="top-actions"><span className="status-dot"/> {gameStatus} <button className="icon-button" onClick={() => setTab("Settings")}><Settings2 size={17}/></button></div></header>
       <div className="content">
         {tab === "Home" && <>
           <section className="hero glass"><div className="hero-copy"><div className="eyebrow"><Sparkles size={14}/> YOUR GAME. YOUR RULES.</div><h1>Enter the <em>night.</em></h1><p>A cleaner Minecraft experience, built around performance, mods and control.</p><div className="hero-buttons"><button className="primary-button" onClick={() => void playGame()}><Play size={16} fill="currentColor"/> Play Minecraft</button><button className="secondary-button" onClick={() => setTab("Versions")}>Manage versions <ChevronDown size={15}/></button></div></div><div className="hero-orb"><div className="orb-ring"/><div className="orb-core">V</div><div className="orb-caption">VAMPIRE<br/>STUDIOS</div></div></section>
