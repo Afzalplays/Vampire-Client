@@ -112,12 +112,13 @@ ipcMain.handle("settings:get", async () =>
   readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" })
 );
 ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => {
-  const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric" });
+  const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const next = {
     ram: Math.max(1, Math.min(16, Number(settings.ram ?? current.ram))),
     javaPath: typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : current.javaPath,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
-    loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader
+    loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader,
+    clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId
   };
   await writeJson(settingsFile(), next);
   return next;
@@ -163,7 +164,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Minecraft is already running.");
   const username = safeName(args.username);
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
-  const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric" });
+  const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const launchVersion = installed[args.version + ":" + settings.loader] || args.version;
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
