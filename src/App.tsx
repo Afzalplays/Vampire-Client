@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Activity, Blocks, ChevronDown, CircleUserRound, Cpu, Download, ExternalLink, Gamepad2, Gauge, HardDrive, Layers3, Monitor, Package, Play, Plus, Search, Settings2, ShieldCheck, Sparkles, Terminal, X, Zap } from "lucide-react";
 
 type Tab = "Home" | "Versions" | "Mods" | "Accounts" | "Settings";
@@ -85,6 +85,6 @@ export default function App() {
     {toast && <div className="toast">{toast}</div>}
   </div>;
 }
-function Stat({icon,label,value,sub}:{icon:React.ReactNode;label:string;value:string;sub:string}) { return <div className="stat-card glass"><div className="stat-icon">{icon}</div><small>{label}</small><strong>{value}</strong><span>{sub}</span></div>; }
-function Quick({icon,title,text,onClick}:{icon:React.ReactNode;title:string;text:string;onClick:()=>void}) { return <button className="quick-action" onClick={onClick}><span>{icon}</span><div><b>{title}</b><small>{text}</small></div><Plus size={15}/></button>; }
+function Stat({icon,label,value,sub}:{icon:ReactNode;label:string;value:string;sub:string}) { return <div className="stat-card glass"><div className="stat-icon">{icon}</div><small>{label}</small><strong>{value}</strong><span>{sub}</span></div>; }
+function Quick({icon,title,text,onClick}:{icon:ReactNode;title:string;text:string;onClick:()=>void}) { return <button className="quick-action" onClick={onClick}><span>{icon}</span><div><b>{title}</b><small>{text}</small></div><Plus size={15}/></button>; }
 function PageTitle({eyebrow,title,desc}:{eyebrow:string;title:string;desc:string}) { return <div className="page-title"><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{desc}</p></div>; }
