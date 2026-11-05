@@ -139,7 +139,7 @@ export default function App() {
   }
   async function installMod(mod: Mod) {
     if (!window.vampire) return notify("Mod installation is available in the desktop app.");
-    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader }); const files = await window.vampire.listMods({ version, loader }); setInstalled(files); notify("Installed " + result.fileName); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
+    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader }); const files = await window.vampire.listMods({ version, loader }); setInstalled(files); const count = Array.isArray(result.installedFiles) ? result.installedFiles.length : 1; notify("Installed " + count + " mod(s), including required dependencies."); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
   }
   async function removeMod(fileName: string) {
     if (!window.vampire) return;
