@@ -54,7 +54,7 @@ export default function App() {
     { name: "FerriteCore", desc: "Lower memory usage", tag: "Memory" }
   ], []);
 
-  return <div className="app-shell">
+  if (booting) return <div className="splash-screen"><div className="splash-emblem">V</div><div className="splash-title">VAMPIRE <span>STUDIOS</span></div><div className="splash-loader"><i/></div><small>INITIALIZING VAMPIRE CLIENT</small></div>;\n\n  return <div className="app-shell">
     <aside className="sidebar glass">
       <div className="brand"><div className="brand-mark">V</div><div><b>VAMPIRE</b><small>STUDIOS</small></div></div>
       <div className="side-label">LAUNCHER</div>
