@@ -12,7 +12,11 @@ export default function App() {
   useEffect(() => { const timer = window.setTimeout(() => setBooting(false), 1400); return () => window.clearTimeout(timer); }, []);
   const [tab, setTab] = useState<Tab>("Home");
   const [menuOpen, setMenuOpen] = useState(false);
-  const [query, setQuery] = useState("");\n  const [installedFilter, setInstalledFilter] = useState("");\n  const [catalogSort, setCatalogSort] = useState<"downloads" | "name">("downloads");\n  const [javaCheck, setJavaCheck] = useState<{version:string;executable:string;platform:string;architecture:string}|null>(null);\n  const [javaChecking, setJavaChecking] = useState(false);
+  const [query, setQuery] = useState("");
+  const [installedFilter, setInstalledFilter] = useState("");
+  const [catalogSort, setCatalogSort] = useState<"downloads" | "name">("downloads");
+  const [javaCheck, setJavaCheck] = useState<{version:string;executable:string;platform:string;architecture:string}|null>(null);
+  const [javaChecking, setJavaChecking] = useState(false);
   const [mods, setMods] = useState<Mod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
