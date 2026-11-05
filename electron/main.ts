@@ -292,7 +292,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Minecraft is already running.");
   const username = safeName(args.username);
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
-  const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
+  const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const activeLoader = ["vanilla", "fabric"].includes(settings.loader) ? settings.loader : "vanilla";
   const activeInstanceId = args.instanceId || settings.instanceId || "default";
