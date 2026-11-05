@@ -8,6 +8,8 @@ const nav: { name: Tab; icon: typeof Gamepad2 }[] = [
 ];
 
 export default function App() {
+  const [booting, setBooting] = useState(true);
+  useEffect(() => { const timer = window.setTimeout(() => setBooting(false), 1400); return () => window.clearTimeout(timer); }, []);
   const [tab, setTab] = useState<Tab>("Home");
   const [menuOpen, setMenuOpen] = useState(false);
   const [query, setQuery] = useState("");
