@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("vampire", {
   installMod: (args: { projectId: string; minecraftVersion: string; loader: string }) => ipcRenderer.invoke("mods:install", args),
   removeMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:remove", args),
   toggleMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:toggle", args),
+  setPerformanceProfile: (args: { profile: string; version: string; loader: string }) => ipcRenderer.invoke("performance:set", args),
   onGameStatus: (callback: (message: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
     ipcRenderer.on("game:status", listener);
