@@ -49,6 +49,11 @@ async function saveMicrosoftSession(session: { accessToken: string; expiresAt: n
     await fs.writeFile(microsoftSessionFile(), encrypted.toString("base64"), { mode: 0o600 });
   }
 }
+function safeInstance(version: string, loader: string) {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(version || ""))) throw new Error("Invalid Minecraft instance version.");
+  if (!["vanilla", "fabric"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
+  return { root: gameRoot(version, loader), mods: modsRoot(version, loader) };
+}
 function safeName(value: string) {
   const name = value.trim();
   if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) throw new Error("Username must be 3–16 letters, numbers or underscores.");
@@ -166,8 +171,9 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
   const settings = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
-  const launchVersion = installed[args.version + ":" + settings.loader] || args.version;
-  const root = gameRoot(args.version, settings.loader);
+  const launchVersion = installed[args.version + ":" + activeLoader] || args.version;
+  const activeLoader = ["vanilla", "fabric"].includes(settings.loader) ? settings.loader : "vanilla";
+  const root = safeInstance(args.version, activeLoader).root;
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : settings.javaPath;
   const memory = Math.max(1, Math.min(16, Number(args.ram) || settings.ram));
   const accountState = await readJson<{ type: string }>(accountFile(), { type: "offline" });
@@ -201,7 +207,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
 });
 
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string }) => {
-  const directory = modsRoot(args.version, args.loader);
+  const directory = safeInstance(args.version, args.loader).mods;
   await fs.mkdir(directory, { recursive: true });
   const files = await fs.readdir(directory, { withFileTypes: true });
   return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
@@ -243,13 +249,13 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
 ipcMain.handle("mods:remove", async (_event, args: { fileName: string; version: string; loader: string }) => {
   const name = path.basename(String(args.fileName));
   if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
-  await fs.unlink(path.join(modsRoot(args.version, args.loader), name));
+  await fs.unlink(path.join(safeInstance(args.version, args.loader).mods, name));
   return { success: true };
 });
 ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: string; loader: string }) => {
   const name = path.basename(String(args.fileName));
   if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
-  const directory = modsRoot(args.version, args.loader);
+  const directory = safeInstance(args.version, args.loader).mods;
   const enabled = name.toLowerCase().endsWith(".jar");
   const nextName = enabled ? name + ".disabled" : name.slice(0, -".disabled".length);
   await fs.rename(path.join(directory, name), path.join(directory, nextName));
