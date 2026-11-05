@@ -82,7 +82,7 @@ export default function App() {
   }
   async function installSelectedVersion() {
     if (!window.vampire) return notify("Version installation is available in the desktop app.");
-    setBusy(true); try { await window.vampire.installVersion({ version, loader }); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }
+    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId }); await window.vampire.installVersion({ version, loader }); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }
   }
   async function playGame() {
     if (!window.vampire) return notify("Game launching is available in the desktop app.");
