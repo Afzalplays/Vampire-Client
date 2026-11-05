@@ -103,7 +103,7 @@ function sendStatus(message: string) {
 async function listVersions() {
   const manifest = await getVersionList();
   return manifest.versions
-    .filter((v: any) => v.type === "release" || v.type === "snapshot")
+    .filter((v: any) => ["release", "snapshot", "old_beta", "old_alpha"].includes(v.type))
     .map((v: any) => ({ id: v.id, type: v.type, releaseTime: v.releaseTime }));
 }
 
