@@ -77,7 +77,8 @@ ipcMain.handle("profile:save", async (_event, username: string) => {
 });
 ipcMain.handle("auth:get", async () => {
   const session = await getMicrosoftSession();
-  return { authenticated: Boolean(session), profile: session?.profile || null };
+  const account = await readJson<{ type: string }>(accountFile(), { type: "offline" });
+  return { authenticated: Boolean(session), accountType: account.type, profile: session?.profile || null };
 });
 ipcMain.handle("auth:logout", async () => {
   memoryMicrosoftSession = null;
