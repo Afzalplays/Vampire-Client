@@ -1,8 +1,8 @@
 import { app, BrowserWindow, ipcMain, shell } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { launch } from "@xmcl/core";
-import { getVersionList, install } from "@xmcl/installer";
+import { launch, Version } from "@xmcl/core";
+import { getVersionList, install, getFabricLoaders, installFabric, installDependencies } from "@xmcl/installer";
 import { offline } from "@xmcl/user";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
@@ -13,7 +13,7 @@ const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
 const gameRoot = () => path.join(dataRoot(), "game");
 const modsRoot = () => path.join(gameRoot(), "mods");
 const profilesFile = () => path.join(dataRoot(), "profiles.json");
-const settingsFile = () => path.join(dataRoot(), "settings.json");
+const settingsFile = () => path.join(dataRoot(), "settings.json");\nconst installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try { return JSON.parse(await fs.readFile(file, "utf8")) as T; } catch { return fallback; }
