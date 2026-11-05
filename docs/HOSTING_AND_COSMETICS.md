@@ -1,6 +1,6 @@
 # Vampire Client: Hosting and Cosmetics Architecture
 
-This document records the selected product behavior for the next implementation milestone. The Studio page stores the user's choices locally; it does not imply that either backend is already operational.
+This document records implemented behavior and remaining work. The Studio page stores the user's network-mode preference locally; that preference is not yet enforced by the server runtime.
 
 ## World hosting: LAN + Internet
 
@@ -56,4 +56,4 @@ This document records the selected product behavior for the next implementation 
 
 ## Current status
 
-The Studio UI stores the user's selected defaults: Both LAN + Internet hosting and Vampire-account cape sync. The server manager, authenticated cosmetics backend, asset storage, and in-game cape renderer are **not implemented yet**. UI preferences must not be represented as working server hosting or live cosmetic sync.
+The local vanilla server manager is implemented in code: verified official JAR download, isolated server folders, explicit EULA acceptance, bounded heap argument, start/stop/delete lifecycle, and file-based stdout/stderr logging. **Not yet verified in a real desktop run.** Live console UI, enforced network modes, LAN address discovery, Internet port-forward guidance, backups, crash recovery, and production hardening remain pending. Vampire-account cosmetics backend, asset storage, cross-device sync, and in-game cape renderer are not implemented. Do not represent these remaining items as working features.
