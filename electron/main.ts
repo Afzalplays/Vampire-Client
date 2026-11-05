@@ -231,7 +231,11 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
     const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
     if (!instances.some(item => item.id === requestedInstanceId)) throw new Error("Minecraft instance not found. Select a valid instance.");
   }
-  const ram = Math.max(1, Math.min(16, Number(settings.ram ?? current.instanceSettings?.[requestedInstanceId]?.ram ?? current.ram)));
+  const storedRam = Number(current.instanceSettings?.[requestedInstanceId]?.ram ?? current.ram ?? 2);
+  const requestedRam = Number(settings.ram ?? storedRam);
+  const ram = Number.isFinite(requestedRam)
+    ? Math.max(1, Math.min(16, Math.round(requestedRam)))
+    : (Number.isFinite(storedRam) ? Math.max(1, Math.min(16, Math.round(storedRam))) : 2);
   const javaPath = typeof settings.javaPath === "string" && settings.javaPath.length < 1024 ? settings.javaPath : (current.instanceSettings?.[requestedInstanceId]?.javaPath || current.javaPath);
   const instanceSettings = { ...(current.instanceSettings || {}), [requestedInstanceId]: { ram, javaPath } };
   const next = {
