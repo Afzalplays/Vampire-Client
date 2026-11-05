@@ -38,6 +38,30 @@ export default function App() {
   const [shaderSupport, setShaderSupport] = useState(true);
   const [replaySupport, setReplaySupport] = useState(false);
   const [worldHosting, setWorldHosting] = useState(false);
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("vampire-studio-preferences") || "{}");
+      setCapeStyle(saved.capeStyle || "crimson");
+      setNameStyle(saved.nameStyle || "inferno");
+      setChatGradient(saved.chatGradient ?? true);
+      setNametagLogo(saved.nametagLogo ?? true);
+      setCustomHud(saved.customHud ?? true);
+      setSchematicsEnabled(saved.schematicsEnabled ?? true);
+      setShaderSupport(saved.shaderSupport ?? true);
+      setReplaySupport(saved.replaySupport ?? false);
+      setWorldHosting(saved.worldHosting ?? false);
+    } catch { /* keep safe defaults */ }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem("vampire-studio-preferences", JSON.stringify({
+        capeStyle, nameStyle, chatGradient, nametagLogo, customHud,
+        schematicsEnabled, shaderSupport, replaySupport, worldHosting
+      }));
+    } catch { /* storage can be unavailable in restricted environments */ }
+  }, [capeStyle, nameStyle, chatGradient, nametagLogo, customHud, schematicsEnabled, shaderSupport, replaySupport, worldHosting]);
+
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
