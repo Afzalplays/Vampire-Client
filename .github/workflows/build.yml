@@ -18,14 +18,13 @@ jobs:
           - os: ubuntu-latest
             args: --linux AppImage deb
           - os: macos-latest
-            args: --mac dmg zip
+            args: --mac dmg zip --universal
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: npm
       - run: npm install
       - run: npm run build
       - run: npx electron-builder ${{ matrix.args }}
