@@ -77,7 +77,8 @@
       ],
       "category": "Game",
       "maintainer": "Vampire Studios <noreply@github.com>",
-      "vendor": "Vampire Studios"
+      "vendor": "Vampire Studios",
+      "syncDesktopName": true
     },
     "mac": {
       "target": [
@@ -89,6 +90,7 @@
     "artifactName": "VampireClient-${version}-${os}-${arch}.${ext}",
     "portable": {
       "artifactName": "VampireClient-Portable-${version}-${arch}.${ext}"
-    }
+    },
+    "desktopName": "Vampire Client"
   }
 }
