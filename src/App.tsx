@@ -136,17 +136,17 @@ export default function App() {
   }
 
   useEffect(() => { if (tab === "Mods" && mods.length === 0) void searchMods(); }, [tab]);
-  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listMods({ version, loader, instanceId }).then(files => { if (active) { setInstalled(files); setRendererProfile(files.some(file => file.enabled && file.fileName.toLowerCase().includes("vulkanmod")) ? "vulkanmod" : "sodium"); } }).catch(() => undefined); return () => { active = false; }; }, [version, loader]);
-  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listShaderPacks({ version, loader }).then(files => { if (active) setShaderPacks(files); }).catch(() => undefined); window.vampire.listResourcePacks({ version, loader }).then(files => { if (active) setResourcePacks(files); }).catch(() => undefined); return () => { active = false; }; }, [version, loader]);
-  useEffect(() => { if (!window.vampire) return; let active = true; setInstalledGame(null); window.vampire.getInstallStatus({ version, loader }).then(status => { if (active) setInstalledGame({ installed: status.installed, reason: status.reason }); }).catch(() => { if (active) setInstalledGame({ installed: false, reason: "status-error" }); }); return () => { active = false; }; }, [version, loader]);
+  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listMods({ version, loader, instanceId }).then(files => { if (active) { setInstalled(files); setRendererProfile(files.some(file => file.enabled && file.fileName.toLowerCase().includes("vulkanmod")) ? "vulkanmod" : "sodium"); } }).catch(() => undefined); return () => { active = false; }; }, [version, loader, instanceId]);
+  useEffect(() => { if (!window.vampire) return; let active = true; window.vampire.listShaderPacks({ version, loader, instanceId }).then(files => { if (active) setShaderPacks(files); }).catch(() => undefined); window.vampire.listResourcePacks({ version, loader, instanceId }).then(files => { if (active) setResourcePacks(files); }).catch(() => undefined); return () => { active = false; }; }, [version, loader, instanceId]);
+  useEffect(() => { if (!window.vampire) return; let active = true; setInstalledGame(null); window.vampire.getInstallStatus({ version, loader, instanceId }).then(status => { if (active) setInstalledGame({ installed: status.installed, reason: status.reason }); }).catch(() => { if (active) setInstalledGame({ installed: false, reason: "status-error" }); }); return () => { active = false; }; }, [version, loader, instanceId]);
 
   async function importShaderPack() {
     if (!window.vampire) return notify("Shader pack import is available in the desktop app.");
-    try { const result = await window.vampire.importShaderPack({ version, loader }); if (result.fileName) { setShaderPacks(await window.vampire.listShaderPacks({ version, loader })); notify("Imported shader pack: " + result.fileName); } } catch (e) { notify(e instanceof Error ? e.message : "Shader import failed."); }
+    try { const result = await window.vampire.importShaderPack({ version, loader, instanceId }); if (result.fileName) { setShaderPacks(await window.vampire.listShaderPacks({ version, loader, instanceId })); notify("Imported shader pack: " + result.fileName); } } catch (e) { notify(e instanceof Error ? e.message : "Shader import failed."); }
   }
   async function removeShaderPack(fileName: string) {
     if (!window.vampire) return;
-    try { await window.vampire.removeShaderPack({ version, loader, fileName }); setShaderPacks(await window.vampire.listShaderPacks({ version, loader })); notify("Removed shader pack: " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove shader pack."); }
+    try { await window.vampire.removeShaderPack({ version, loader, instanceId, fileName }); setShaderPacks(await window.vampire.listShaderPacks({ version, loader, instanceId })); notify("Removed shader pack: " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove shader pack."); }
   }
 
   async function saveOfflineProfile() {
@@ -155,7 +155,7 @@ export default function App() {
   async function signInMicrosoft() {
     if (!window.vampire) return notify("Microsoft sign-in is available in the desktop app.");
     if (!microsoftClientId.trim()) return notify("Enter your Microsoft app Client ID first.");
-    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId.trim() }); const result = await window.vampire.loginMicrosoft(microsoftClientId.trim()); setProfile(result.profile.name); setAccountType("Microsoft"); notify("Microsoft account connected: " + result.profile.name); if (!result.encryptedStorage) notify("Secure token storage is unavailable; sign in again after restarting."); } catch (e) { notify(e instanceof Error ? e.message : "Microsoft sign-in failed."); } finally { setBusy(false); }
+    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId.trim() }); const result = await window.vampire.loginMicrosoft(microsoftClientId.trim()); setProfile(result.profile.name); setAccountType("Microsoft"); notify("Microsoft account connected: " + result.profile.name); if (!result.encryptedStorage) notify("Secure token storage is unavailable; sign in again after restarting."); } catch (e) { notify(e instanceof Error ? e.message : "Microsoft sign-in failed."); } finally { setBusy(false); }
   }
   async function signOutMicrosoft() {
     if (!window.vampire) return;
@@ -187,22 +187,22 @@ export default function App() {
     catch (e) { notify(e instanceof Error ? e.message : "Could not export logs."); }
   }
 
-  async function createNamedInstance() { if (!window.vampire) return; try { const created = await window.vampire.createInstance(newInstanceName); const next = await window.vampire.listInstances(); setInstances(next); setInstanceId(created.id); setNewInstanceName(""); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId, instanceId: created.id }); notify("Created isolated instance: " + created.name); } catch (e) { notify(e instanceof Error ? e.message : "Could not create instance."); } }
-  async function deleteNamedInstance() { if (!window.vampire || instanceId === "default") return; const selected = instances.find(item => item.id === instanceId); if (!selected || !window.confirm("Delete instance \"" + selected.name + "\" and all its local game files, mods and packs?")) return; try { await window.vampire.deleteInstance(instanceId); const next = await window.vampire.listInstances(); setInstances(next); setInstanceId("default"); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId, instanceId: "default" }); notify("Deleted instance and its files."); } catch (e) { notify(e instanceof Error ? e.message : "Could not delete instance."); } }
+  async function createNamedInstance() { if (!window.vampire) return; try { const created = await window.vampire.createInstance(newInstanceName); const next = await window.vampire.listInstances(); setInstances(next); setInstanceId(created.id); setNewInstanceName(""); await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId, instanceId: created.id }); notify("Created isolated instance: " + created.name); } catch (e) { notify(e instanceof Error ? e.message : "Could not create instance."); } }
+  async function deleteNamedInstance() { if (!window.vampire || instanceId === "default") return; const selected = instances.find(item => item.id === instanceId); if (!selected || !window.confirm("Delete instance \"" + selected.name + "\" and all its local game files, mods and packs?")) return; try { await window.vampire.deleteInstance(instanceId); const next = await window.vampire.listInstances(); setInstances(next); setInstanceId("default"); await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId, instanceId: "default" }); notify("Deleted instance and its files."); } catch (e) { notify(e instanceof Error ? e.message : "Could not delete instance."); } }
 
   async function saveLauncherSettings() {
-    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId, instanceId }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
+    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId, instanceId }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
   }
   async function installSelectedVersion() {
     if (!window.vampire) return notify("Version installation is available in the desktop app.");
-    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId }); await window.vampire.installVersion({ version, loader }); setInstalledGame({ installed: true, reason: null }); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }
+    setBusy(true); try { await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId }); await window.vampire.installVersion({ version, loader, instanceId }); setInstalledGame({ installed: true, reason: null }); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }
   }
   async function playGame() {
     if (!window.vampire) return notify("Game launching is available in the desktop app.");
     setBusy(true);
     try {
-      await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId });
-      await window.vampire.launchGame({ username: profile, version, ram, javaPath });
+      await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId });
+      await window.vampire.launchGame({ username: profile, version, ram, javaPath, instanceId });
     } catch (e) {
       notify(e instanceof Error ? e.message : "Could not launch Minecraft.");
     } finally {
@@ -220,58 +220,58 @@ export default function App() {
   }
   async function installMod(mod: Mod) {
     if (!window.vampire) return notify("Mod installation is available in the desktop app.");
-    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader, instanceId }); const files = await window.vampire.listMods({ version, loader }); setInstalled(files); const count = Array.isArray(result.installedFiles) ? result.installedFiles.length : 1; notify("Installed " + count + " mod(s), including required dependencies."); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
+    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader, instanceId }); const files = await window.vampire.listMods({ version, loader, instanceId }); setInstalled(files); const count = Array.isArray(result.installedFiles) ? result.installedFiles.length : 1; notify("Installed " + count + " mod(s), including required dependencies."); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
   }
   async function checkModUpdates() {
     if (!window.vampire) return notify("Mod updates are available in the desktop app.");
     setBusy(true);
-    try { const updates = await window.vampire.checkModUpdates({ version, loader }); setModUpdates(updates); notify(updates.length ? updates.length + " mod update(s) found." : "All tracked mods are up to date."); }
+    try { const updates = await window.vampire.checkModUpdates({ version, loader, instanceId }); setModUpdates(updates); notify(updates.length ? updates.length + " mod update(s) found." : "All tracked mods are up to date."); }
     catch (e) { notify(e instanceof Error ? e.message : "Could not check mod updates."); }
     finally { setBusy(false); }
   }
   async function updateMod(projectId: string) {
     if (!window.vampire) return;
     setBusy(true);
-    try { const result = await window.vampire.updateMod({ version, loader, projectId }); setInstalled(await window.vampire.listMods({ version, loader })); setModUpdates(items => items.filter(item => item.projectId !== projectId)); notify("Updated " + result.fileName); }
+    try { const result = await window.vampire.updateMod({ version, loader, instanceId, projectId }); setInstalled(await window.vampire.listMods({ version, loader, instanceId })); setModUpdates(items => items.filter(item => item.projectId !== projectId)); notify("Updated " + result.fileName); }
     catch (e) { notify(e instanceof Error ? e.message : "Mod update failed."); }
     finally { setBusy(false); }
   }
   async function bulkToggleMods(enabled: boolean) {
     if (!window.vampire) return;
     setBusy(true);
-    try { const result = await window.vampire.bulkToggleMods({ version, loader, enabled }); setInstalled(await window.vampire.listMods({ version, loader })); notify((enabled ? "Enabled " : "Disabled ") + result.changed + " mod(s)."); }
+    try { const result = await window.vampire.bulkToggleMods({ version, loader, instanceId, enabled }); setInstalled(await window.vampire.listMods({ version, loader, instanceId })); notify((enabled ? "Enabled " : "Disabled ") + result.changed + " mod(s)."); }
     catch (e) { notify(e instanceof Error ? e.message : "Bulk mod action failed."); }
     finally { setBusy(false); }
   }
   async function exportModpack() {
     if (!window.vampire) return notify("Modpack export is available in the desktop app.");
-    try { const result = await window.vampire.exportModpack({ version, loader }); if (!result.canceled) notify("Exported " + result.count + " tracked mod(s)."); }
+    try { const result = await window.vampire.exportModpack({ version, loader, instanceId }); if (!result.canceled) notify("Exported " + result.count + " tracked mod(s)."); }
     catch (e) { notify(e instanceof Error ? e.message : "Modpack export failed."); }
   }
   async function importModpack() {
     if (!window.vampire) return notify("Modpack import is available in the desktop app.");
     setBusy(true);
-    try { const result = await window.vampire.importModpack({ version, loader }); if (!result.canceled) { setInstalled(await window.vampire.listMods({ version, loader })); notify("Imported " + result.installed + " project(s); " + result.failed.length + " failed."); if (result.failed.length) console.warn("Modpack import issues:", result.failed); } }
+    try { const result = await window.vampire.importModpack({ version, loader, instanceId }); if (!result.canceled) { setInstalled(await window.vampire.listMods({ version, loader, instanceId })); notify("Imported " + result.installed + " project(s); " + result.failed.length + " failed."); if (result.failed.length) console.warn("Modpack import issues:", result.failed); } }
     catch (e) { notify(e instanceof Error ? e.message : "Modpack import failed."); }
     finally { setBusy(false); }
   }
   async function importResourcePack() {
     if (!window.vampire) return notify("Resource pack import is available in the desktop app.");
-    try { const result = await window.vampire.importResourcePack({ version, loader }); if (result.fileName) { setResourcePacks(await window.vampire.listResourcePacks({ version, loader })); notify("Imported resource pack: " + result.fileName); } }
+    try { const result = await window.vampire.importResourcePack({ version, loader, instanceId }); if (result.fileName) { setResourcePacks(await window.vampire.listResourcePacks({ version, loader, instanceId })); notify("Imported resource pack: " + result.fileName); } }
     catch (e) { notify(e instanceof Error ? e.message : "Resource pack import failed."); }
   }
   async function removeResourcePack(fileName: string) {
     if (!window.vampire) return;
-    try { await window.vampire.removeResourcePack({ version, loader, fileName }); setResourcePacks(await window.vampire.listResourcePacks({ version, loader })); notify("Removed resource pack: " + fileName); }
+    try { await window.vampire.removeResourcePack({ version, loader, instanceId, fileName }); setResourcePacks(await window.vampire.listResourcePacks({ version, loader, instanceId })); notify("Removed resource pack: " + fileName); }
     catch (e) { notify(e instanceof Error ? e.message : "Could not remove resource pack."); }
   }
   async function removeMod(fileName: string) {
     if (!window.vampire) return;
-    try { await window.vampire.removeMod({ fileName, version, loader }); setInstalled(await window.vampire.listMods({ version, loader })); notify("Removed " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove mod."); }
+    try { await window.vampire.removeMod({ fileName, version, loader, instanceId }); setInstalled(await window.vampire.listMods({ version, loader, instanceId })); notify("Removed " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove mod."); }
   }
   async function toggleMod(fileName: string) {
     if (!window.vampire) return;
-    try { await window.vampire.toggleMod({ fileName, version, loader }); setInstalled(await window.vampire.listMods({ version, loader })); } catch (e) { notify(e instanceof Error ? e.message : "Could not change mod state."); }
+    try { await window.vampire.toggleMod({ fileName, version, loader, instanceId }); setInstalled(await window.vampire.listMods({ version, loader, instanceId })); } catch (e) { notify(e instanceof Error ? e.message : "Could not change mod state."); }
   }
   async function installOptimizationPack(renderer: "sodium" | "vulkanmod") {
     if (!window.vampire) return notify("Optimization packs are available in the desktop app.");
@@ -289,18 +289,18 @@ export default function App() {
     const installedNames: string[] = [];
     const skipped: string[] = [];
     try {
-      const selected = await window.vampire.setPerformanceProfile({ profile: renderer, version, loader });
+      const selected = await window.vampire.setPerformanceProfile({ profile: renderer, version, loader, instanceId });
       setRendererProfile(renderer);
       installedNames.push(selected.fileName);
       for (const mod of pack) {
         try {
-          const result = await window.vampire.installMod({ projectId: mod.id, minecraftVersion: version, loader });
+          const result = await window.vampire.installMod({ projectId: mod.id, minecraftVersion: version, loader, instanceId });
           installedNames.push(result.fileName);
         } catch {
           skipped.push(mod.name + " (no compatible build or download error)");
         }
       }
-      setInstalled(await window.vampire.listMods({ version, loader }));
+      setInstalled(await window.vampire.listMods({ version, loader, instanceId }));
       notify("Optimization pack finished. Installed " + installedNames.length + " files; skipped " + skipped.length + ". Restart Minecraft to apply.");
     } catch (e) {
       notify(e instanceof Error ? e.message : "Could not install the optimization pack.");
@@ -313,8 +313,8 @@ export default function App() {
     if (!window.vampire) return notify("Graphics presets are available in the desktop app.");
     setBusy(true);
     try {
-      await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId });
-      await window.vampire.applyPerformancePreset({ preset, version, loader });
+      await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId });
+      await window.vampire.applyPerformancePreset({ preset, version, loader, instanceId });
       notify((preset === "celeron-low" ? "Celeron low-end" : "i3 balanced") + " graphics preset saved. Restart Minecraft to apply.");
     } catch (e) {
       notify(e instanceof Error ? e.message : "Could not apply graphics preset.");
@@ -328,9 +328,9 @@ export default function App() {
     if (loader !== "fabric") return notify("Select a Fabric instance before switching renderers.");
     setBusy(true);
     try {
-      await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId });
-      const result = await window.vampire.setPerformanceProfile({ profile, version, loader });
-      setRendererProfile(profile); setInstalled(await window.vampire.listMods({ version, loader }));
+      await window.vampire.saveSettings({ ram, javaPath, version, loader, instanceId, clientId: microsoftClientId });
+      const result = await window.vampire.setPerformanceProfile({ profile, version, loader, instanceId });
+      setRendererProfile(profile); setInstalled(await window.vampire.listMods({ version, loader, instanceId }));
       notify("Switched renderer profile to " + result.profile + ". Restart Minecraft to apply.");
     } catch (e) { notify(e instanceof Error ? e.message : "Renderer switch failed."); }
     finally { setBusy(false); }
