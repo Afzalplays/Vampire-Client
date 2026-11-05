@@ -67,7 +67,21 @@ jobs:
           npm audit --json > npm-audit.json || true
           node -e "const a=require('./npm-audit.json'); console.log('npm audit summary:', JSON.stringify(a.metadata?.vulnerabilities)); for (const [name, issue] of Object.entries(a.vulnerabilities || {})) console.log(name, issue.severity, JSON.stringify(issue.via), JSON.stringify(issue.fixAvailable));"
       - run: npm run build
-      - run: npx electron-builder ${{ matrix.args }}
+      - name: Package desktop app (retry transient download failures)
+        shell: bash
+        run: |
+          for attempt in 1 2 3; do
+            echo "electron-builder attempt $attempt/3"
+            if npx electron-builder ${{ matrix.args }}; then
+              exit 0
+            fi
+            if [ "$attempt" -lt 3 ]; then
+              echo "Packaging failed; waiting 20 seconds before retry."
+              sleep 20
+            fi
+          done
+          echo "Packaging failed after 3 attempts."
+          exit 1
       - uses: actions/upload-artifact@v4
         with:
           name: vampire-client-${{ matrix.artifact }}
