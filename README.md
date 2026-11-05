@@ -16,6 +16,8 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Modrinth project search and compatible Fabric JAR download.
 - Per-version mod folders, installed-mod list, enable/disable and remove actions.
 - One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
+- Modrinth downloads are restricted to the official HTTPS CDN, checksum-verified, and limited to 150 MB per file.
+- Electron renderer isolation, sandboxing, restricted external navigation and encrypted Microsoft token storage when OS secure storage is available.
 - Desktop Right Shift quick menu.
 - Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout and FPS HUD toggle.
 
@@ -25,9 +27,9 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Forge, NeoForge and Quilt loader installation.
 - Mod updates, dependency resolution, conflict detection and modpack import/export.
 - Full live mod configuration and HUD editor.
-- Sodium/VulkanMod one-click performance profiles and compatibility switching.
 - Java runtime auto-download and installation.
 - Android application.
+- Branded application icons, Windows code signing and macOS notarization.
 - macOS code signing/notarization and Linux ARM64 packages.
 
 Offline profiles do not authenticate Minecraft ownership or grant access to online-mode/premium servers. Microsoft sign-in verifies Minecraft Java entitlement before official-account launch.
@@ -76,15 +78,9 @@ cd game-mod
 gradle build
 ```
 
-## Website
+## Downloads
 
-Website source is in [website/](website/). GitHub Pages deployment is configured in [pages.yml](.github/workflows/pages.yml). The repository owner must enable **Settings → Pages → Build and deployment → GitHub Actions** before GitHub Pages deployment can succeed. Alternatively, import the repository into Vercel; `vercel.json` configures the `website/` folder as the static output directory.
-
-Expected URL after enabling Pages:
-
-https://afzalplays.github.io/Vampire-Client/
-
-The website links to GitHub Releases and will not claim downloads are available until verified release assets exist.
+Verified build artifacts are attached to successful [GitHub Actions build runs](https://github.com/Afzalplays/Vampire-Client/actions/workflows/build.yml). No public GitHub Release has been published yet.
 
 ## Contributing
 
