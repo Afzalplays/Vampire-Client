@@ -262,6 +262,52 @@ ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: 
   return { success: true, fileName: nextName, enabled: !enabled };
 });
 
+ipcMain.handle("performance:set", async (_event, args: { profile: string; version: string; loader: string }) => {
+  const profile = String(args.profile || "");
+  if (!["sodium", "vulkanmod"].includes(profile)) throw new Error("Unknown performance renderer profile.");
+  if (args.loader !== "fabric") throw new Error("Performance renderer profiles require a Fabric instance.");
+  const instance = safeInstance(args.version, args.loader);
+  const projectId = profile === "sodium" ? "AANobbMI" : "vulkanmod";
+  const endpoint = "https://api.modrinth.com/v2/project/" + projectId +
+    "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version])) +
+    "&loaders=" + encodeURIComponent(JSON.stringify(["fabric"]));
+  const response = await fetch(endpoint);
+  if (!response.ok) throw new Error("Modrinth renderer lookup failed (" + response.status + ").");
+  const versions = await response.json() as any[];
+  const selected = versions[0];
+  if (!selected?.files?.length) throw new Error("No compatible " + profile + " build exists for Minecraft " + args.version + ".");
+  const file = selected.files.find((item: any) => item.primary) || selected.files[0];
+  const url = new URL(file.url);
+  if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Renderer download host was rejected.");
+  const download = await fetch(url);
+  if (!download.ok) throw new Error("Renderer download failed (" + download.status + ").");
+  const fileName = path.basename(String(file.filename || profile + ".jar")).replace(/[^A-Za-z0-9._-]/g, "_");
+  if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR renderer file.");
+  await fs.mkdir(instance.mods, { recursive: true });
+  const files = await fs.readdir(instance.mods);
+  for (const existing of files) {
+    const lower = existing.toLowerCase();
+    const isRenderer = lower.includes("sodium") || lower.includes("vulkanmod");
+    const isOpposite = profile === "sodium" ? lower.includes("vulkanmod") : lower.includes("sodium");
+    if (isRenderer && isOpposite && lower.endsWith(".jar")) {
+      await fs.rename(path.join(instance.mods, existing), path.join(instance.mods, existing + ".disabled"));
+    }
+  }
+  const disabledTarget = path.join(instance.mods, fileName + ".disabled");
+  const enabledTarget = path.join(instance.mods, fileName);
+  try {
+    await fs.access(disabledTarget);
+    await fs.rename(disabledTarget, enabledTarget);
+  } catch {
+    try {
+      await fs.writeFile(enabledTarget, Buffer.from(await download.arrayBuffer()), { flag: "wx" });
+    } catch (error: any) {
+      if (error.code !== "EEXIST") throw error;
+    }
+  }
+  return { success: true, profile, fileName };
+});
+
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1440, height: 900, minWidth: 1050, minHeight: 680,
