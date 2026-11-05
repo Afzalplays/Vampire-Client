@@ -23,14 +23,14 @@ interface Window {
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string; instanceId?: string }): Promise<{ success: boolean; pid?: number }>;
     stopGame(): Promise<{ success: boolean; stopped: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string ; instanceId?: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
-    bulkToggleMods(args: { version: string; loader: string; enabled: boolean; instanceId?: string ; instanceId?: string }): Promise<{ success: boolean; changed: number }>;
+    bulkToggleMods(args: { version: string; loader: string; enabled: boolean; instanceId?: string }): Promise<{ success: boolean; changed: number }>;
     exportModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
     importModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; installed: number; failed: string[] }>;
     listResourcePacks(args: { version: string; loader: string ; instanceId?: string }): Promise<string[]>;
     importResourcePack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; fileName?: string }>;
-    removeResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string ; instanceId?: string }): Promise<{ success: boolean }>;
+    removeResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string }): Promise<{ success: boolean }>;
     checkModUpdates(args: { version: string; loader: string ; instanceId?: string }): Promise<Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }>>;
-    updateMod(args: { version: string; loader: string; projectId: string; instanceId?: string ; instanceId?: string }): Promise<{ success: boolean; fileName: string }>;
+    updateMod(args: { version: string; loader: string; projectId: string; instanceId?: string }): Promise<{ success: boolean; fileName: string }>;
     installMod(args: { projectId: string; minecraftVersion: string; loader: string; instanceId?: string }): Promise<{ success: boolean; fileName: string; installedFiles?: string[]; skippedOptional?: string[] }>;
     removeMod(args: { fileName: string; version: string; loader: string; instanceId?: string }): Promise<{ success: boolean }>;
     toggleMod(args: { fileName: string; version: string; loader: string ; instanceId?: string }): Promise<{ success: boolean; fileName: string; enabled: boolean }>;
