@@ -238,6 +238,25 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   return { success: true, version: versionId, launchVersion };
 });
 
+ipcMain.handle("game:installStatus", async (_event, args: { version: string; loader: string }) => {
+  const versionId = String(args.version || "");
+  const loader = String(args.loader || "");
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric"].includes(loader)) {
+    throw new Error("Invalid Minecraft version or loader.");
+  }
+  const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
+  const launchVersion = installed[versionId + ":" + loader];
+  if (!launchVersion) return { installed: false, launchVersion: null, reason: "not-installed" };
+  const root = safeInstance(versionId, loader).root;
+  try {
+    await fs.access(root);
+    await Version.parse(root, launchVersion);
+    return { installed: true, launchVersion, reason: null };
+  } catch {
+    return { installed: false, launchVersion, reason: "files-missing" };
+  }
+});
+
 ipcMain.handle("game:launch", async (_event, args: { username: string; version: string; ram: number; javaPath?: string }) => {
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Minecraft is already running.");
   const username = safeName(args.username);
