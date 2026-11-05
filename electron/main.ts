@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, safeStorage } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { launch, Version } from "@xmcl/core";
-import { getVersionList, install, getLoaderArtifactListFor, installFabricByLoaderArtifact, installDependencies } from "@xmcl/installer";
+import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 
@@ -144,7 +144,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const loaders = await getLoaderArtifactListFor(versionId, {});
     const selected = loaders.find((item: any) => item.loader?.stable) || loaders[0];
     if (!selected?.loader?.version) throw new Error("Fabric loader metadata is unavailable.");
-    launchVersion = await installFabricByLoaderArtifact(selected, root, { side: "client" });
+    launchVersion = await installFabric(selected, root, { side: "client" });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   }
