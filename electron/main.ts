@@ -294,7 +294,7 @@ ipcMain.handle("game:installStatus", async (_event, args: { version: string; loa
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   const launchVersion = installed[instanceKey(versionId, loader, args.instanceId || "default")] || (args.instanceId === "default" || !args.instanceId ? installed[versionId + ":" + loader] : undefined);
   if (!launchVersion) return { installed: false, launchVersion: null, reason: "not-installed" };
-  const root = safeInstance(versionId, loader, args.instanceId || "default").root;
+  const root = (await safeInstanceAsync(versionId, loader, args.instanceId || "default")).root;
   try {
     await fs.access(root);
     await Version.parse(root, launchVersion);
@@ -317,7 +317,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (!launchVersion) {
     throw new Error("Minecraft " + args.version + " (" + activeLoader + ") is not installed yet. Open Versions and install it before launching.");
   }
-  const root = safeInstance(args.version, activeLoader, activeInstanceId).root;
+  const root = (await safeInstanceAsync(args.version, activeLoader, activeInstanceId)).root;
   try {
     await fs.access(root);
     await Version.parse(root, launchVersion);
@@ -485,7 +485,7 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   return { success: true, fileName: result.installedFiles[result.installedFiles.length - 1], installedFiles: result.installedFiles, skippedOptional: result.skippedOptional };
 });
 ipcMain.handle("mods:bulkToggle", async (_event, args: { version: string; loader: string; enabled: boolean ; instanceId?: string}) => {
-  const directory = safeInstance(args.version, args.loader, args.instanceId || "default").mods;
+  const directory = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods;
   await fs.mkdir(directory, { recursive: true });
   const entries = await fs.readdir(directory, { withFileTypes: true });
   let changed = 0;
@@ -506,7 +506,7 @@ ipcMain.handle("mods:bulkToggle", async (_event, args: { version: string; loader
 });
 
 ipcMain.handle("mods:exportPack", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(path.join(instance.mods, ".vampire-mods.json"), []);
   const manifest = { format: "vampire-modpack", formatVersion: 1, minecraftVersion: args.version, loader: args.loader,
     createdAt: new Date().toISOString(), projects: registry.map(item => ({ projectId: item.projectId, versionId: item.versionId })).filter(item => /^[A-Za-z0-9_-]{3,64}$/.test(item.projectId)) };
@@ -517,7 +517,7 @@ ipcMain.handle("mods:exportPack", async (_event, args: { version: string; loader
 });
 
 ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  safeInstance(args.version, args.loader, args.instanceId || "default");
+  (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const choice = await dialog.showOpenDialog(mainWindow!, { title: "Import Vampire modpack manifest", properties: ["openFile"], filters: [{ name: "Vampire modpack manifest", extensions: ["json"] }] });
   if (choice.canceled || !choice.filePaths[0]) return { canceled: true, installed: 0, failed: [] };
   const stat = await fs.stat(choice.filePaths[0]);
@@ -538,7 +538,7 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
 });
 
 ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const root = safeInstance(args.version, args.loader, args.instanceId || "default").root;
+  const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const directory = path.join(root, "resourcepacks");
   await fs.mkdir(directory, { recursive: true });
   const entries = await fs.readdir(directory, { withFileTypes: true });
@@ -557,7 +557,7 @@ async function assertZipSignature(file: string) {
 }
 
 ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const root = safeInstance(args.version, args.loader, args.instanceId || "default").root;
+  const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const choice = await dialog.showOpenDialog(mainWindow!, { title: "Import Minecraft resource pack", properties: ["openFile"], filters: [{ name: "Resource pack ZIP", extensions: ["zip"] }] });
   if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
   const source = choice.filePaths[0];
@@ -571,7 +571,7 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
   return { canceled: false, fileName: name };
 });
 ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
-  const root = safeInstance(args.version, args.loader, args.instanceId || "default").root;
+  const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const name = String(args.fileName || "");
   if (!/^[A-Za-z0-9._ -]{1,180}\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid resource pack filename.");
   await fs.unlink(path.join(root, "resourcepacks", name));
@@ -579,7 +579,7 @@ ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; l
 });
 
 ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const directory = safeInstance(args.version, args.loader, args.instanceId || "default").mods;
+  const directory = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods;
   const registryFile = path.join(directory, ".vampire-mods.json");
   const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
   const updates: Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }> = [];
@@ -600,7 +600,7 @@ ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: s
 });
 
 ipcMain.handle("mods:update", async (_event, args: { version: string; loader: string; projectId: string ; instanceId?: string}) => {
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   if (args.loader !== "fabric") throw new Error("Mod updates are available for Fabric instances only.");
   const directory = instance.mods;
   const registryFile = path.join(directory, ".vampire-mods.json");
@@ -631,13 +631,13 @@ ipcMain.handle("mods:update", async (_event, args: { version: string; loader: st
 ipcMain.handle("mods:remove", async (_event, args: { fileName: string; version: string; loader: string ; instanceId?: string}) => {
   const name = path.basename(String(args.fileName));
   if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
-  await fs.unlink(path.join(safeInstance(args.version, args.loader, args.instanceId || "default").mods, name));
+  await fs.unlink(path.join((await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods, name));
   return { success: true };
 });
 ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: string; loader: string ; instanceId?: string}) => {
   const name = path.basename(String(args.fileName));
   if (name !== args.fileName || !(name.toLowerCase().endsWith(".jar") || name.toLowerCase().endsWith(".jar.disabled"))) throw new Error("Invalid mod filename.");
-  const directory = safeInstance(args.version, args.loader, args.instanceId || "default").mods;
+  const directory = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods;
   const enabled = name.toLowerCase().endsWith(".jar");
   const nextName = enabled ? name + ".disabled" : name.slice(0, -".disabled".length);
   await fs.rename(path.join(directory, name), path.join(directory, nextName));
@@ -645,7 +645,7 @@ ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: 
 });
 
 ipcMain.handle("shaders:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const dir = path.join(instance.root, "shaderpacks");
   await fs.mkdir(dir, { recursive: true });
   const entries = await fs.readdir(dir, { withFileTypes: true });
@@ -654,7 +654,7 @@ ipcMain.handle("shaders:list", async (_event, args: { version: string; loader: s
 });
 
 ipcMain.handle("shaders:import", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const choice = await dialog.showOpenDialog(mainWindow!, {
     title: "Import Minecraft shader pack",
     properties: ["openFile"],
@@ -675,7 +675,7 @@ ipcMain.handle("shaders:import", async (_event, args: { version: string; loader:
 });
 
 ipcMain.handle("shaders:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const name = String(args.fileName || "");
   if (!/^[A-Za-z0-9._ -]{1,180}\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid shader pack filename.");
   await fs.unlink(path.join(instance.root, "shaderpacks", name));
@@ -691,7 +691,7 @@ ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string;
   if (!preset) throw new Error("Unknown performance preset.");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(args.version || ""))) throw new Error("Invalid Minecraft version.");
   if (!["vanilla", "fabric"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
-  const optionsFile = path.join(safeInstance(args.version, args.loader, args.instanceId || "default").root, "options.txt");
+  const optionsFile = path.join((await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root, "options.txt");
   await fs.mkdir(path.dirname(optionsFile), { recursive: true });
   let existing = "";
   try { existing = await fs.readFile(optionsFile, "utf8"); } catch { /* first launch: create options file */ }
@@ -709,7 +709,7 @@ ipcMain.handle("performance:set", async (_event, args: { profile: string; versio
   const profile = String(args.profile || "");
   if (!["sodium", "vulkanmod"].includes(profile)) throw new Error("Unknown performance renderer profile.");
   if (args.loader !== "fabric") throw new Error("Performance renderer profiles require a Fabric instance.");
-  const instance = safeInstance(args.version, args.loader, args.instanceId || "default");
+  const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const projectId = profile === "sodium" ? "AANobbMI" : "vulkanmod";
   const endpoint = "https://api.modrinth.com/v2/project/" + projectId +
     "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version])) +
