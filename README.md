@@ -48,7 +48,7 @@ npm run dist:linux
 npm run dist:mac
 ```
 
-The GitHub Actions workflow can be started manually from the Actions tab or by pushing a version tag beginning with `v`.
+The GitHub Actions workflow can be started manually from the Actions tab or by pushing a version tag beginning with `v`. Tag pushes build platform artifacts and publish a GitHub Release. Windows setup packages are named `VampireClient-Setup-<version>-<arch>.exe`; portable packages are separate.
 
 ## In-game Right Shift menu (Fabric)
 The companion module source targets Minecraft 1.21.1 and Java 21. Open `game-mod/` with a compatible Gradle installation and run:
