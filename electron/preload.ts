@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("vampire", {
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => ipcRenderer.invoke("settings:save", settings),
   listVersions: () => ipcRenderer.invoke("versions:list"),
+  getSystemMemory: () => ipcRenderer.invoke("system:memory"),
   detectJava: (javaPath?: string) => ipcRenderer.invoke("java:detect", { javaPath }),
   readLogs: () => ipcRenderer.invoke("logs:read"),
   exportLogs: () => ipcRenderer.invoke("logs:export"),
