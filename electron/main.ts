@@ -109,9 +109,9 @@ ipcMain.handle("auth:login", async (_event, clientId: string) => {
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
 });
 ipcMain.handle("settings:get", async () =>
-  readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric" })
+  readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "" })
 );
-ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string }) => {
+ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => {
   const current = await readJson(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric" });
   const next = {
     ram: Math.max(1, Math.min(16, Number(settings.ram ?? current.ram))),
