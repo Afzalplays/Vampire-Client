@@ -59,7 +59,7 @@ gradle build
 
 The initial companion menu is a functional screen/shortcut shell; Mods, Performance and HUD subpages are placeholders until their integrations are implemented. Install Fabric Loader and Fabric API for the matching Minecraft version before testing the mod.
 
-## Contributing
+See [docs/IN_GAME_MENU.md](docs/IN_GAME_MENU.md) for building and testing the in-game Right Shift menu.\n\n## Contributing
 See [CONTRIBUTING.md](CONTRIBUTING.md). Please report bugs through GitHub Issues and never commit secrets, account tokens or session files.
 
 ## Project license
