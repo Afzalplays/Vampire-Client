@@ -76,6 +76,24 @@ function safeName(value: string) {
   if (!/^[A-Za-z0-9_]{3,16}$/.test(name)) throw new Error("Username must be 3–16 letters, numbers or underscores.");
   return name;
 }
+const launcherLogFile = () => path.join(dataRoot(), "logs", "launcher.log");
+async function writeLauncherLog(message: string) {
+  try {
+    const file = launcherLogFile();
+    await fs.mkdir(path.dirname(file), { recursive: true });
+    const stamp = new Date().toISOString();
+    const line = "[" + stamp + "] " + String(message).replace(/[\\r\\n]+/g, " ").slice(0, 4000) + "\\n";
+    try {
+      const stat = await fs.stat(file);
+      if (stat.size > 2 * 1024 * 1024) {
+        const previous = await fs.readFile(file, "utf8");
+        await fs.writeFile(file, previous.slice(-1024 * 1024), "utf8");
+      }
+    } catch {}
+    await fs.appendFile(file, line, "utf8");
+  } catch {}
+}
+
 function sendStatus(message: string) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("game:status", message);
 }
@@ -149,6 +167,21 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
   await writeJson(settingsFile(), next);
   return next;
 });
+ipcMain.handle("logs:read", async () => {
+  try {
+    const content = await fs.readFile(launcherLogFile(), "utf8");
+    return content.slice(-100 * 1024);
+  } catch { return "No launcher log has been created yet."; }
+});
+ipcMain.handle("logs:export", async () => {
+  const source = launcherLogFile();
+  try { await fs.access(source); } catch { throw new Error("No launcher log is available yet."); }
+  const choice = await dialog.showSaveDialog(mainWindow!, { title: "Export Vampire Client logs", defaultPath: "VampireClient-launcher.log", filters: [{ name: "Log files", extensions: ["log", "txt"] }] });
+  if (choice.canceled || !choice.filePath) return { canceled: true };
+  await fs.copyFile(source, choice.filePath);
+  return { canceled: false, filePath: choice.filePath };
+});
+
 ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
   const executable = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
   if (executable.length > 1024) throw new Error("Java path is too long.");
