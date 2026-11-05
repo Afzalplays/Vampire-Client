@@ -13,9 +13,10 @@ contextBridge.exposeInMainWorld("vampire", {
   listVersions: () => ipcRenderer.invoke("versions:list"),
   installVersion: (args: { version: string; loader: string }) => ipcRenderer.invoke("game:install", args),
   launchGame: (args: { username: string; version: string; ram: number; javaPath?: string }) => ipcRenderer.invoke("game:launch", args),
-  listMods: () => ipcRenderer.invoke("mods:list"),
+  listMods: (args: { version: string; loader: string }) => ipcRenderer.invoke("mods:list", args),
   installMod: (args: { projectId: string; minecraftVersion: string; loader: string }) => ipcRenderer.invoke("mods:install", args),
-  removeMod: (fileName: string) => ipcRenderer.invoke("mods:remove", fileName),
+  removeMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:remove", args),
+  toggleMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:toggle", args),
   onGameStatus: (callback: (message: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
     ipcRenderer.on("game:status", listener);
