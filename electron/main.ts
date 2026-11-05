@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { spawn, type ChildProcess } from "node:child_process";
 import { totalmem, freemem } from "node:os";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
@@ -12,6 +13,7 @@ import { PublicClientApplication } from "@azure/msal-node";
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
 let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
+const worldServerProcesses = new Map<string, ChildProcess>();
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
 const gameRoot = (version?: string, loader = "vanilla", instanceId = "default") => {
@@ -154,6 +156,120 @@ ipcMain.handle("instances:delete", async (_event, idValue: string) => {
   }
   return { success: true };
 });
+
+type WorldServerRecord = { id: string; name: string; version: string; createdAt: string; ramGB: number; };
+const worldServersFile = () => path.join(dataRoot(), "world-servers.json");
+const worldServerRoot = (id: string) => {
+  if (!/^[a-f0-9-]{36}$/.test(String(id || ""))) throw new Error("Invalid world server ID.");
+  return path.join(dataRoot(), "world-servers", id);
+};
+async function listWorldServers() {
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  return records.map(record => ({ ...record, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
+}
+ipcMain.handle("servers:list", async () => listWorldServers());
+ipcMain.handle("servers:create", async (_event, args: { name: string; version: string; ramGB?: number }) => {
+  const name = String(args.name || "").trim();
+  const version = String(args.version || "");
+  if (name.length < 2 || name.length > 32 || !/^[A-Za-z0-9 _.-]+$/.test(name)) throw new Error("Server name must be 2–32 letters, numbers, spaces, dots or dashes.");
+  if (!/^[A-Za-z0-9._-]{1,32}$/.test(version)) throw new Error("Invalid Minecraft server version.");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (records.length >= 10) throw new Error("You can create up to 10 local world servers.");
+  if (records.some(record => record.name.toLowerCase() === name.toLowerCase())) throw new Error("A world server with this name already exists.");
+  const ramGB = Math.max(1, Math.min(16, Math.round(Number(args.ramGB || 2))));
+  sendStatus("Fetching official Minecraft " + version + " server metadata…");
+  const manifestResponse = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
+  if (!manifestResponse.ok) throw new Error("Could not fetch the official Minecraft version manifest.");
+  const manifest = await manifestResponse.json() as any;
+  const entry = Array.isArray(manifest.versions) ? manifest.versions.find((item: any) => item.id === version) : null;
+  if (!entry?.url) throw new Error("Minecraft version was not found in Mojang's official manifest.");
+  const metadataUrl = new URL(String(entry.url));
+  if (metadataUrl.protocol !== "https:" || !["piston-meta.mojang.com", "launchermeta.mojang.com"].includes(metadataUrl.hostname)) throw new Error("Minecraft metadata host was rejected.");
+  const metadataResponse = await fetch(metadataUrl);
+  if (!metadataResponse.ok) throw new Error("Could not fetch official server metadata.");
+  const metadata = await metadataResponse.json() as any;
+  const serverArtifact = metadata?.downloads?.server;
+  if (!serverArtifact?.url || !/^[a-f0-9]{40}$/i.test(String(serverArtifact.sha1 || ""))) throw new Error("This Minecraft version does not publish a verifiable official server JAR.");
+  const jarUrl = new URL(String(serverArtifact.url));
+  if (jarUrl.protocol !== "https:" || !["piston-data.mojang.com", "launcher.mojang.com"].includes(jarUrl.hostname)) throw new Error("Minecraft server download host was rejected.");
+  const download = await fetch(jarUrl);
+  if (!download.ok) throw new Error("Official Minecraft server download failed (" + download.status + ").");
+  const declaredSize = Number(download.headers.get("content-length") || 0);
+  if (declaredSize > 200 * 1024 * 1024) throw new Error("Server JAR exceeds the 200 MB safety limit.");
+  const bytes = Buffer.from(await download.arrayBuffer());
+  if (!bytes.length || bytes.length > 200 * 1024 * 1024) throw new Error("Server JAR size is invalid or exceeds 200 MB.");
+  const actualSha1 = createHash("sha1").update(bytes).digest("hex");
+  if (actualSha1.toLowerCase() !== String(serverArtifact.sha1).toLowerCase()) throw new Error("Official server JAR checksum verification failed.");
+  const id = randomUUID();
+  const root = worldServerRoot(id);
+  await fs.mkdir(root, { recursive: true });
+  await fs.writeFile(path.join(root, "server.jar"), bytes, { flag: "wx" });
+  await fs.writeFile(path.join(root, "eula.txt"), "eula=false\n", "utf8");
+  await fs.writeFile(path.join(root, "server.properties"), [
+    "server-port=25565", "server-ip=", "online-mode=true", "enable-rcon=false",
+    "enable-command-block=false", "max-players=10", "view-distance=6",
+    "simulation-distance=4", "motd=Vampire Client World", "white-list=false", ""
+  ].join("\n"), "utf8");
+  const record: WorldServerRecord = { id, name, version, createdAt: new Date().toISOString(), ramGB };
+  records.push(record);
+  await writeJson(worldServersFile(), records);
+  sendStatus("World server " + name + " downloaded and verified. EULA acceptance is required before first start.");
+  return { ...record, running: false, eulaAccepted: false };
+});
+ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }) => {
+  const id = String(args.id || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  const record = records.find(item => item.id === id);
+  if (!record) throw new Error("World server not found.");
+  const existing = worldServerProcesses.get(id);
+  if (existing && existing.exitCode === null) throw new Error("This world server is already running.");
+  if (args.acceptEula !== true) throw new Error("You must explicitly accept the Minecraft EULA before starting this server.");
+  const root = worldServerRoot(id);
+  await fs.access(path.join(root, "server.jar"));
+  const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
+  if (javaPath.length > 1024) throw new Error("Java executable path is too long.");
+  const requestedRam = Number(args.ramGB ?? record.ramGB);
+  if (!Number.isFinite(requestedRam) || requestedRam < 1 || requestedRam > 16) throw new Error("Server RAM must be between 1 and 16 GB.");
+  await fs.writeFile(path.join(root, "eula.txt"), "eula=true\n", "utf8");
+  const proc = spawn(javaPath, ["-Xms512M", "-Xmx" + Math.round(requestedRam) + "G", "-jar", "server.jar", "nogui"], {
+    cwd: root, windowsHide: true, stdio: ["pipe", "pipe", "pipe"]
+  });
+  worldServerProcesses.set(id, proc);
+  const logPath = path.join(root, "server.log");
+  const append = (label: string, chunk: unknown) => {
+    const line = "[" + new Date().toISOString() + "] [" + label + "] " + String(chunk).replace(/[\r]+/g, "").slice(0, 8000);
+    void fs.appendFile(logPath, line.endsWith("\n") ? line : line + "\n", "utf8").catch(() => undefined);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("server:output", { id, text: line });
+  };
+  proc.stdout?.on("data", chunk => append("stdout", chunk));
+  proc.stderr?.on("data", chunk => append("stderr", chunk));
+  proc.once("error", error => append("process-error", error.message));
+  proc.once("close", code => {
+    append("process", "Server stopped with exit code " + String(code));
+    if (worldServerProcesses.get(id) === proc) worldServerProcesses.delete(id);
+  });
+  append("launcher", "Starting " + record.name + " with " + Math.round(requestedRam) + " GB RAM.");
+  return { success: true, pid: proc.pid };
+});
+ipcMain.handle("servers:stop", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  const proc = worldServerProcesses.get(id);
+  if (!proc || proc.exitCode !== null) { worldServerProcesses.delete(id); return { success: true, stopped: false }; }
+  if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\n");
+  else proc.kill("SIGTERM");
+  return { success: true, stopped: true };
+});
+ipcMain.handle("servers:delete", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  const proc = worldServerProcesses.get(id);
+  if (proc && proc.exitCode === null) throw new Error("Stop this world server before deleting it.");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (!records.some(record => record.id === id)) throw new Error("World server not found.");
+  await fs.rm(worldServerRoot(id), { recursive: true, force: true });
+  await writeJson(worldServersFile(), records.filter(record => record.id !== id));
+  return { success: true };
+});
+
 ipcMain.handle("profile:get", async () =>
   readJson<{ active: string; names: string[] }>(profilesFile(), { active: "Player", names: ["Player"] })
 );
