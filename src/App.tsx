@@ -21,6 +21,8 @@ export default function App() {
   const [versions, setVersions] = useState<Array<{id:string;type:string;releaseTime:string}>>([]);
   const [loader, setLoader] = useState("fabric");
   const [javaPath, setJavaPath] = useState("java");
+  const [microsoftClientId, setMicrosoftClientId] = useState("");
+  const [accountType, setAccountType] = useState("Offline");
   const [gameStatus, setGameStatus] = useState("Ready");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
@@ -38,10 +40,10 @@ export default function App() {
     if (!window.vampire) return;
     let active = true;
     const unsubscribe = window.vampire.onGameStatus(message => { if (active) setGameStatus(message); });
-    Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.listMods()])
-      .then(([savedProfile, settings, catalog, installedFiles]) => {
+    Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.listMods(), window.vampire.getMicrosoftAccount()])
+      .then(([savedProfile, settings, catalog, installedFiles, microsoftAccount]) => {
         if (!active) return;
-        setProfile(savedProfile.active); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setVersions(catalog); setInstalled(installedFiles);
+        setProfile(microsoftAccount.authenticated && microsoftAccount.profile ? microsoftAccount.profile.name : savedProfile.active); setAccountType(microsoftAccount.authenticated ? "Microsoft" : "Offline"); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setMicrosoftClientId(settings.clientId || ""); setVersions(catalog); setInstalled(installedFiles);
       }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });
     return () => { active = false; unsubscribe(); };
   }, []);
@@ -61,10 +63,19 @@ export default function App() {
   useEffect(() => { if (tab === "Mods" && mods.length === 0) void searchMods(); }, [tab]);
 
   async function saveOfflineProfile() {
-    try { if (!window.vampire) throw new Error("Run the desktop app to save profiles."); const saved = await window.vampire.saveProfile(profile); setProfile(saved.active); notify("Offline profile saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save profile."); }
+    try { if (!window.vampire) throw new Error("Run the desktop app to save profiles."); if (accountType === "Microsoft") { await window.vampire.logoutMicrosoft(); setAccountType("Offline"); } const saved = await window.vampire.saveProfile(profile); setProfile(saved.active); notify("Offline profile saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save profile."); }
+  }
+  async function signInMicrosoft() {
+    if (!window.vampire) return notify("Microsoft sign-in is available in the desktop app.");
+    if (!microsoftClientId.trim()) return notify("Enter your Microsoft app Client ID first.");
+    setBusy(true); try { const result = await window.vampire.loginMicrosoft(microsoftClientId.trim()); setProfile(result.profile.name); setAccountType("Microsoft"); notify("Microsoft account connected: " + result.profile.name); if (!result.encryptedStorage) notify("Secure token storage is unavailable; sign in again after restarting."); } catch (e) { notify(e instanceof Error ? e.message : "Microsoft sign-in failed."); } finally { setBusy(false); }
+  }
+  async function signOutMicrosoft() {
+    if (!window.vampire) return;
+    try { await window.vampire.logoutMicrosoft(); setAccountType("Offline"); notify("Microsoft account signed out."); } catch (e) { notify(e instanceof Error ? e.message : "Sign-out failed."); }
   }
   async function saveLauncherSettings() {
-    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
+    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
   }
   async function installSelectedVersion() {
     if (!window.vampire) return notify("Version installation is available in the desktop app.");
@@ -102,7 +113,7 @@ export default function App() {
       <div className="side-label">LAUNCHER</div>
       <nav>{nav.map(item => <button key={item.name} className={"nav-item " + (tab === item.name ? "active" : "")} onClick={() => setTab(item.name)}><item.icon size={18}/>{item.name}</button>)}</nav>
       <div className="sidebar-bottom">
-        <div className="profile-mini"><div className="avatar">{profile.slice(0,1).toUpperCase()}</div><div><b>{profile}</b><small>Offline profile</small></div><ChevronDown size={15}/></div>
+        <div className="profile-mini"><div className="avatar">{profile.slice(0,1).toUpperCase()}</div><div><b>{profile}</b><small>{accountType} account</small></div><ChevronDown size={15}/></div>
         <div className="build-label">VAMPIRE CLIENT <span>v0.3.0</span></div>
       </div>
     </aside>
@@ -119,7 +130,7 @@ export default function App() {
         </>}
         {tab === "Versions" && <><PageTitle eyebrow="GAME LIBRARY" title="Versions" desc="Choose a Minecraft release for your local profile."/><section className="panel glass"><div className="field-row"><label>Selected Minecraft version</label><select value={version} onChange={e => setVersion(e.target.value)}>{(versions.length ? versions.filter(v => v.type === "release") : [{id:"1.21.1",type:"release",releaseTime:""}]).slice(0,150).map(v => <option key={v.id} value={v.id}>{v.id}</option>)}</select></div><div className="info-banner"><ShieldCheck size={18}/><span>Installs the selected vanilla Minecraft version, assets and libraries from the official version metadata. Java must be installed and available on PATH or set in Settings.</span></div><button className="primary-button" disabled={busy} onClick={() => void installSelectedVersion()}><Download size={15}/>{busy ? "Working..." : "Install selected version"}</button></section></>}
         {tab === "Mods" && <><PageTitle eyebrow="MOD LIBRARY" title="Discover mods" desc="Search the Modrinth catalog and explore compatible projects."/><section className="panel glass"><div className="field-row"><label>Mod loader compatibility</label><select value={loader} onChange={e => setLoader(e.target.value)}><option value="fabric">Fabric</option><option value="vanilla">Vanilla (no mods)</option></select></div><div className="search-row"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && void searchMods()} placeholder="Search Sodium, Iris, Lithium..."/><button className="primary-button compact" onClick={() => void searchMods()} disabled={loading}>{loading ? "Searching..." : "Search"}</button></div>{error && <div className="error-text">{error}</div>}<div className="mod-grid">{mods.map(mod => <article className="mod-card" key={mod.project_id}><div className="mod-card-head">{mod.icon_url ? <img src={mod.icon_url} alt=""/> : <div className="mod-symbol"><Blocks/></div>}<div><b>{mod.title}</b><small>{mod.downloads.toLocaleString()} downloads</small></div></div><p>{mod.description}</p><div className="mod-card-foot"><a href={"https://modrinth.com/mod/" + mod.slug} target="_blank" rel="noreferrer">View on Modrinth <ExternalLink size={12}/></a><button className="secondary-button tiny" disabled={busy} onClick={() => void installMod(mod)}><Download size={12}/> Install</button></div></article>)}</div><div className="divider-line"/><h3>Installed mod files</h3>{installed.length ? installed.map(file => <div className="setting-row" key={file}><div><b>{file}</b><small>Stored in the active Minecraft mods folder</small></div><button className="secondary-button tiny" onClick={() => void removeMod(file)}>Remove</button></div>) : <p className="muted">No mod JAR files installed yet.</p>}<div className="info-banner"><Blocks size={17}/><span>Mods are downloaded to the Minecraft mods folder. Select Fabric before installing the game version to automatically install the Fabric loader. Mods are not compatible with Vanilla-only profiles.</span></div></section></>}
-        {tab === "Accounts" && <><PageTitle eyebrow="IDENTITY" title="Accounts" desc="Use a local offline profile for offline-mode servers, or sign in with Microsoft when authentication is implemented."/><section className="panel glass"><div className="field-row"><label>Offline profile name</label><input value={profile} maxLength={16} onChange={e => setProfile(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}/></div><div className="info-banner"><CircleUserRound size={18}/><span>Offline profiles do not authenticate ownership and only work on servers that explicitly allow offline-mode connections.</span></div><button className="primary-button" onClick={() => void saveOfflineProfile()}>Save profile</button><div className="divider-line"/><h3>Microsoft account</h3><p className="muted">Official Microsoft OAuth and Minecraft entitlement verification are not implemented yet.</p><button className="secondary-button" disabled>Sign in with Microsoft — coming later</button></section></>}
+        {tab === "Accounts" && <><PageTitle eyebrow="IDENTITY" title="Accounts" desc="Use a local offline profile for offline-mode servers, or sign in with Microsoft when authentication is implemented."/><section className="panel glass"><div className="field-row"><label>Offline profile name</label><input value={profile} maxLength={16} onChange={e => setProfile(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}/></div><div className="info-banner"><CircleUserRound size={18}/><span>Offline profiles do not authenticate ownership and only work on servers that explicitly allow offline-mode connections.</span></div><button className="primary-button" onClick={() => void saveOfflineProfile()}>Save profile</button><div className="divider-line"/><h3>Microsoft account</h3><p className="muted">Use your own Microsoft public-client app registration. Vampire Client checks Minecraft Java entitlement before allowing official account launch.</p><div className="field-row"><label>Microsoft App Client ID</label><input value={microsoftClientId} onChange={e => setMicrosoftClientId(e.target.value)} placeholder="Paste your Azure app Client ID"/></div><div className="hero-buttons"><button className="primary-button" disabled={busy} onClick={() => void signInMicrosoft()}>Sign in with Microsoft</button>{accountType === "Microsoft" && <button className="secondary-button" onClick={() => void signOutMicrosoft()}>Sign out</button>}</div><p className="muted">Setup guide: docs/MICROSOFT_LOGIN_SETUP.md</p></section></>}
         {tab === "Settings" && <><PageTitle eyebrow="PREFERENCES" title="Settings" desc="Tune the launcher preview to match your system."/><section className="panel glass"><div className="setting-row"><div><b>Memory allocation</b><small>Recommended starting point for a 4 GB system: 1.5–2 GB.</small></div><div className="range-value">{ram} GB</div></div><input className="range" type="range" min="1" max="8" step=".5" value={ram} onChange={e => setRam(Number(e.target.value))}/><div className="field-row"><label>Java executable path</label><input value={javaPath} onChange={e => setJavaPath(e.target.value)} placeholder="java or full path to java.exe"/></div><div className="setting-row"><div><b>Launcher appearance</b><small>Vampire glass — dark translucent panels with red accents.</small></div><span className="pill">Active</span></div><div className="setting-row"><div><b>Quick menu shortcut</b><small>Right Shift toggles the desktop preview panel. In-game menu is provided by the separate Fabric mod module.</small></div><kbd>RIGHT SHIFT</kbd></div><button className="primary-button" onClick={() => void saveLauncherSettings()}>Save settings</button></section></>}
       </div>
     </main>
