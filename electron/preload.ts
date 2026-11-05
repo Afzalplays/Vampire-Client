@@ -14,6 +14,8 @@ contextBridge.exposeInMainWorld("vampire", {
   installVersion: (args: { version: string; loader: string }) => ipcRenderer.invoke("game:install", args),
   launchGame: (args: { username: string; version: string; ram: number; javaPath?: string }) => ipcRenderer.invoke("game:launch", args),
   listMods: (args: { version: string; loader: string }) => ipcRenderer.invoke("mods:list", args),
+  checkModUpdates: (args: { version: string; loader: string }) => ipcRenderer.invoke("mods:updates", args),
+  updateMod: (args: { version: string; loader: string; projectId: string }) => ipcRenderer.invoke("mods:update", args),
   installMod: (args: { projectId: string; minecraftVersion: string; loader: string }) => ipcRenderer.invoke("mods:install", args),
   removeMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:remove", args),
   toggleMod: (args: { fileName: string; version: string; loader: string }) => ipcRenderer.invoke("mods:toggle", args),
