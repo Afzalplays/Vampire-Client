@@ -72,6 +72,10 @@ export default function App() {
   const [shaderSupport, setShaderSupport] = useState(true);
   const [replaySupport, setReplaySupport] = useState(false);
   const [worldHosting, setWorldHosting] = useState(false);
+  const [worldServers, setWorldServers] = useState<Array<{id:string;name:string;version:string;createdAt:string;ramGB:number;running:boolean}>>([]);
+  const [newWorldServerName, setNewWorldServerName] = useState("My Vampire World");
+  const [worldServerRam, setWorldServerRam] = useState(2);
+  const [worldServerEulaAccepted, setWorldServerEulaAccepted] = useState(false);
   const [hostingMode, setHostingMode] = useState<"both" | "lan" | "internet">("both");
   const [capeVisibility, setCapeVisibility] = useState<"account" | "client-only">("account");
   const [shaderPacks, setShaderPacks] = useState<string[]>([]);
@@ -122,6 +126,53 @@ export default function App() {
       }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });
     return () => { active = false; unsubscribe(); };
   }, []);
+
+  useEffect(() => {
+    if (!window.vampire) return;
+    let active = true;
+    window.vampire.listWorldServers().then(items => { if (active) setWorldServers(items); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
+
+  async function createWorldServer() {
+    if (!window.vampire) return notify("World server hosting is available in the desktop app.");
+    if (!newWorldServerName.trim()) return notify("Enter a name for your world server.");
+    setBusy(true);
+    try {
+      const created = await window.vampire.createWorldServer({ name: newWorldServerName, version, ramGB: worldServerRam });
+      setWorldServers(await window.vampire.listWorldServers());
+      setNewWorldServerName("");
+      notify("Server JAR downloaded and SHA-1 verified. Review the EULA before starting.");
+    } catch (e) { notify(e instanceof Error ? e.message : "Could not create world server."); }
+    finally { setBusy(false); }
+  }
+  async function startWorldServer(id: string) {
+    if (!window.vampire) return;
+    if (!worldServerEulaAccepted) return notify("Read and accept the Minecraft EULA before starting.");
+    setBusy(true);
+    try {
+      await window.vampire.startWorldServer({ id, javaPath, ramGB: worldServerRam, acceptEula: true });
+      setWorldServers(await window.vampire.listWorldServers());
+      notify("World server start command sent. First startup may take a few minutes.");
+    } catch (e) { notify(e instanceof Error ? e.message : "Could not start world server."); }
+    finally { setBusy(false); }
+  }
+  async function stopWorldServer(id: string) {
+    if (!window.vampire) return;
+    try {
+      await window.vampire.stopWorldServer(id);
+      window.setTimeout(() => { void window.vampire?.listWorldServers().then(setWorldServers); }, 1200);
+      notify("Graceful stop requested.");
+    } catch (e) { notify(e instanceof Error ? e.message : "Could not stop world server."); }
+  }
+  async function deleteWorldServer(id: string) {
+    if (!window.vampire || !window.confirm("Delete this world server and its entire local world folder? This cannot be undone.")) return;
+    try {
+      await window.vampire.deleteWorldServer(id);
+      setWorldServers(await window.vampire.listWorldServers());
+      notify("World server files deleted.");
+    } catch (e) { notify(e instanceof Error ? e.message : "Could not delete world server."); }
+  }
 
   async function searchMods() {
     setLoading(true); setError("");
@@ -393,7 +444,7 @@ export default function App() {
             <section className="panel glass"><div className="panel-title"><div><h3>Resource pack manager</h3><p>Import and manage local Minecraft resource pack ZIPs</p></div><Layers3 size={18}/></div><button className="primary-button compact" onClick={() => void importResourcePack()}>Import resource pack ZIP</button>{resourcePacks.length ? resourcePacks.map(file => <div className="setting-row" key={file}><div><b>{file}</b><small>Stored in this Minecraft instance resourcepacks folder</small></div><button className="secondary-button tiny" onClick={() => void removeResourcePack(file)}>Remove</button></div>) : <p className="muted">No resource packs imported for this instance.</p>}<div className="info-banner"><ShieldCheck size={17}/><span>ZIP files are copied, not extracted or executed. Enable imported packs in Minecraft Options → Resource Packs after restarting or refreshing the game.</span></div></section>
             <section className="panel glass"><div className="panel-title"><div><h3>Mod & feature library</h3><p>Discover compatible community mods plus Vampire tools</p></div><Blocks size={18}/></div><div className="feature-pills">{["Performance","Minimap","Zoom","Replay","Voice chat","Emotes","World map","Inventory","Animations","Schematic","Dynamic lights","AppleSkin","Entity culling","HUD","Screenshot","Cosmetics"].map(x=><span key={x}>{x}</span>)}</div><button className="primary-button" onClick={()=>{setTab("Mods");setQuery("");void searchMods();}}>Browse Modrinth catalogue <ExternalLink size={13}/></button><p className="muted">100+ compatible mods will be discoverable from Modrinth; we will not bundle third-party mods without their authors' permission. Each mod will have one-click install, enable, disable and remove.</p></section>
             <section className="panel glass"><div className="panel-title"><div><h3>Replay & schematics</h3><p>Creator tools and build assistance</p></div><Layers3 size={18}/></div><div className="setting-row"><div><b>Replay Mod support</b><small>Record, replay and export gameplay sessions.</small></div><button className={replaySupport?"toggle-on":"toggle-off"} onClick={()=>setReplaySupport(v=>!v)}>{replaySupport?"ON":"OFF"}</button></div><div className="setting-row"><div><b>Schematic tools</b><small>Litematica-style schematic placement and previews.</small></div><button className={schematicsEnabled?"toggle-on":"toggle-off"} onClick={()=>setSchematicsEnabled(v=>!v)}>{schematicsEnabled?"ON":"OFF"}</button></div><div className="info-banner"><Blocks size={17}/><span>These switches save your preferences only. Replay Mod and schematic file handling still need compatible loader versions, dependencies and in-game integration.</span></div></section>
-            <section className="panel glass"><div className="panel-title"><div><h3>Vampire World Hosting</h3><p>Host a world directly from your own PC</p></div><Gamepad2 size={18}/></div><div className="setting-row"><div><b>Local world hosting</b><small>Use your PC CPU, RAM and network to host a world.</small></div><button className={worldHosting?"toggle-on":"toggle-off"} onClick={()=>setWorldHosting(v=>!v)}>{worldHosting?"ON":"OFF"}</button></div><div className="field-row"><label>Network access</label><select value={hostingMode} onChange={e=>setHostingMode(e.target.value as "both" | "lan" | "internet")}><option value="both">Both LAN and Internet</option><option value="lan">LAN only</option><option value="internet">Internet only</option></select></div><div className="info-banner"><ShieldCheck size={17}/><span>Selected: {hostingMode === "both" ? "LAN + Internet" : hostingMode === "lan" ? "LAN only" : "Internet only"}. The server runtime is not active yet. Internet access will require a manual router port-forward or trusted tunnel, explicit firewall consent and a visible public-address warning; the launcher will never silently open ports. EULA acceptance and RAM limits are required before starting a server.</span></div></section>
+            <section className="panel glass"><div className="panel-title"><div><h3>Vampire World Hosting</h3><p>Run a vanilla Minecraft server locally on this PC</p></div><Gamepad2 size={18}/></div><div className="setting-row"><div><b>World hosting tools</b><small>Manage isolated server folders and server processes.</small></div><button className={worldHosting?"toggle-on":"toggle-off"} onClick={()=>setWorldHosting(v=>!v)}>{worldHosting?"ON":"OFF"}</button></div><div className="field-row"><label>Network access plan</label><select value={hostingMode} onChange={e=>setHostingMode(e.target.value as "both" | "lan" | "internet")}><option value="both">Both LAN and Internet</option><option value="lan">LAN only</option><option value="internet">Internet only</option></select></div><div className="field-row"><label>Server name</label><input value={newWorldServerName} maxLength={32} onChange={e=>setNewWorldServerName(e.target.value)} placeholder="My Minecraft World"/></div><div className="field-row"><label>Server RAM (1–16 GB)</label><input type="number" min={1} max={16} step={1} value={worldServerRam} onChange={e=>setWorldServerRam(Math.max(1,Math.min(16,Number(e.target.value)||1)))}/></div><p className="muted">New server will use Minecraft {version} (the currently selected version). Vampire Client downloads the official Mojang server JAR and verifies its SHA-1 checksum.</p><button className="primary-button" disabled={busy || !worldHosting} onClick={()=>void createWorldServer()}><Download size={15}/> Create &amp; download server</button><div className="divider-line"/><div className="setting-row"><div><b>Minecraft EULA acceptance</b><small>Required before any server can start. Read the Minecraft EULA and accept it yourself.</small></div><input type="checkbox" checked={worldServerEulaAccepted} onChange={e=>setWorldServerEulaAccepted(e.target.checked)}/></div>{worldServers.length===0?<p className="muted">No local world servers created yet.</p>:worldServers.map(server=><div className="recommend" key={server.id}><div className="mod-symbol"><Gamepad2 size={17}/></div><div><b>{server.name}</b><small>Minecraft {server.version} · {server.ramGB} GB saved RAM · {server.running?"Running":"Stopped"}</small></div><div className="hero-buttons">{server.running?<button className="secondary-button" onClick={()=>void stopWorldServer(server.id)}>Stop</button>:<button className="primary-button" disabled={busy || !worldServerEulaAccepted} onClick={()=>void startWorldServer(server.id)}>Accept EULA &amp; Start</button>}<button className="secondary-button" onClick={()=>void deleteWorldServer(server.id)}>Delete</button></div></div>)}<div className="info-banner"><ShieldCheck size={17}/><span>Network plan: {hostingMode==="both"?"LAN + Internet":hostingMode==="lan"?"LAN only":"Internet only"}. Server uses online-mode=true, RCON disabled and default port 25565. Internet access still requires you to configure router port forwarding or a trusted tunnel manually. Vampire Client does not modify firewall, router, UPnP or public network settings.</span></div></section>
           </div><section className="panel glass"><div className="panel-title"><div><h3>Save your studio setup</h3><p>Preferences are stored on this device.</p></div><span className="pill">LOCAL PROFILE</span></div><button className="primary-button" onClick={()=>notify("Studio preferences saved on this device.")}>Save Studio preferences</button></section>
         </>}
         {tab === "Accounts" && <><PageTitle eyebrow="IDENTITY" title="Accounts" desc="Sign in with Microsoft for owned Minecraft Java Edition, or use a local offline profile on offline-mode servers."/><section className="panel glass"><div className="field-row"><label>Offline profile name</label><input value={profile} maxLength={16} onChange={e => setProfile(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}/></div><div className="info-banner"><CircleUserRound size={18}/><span>Offline profiles do not authenticate ownership and only work on servers that explicitly allow offline-mode connections.</span></div><button className="primary-button" onClick={() => void saveOfflineProfile()}>Save profile</button><div className="divider-line"/><h3>Microsoft account</h3><p className="muted">Use your own Microsoft public-client app registration. Vampire Client checks Minecraft Java entitlement before allowing official account launch.</p><div className="field-row"><label>Microsoft App Client ID</label><input value={microsoftClientId} onChange={e => setMicrosoftClientId(e.target.value)} placeholder="Paste your Azure app Client ID"/></div><div className="hero-buttons"><button className="primary-button" disabled={busy} onClick={() => void signInMicrosoft()}>Sign in with Microsoft</button>{accountType === "Microsoft" && <button className="secondary-button" onClick={() => void signOutMicrosoft()}>Sign out</button>}</div><p className="muted">Setup guide: docs/MICROSOFT_LOGIN_SETUP.md</p></section></>}
