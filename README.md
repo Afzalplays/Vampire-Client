@@ -1,33 +1,71 @@
-# Vampire Client
+# 🧛 Vampire Client
 
-**A powerful, customizable and open-source Minecraft Java launcher.**
+**An open-source-in-development Minecraft Java launcher by Vampire Studios.**
 
-Vampire Client aims to deliver a smooth Minecraft experience with a modern interface, performance-focused profiles and easy mod management.
+Vampire Client is being built around a modern glassmorphism interface, performance-focused profiles and a convenient mod discovery experience.
 
-### ✨ Features
-- 🎮 Minecraft Java Edition version management
-- ⚡ Performance profiles with Sodium and VulkanMod options
-- 📦 Modrinth mod discovery and installation
-- 🔧 Custom RAM allocation and launcher settings
-- 👤 Microsoft account authentication
-- 🌙 Offline profiles for offline-mode servers
-- 🖥️ Cross-platform development: Windows, Linux and macOS
-- 📱 Planned Android companion/launcher support
-- 🎨 Modern red-and-black interface
+## Current preview
+- React + TypeScript + Electron desktop shell.
+- Red-and-black glass UI with Home, Versions, Mods, Accounts and Settings pages.
+- Modrinth project search through its public API.
+- Right Shift launcher quick menu.
+- Local offline profile name and RAM/version preview controls.
+- Companion Fabric client mod source in `game-mod/` for an in-game Right Shift quick menu (Minecraft 1.21.1).
 
-### 💻 Supported Platforms
-- Windows 32-bit and 64-bit (planned)
-- Linux (planned)
-- macOS Intel and Apple Silicon (planned)
-- Android (separate implementation planned)
+## Development status
+This is an early preview, not a complete Minecraft launcher. The following are **not implemented yet**:
+- Microsoft OAuth login and Minecraft entitlement verification.
+- Downloading Minecraft assets/libraries and launching the game.
+- Installing, updating, enabling or removing mod files from the game directory.
+- A fully featured mod configuration/HUD editor.
+- Sodium/VulkanMod profile installation and switching.
+- Android application.
 
-### 🚧 Development Status
-Vampire Client is currently under active development. Features and platform support are being implemented and tested.
+Offline profile names are for servers that explicitly permit offline-mode connections. They do not authenticate Minecraft ownership or grant access to online-mode/premium servers.
 
-### 🔓 Open Source
-Vampire Client is intended to be released under the MIT License. Contributions, bug reports and feature suggestions are welcome.
+## Desktop platforms
+Packaging workflow is provided for Windows x64 and x86, Linux x64 (AppImage/DEB), and macOS. Builds must complete in GitHub Actions before installers can be considered available. macOS signing/notarization and Linux ARM64 packaging are not configured yet.
 
-### ⚠️ Disclaimer
-Minecraft is a trademark of Mojang Studios. Vampire Client is an independent community project and is not affiliated with or endorsed by Mojang or Microsoft.
+## Run locally
+Requirements: Node.js 22 or later and npm.
 
-**Powered by VampireStudio** ❤️
+```bash
+npm install
+npm run dev
+```
+
+Create a production build:
+
+```bash
+npm run build
+```
+
+Package on the matching operating system:
+
+```bash
+npm run dist:win
+npm run dist:linux
+npm run dist:mac
+```
+
+The GitHub Actions workflow can be started manually from the Actions tab or by pushing a version tag beginning with `v`.
+
+## In-game Right Shift menu (Fabric)
+The companion module source targets Minecraft 1.21.1 and Java 21. Open `game-mod/` with a compatible Gradle installation and run:
+
+```bash
+gradle build
+```
+
+The initial companion menu is a functional screen/shortcut shell; Mods, Performance and HUD subpages are placeholders until their integrations are implemented. Install Fabric Loader and Fabric API for the matching Minecraft version before testing the mod.
+
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md). Please report bugs through GitHub Issues and never commit secrets, account tokens or session files.
+
+## Project license
+No open-source license has been selected or added yet. Until a license is added, do not assume permission to redistribute or publish modified copies.
+
+## Disclaimer
+Minecraft is a trademark of Mojang Studios. Vampire Client is an independent community project and is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft.
+
+**Vampire Studios** ❤️
