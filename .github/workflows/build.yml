@@ -2,7 +2,15 @@ name: Build Vampire Client
 on:
   workflow_dispatch:
   push:
+    branches: [main, master]
     tags: ["v*"]
+    paths:
+      - "package.json"
+      - "src/**"
+      - "electron/**"
+      - "vite.config.ts"
+      - "tsconfig.json"
+      - ".github/workflows/build.yml"
 permissions:
   contents: write
 jobs:
