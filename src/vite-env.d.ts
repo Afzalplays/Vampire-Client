@@ -10,7 +10,7 @@ interface Window {
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
     getSettings(): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string }>;
-    listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;
+    listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;\n    detectJava(javaPath?: string): Promise<{ success: boolean; executable: string; version: string; output: string; platform: string; architecture: string }>;
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
