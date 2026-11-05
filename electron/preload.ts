@@ -3,7 +3,10 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("vampire", {
   version: "0.3.0",
   platform: process.platform,
-  getProfile: () => ipcRenderer.invoke("profile:get"),\n  getMicrosoftAccount: () => ipcRenderer.invoke("auth:get"),\n  loginMicrosoft: (clientId: string) => ipcRenderer.invoke("auth:login", clientId),\n  logoutMicrosoft: () => ipcRenderer.invoke("auth:logout"),
+  getProfile: () => ipcRenderer.invoke("profile:get"),
+  getMicrosoftAccount: () => ipcRenderer.invoke("auth:get"),
+  loginMicrosoft: (clientId: string) => ipcRenderer.invoke("auth:login", clientId),
+  logoutMicrosoft: () => ipcRenderer.invoke("auth:logout"),
   saveProfile: (username: string) => ipcRenderer.invoke("profile:save", username),
   getSettings: () => ipcRenderer.invoke("settings:get"),
   saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => ipcRenderer.invoke("settings:save", settings),
