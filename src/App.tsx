@@ -191,7 +191,15 @@ export default function App() {
   }
   async function playGame() {
     if (!window.vampire) return notify("Game launching is available in the desktop app.");
-    setBusy(true); try { await window.vampire.launchGame({ username: profile, version, ram, javaPath }); } catch (e) { notify(e instanceof Error ? e.message : "Could not launch Minecraft."); } finally { setBusy(false); }
+    setBusy(true);
+    try {
+      await window.vampire.saveSettings({ ram, javaPath, version, loader, clientId: microsoftClientId });
+      await window.vampire.launchGame({ username: profile, version, ram, javaPath });
+    } catch (e) {
+      notify(e instanceof Error ? e.message : "Could not launch Minecraft.");
+    } finally {
+      setBusy(false);
+    }
   }
   async function installMod(mod: Mod) {
     if (!window.vampire) return notify("Mod installation is available in the desktop app.");
