@@ -19,6 +19,8 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Modrinth downloads are restricted to the official HTTPS CDN, checksum-verified, and limited to 150 MB per file.
 - Electron renderer isolation, sandboxing, restricted external navigation and encrypted Microsoft token storage when OS secure storage is available.
 - Desktop Right Shift quick menu.
+- Vampire Studio feature hub UI with cape/name-gradient previews, HUD controls, shader/replay/schematic/world-hosting preference switches.
+- Locally saved Studio preferences and feature discovery categories.
 - Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout and FPS HUD toggle.
 
 ## Not implemented / still in development
@@ -26,7 +28,10 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Microsoft token refresh and a complete multi-account profile manager.
 - Forge, NeoForge and Quilt loader installation.
 - Mod updates, dependency resolution, conflict detection and modpack import/export.
-- Full live mod configuration and HUD editor.
+- Curated 100+ mod catalogue with one-click batch profiles; the existing Modrinth search/install is the current base.
+- HD cape upload, rendering and cosmetics sync service; current cape designer is a local preview.
+- Full live mod configuration, draggable HUD editor and nametag/chat rendering; current Studio switches are preference scaffolding.
+- Shader ZIP pack import/management, Replay Mod integration, schematic file tools and local dedicated-world hosting runtime.
 - Java runtime auto-download and installation.
 - Android application.
 - Branded application icons, Windows code signing and macOS notarization.
