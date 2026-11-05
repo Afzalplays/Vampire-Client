@@ -17,6 +17,7 @@ interface Window {
     exportLogs(): Promise<{ canceled?: boolean; filePath?: string }>;
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
+    stopGame(): Promise<{ success: boolean; stopped: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
     bulkToggleMods(args: { version: string; loader: string; enabled: boolean }): Promise<{ success: boolean; changed: number }>;
     exportModpack(args: { version: string; loader: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
