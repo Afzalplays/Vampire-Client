@@ -17,7 +17,12 @@ export default function App() {
   const [profile, setProfile] = useState("Player");
   const [ram, setRam] = useState(2);
   const [version, setVersion] = useState("1.21.1");
-  const [installed, setInstalled] = useState<string[]>([]);\n  const [versions, setVersions] = useState<Array<{id:string;type:string;releaseTime:string}>>([]);\n  const [loader, setLoader] = useState("fabric");\n  const [javaPath, setJavaPath] = useState("java");\n  const [gameStatus, setGameStatus] = useState("Ready");\n  const [busy, setBusy] = useState(false);
+  const [installed, setInstalled] = useState<string[]>([]);
+  const [versions, setVersions] = useState<Array<{id:string;type:string;releaseTime:string}>>([]);
+  const [loader, setLoader] = useState("fabric");
+  const [javaPath, setJavaPath] = useState("java");
+  const [gameStatus, setGameStatus] = useState("Ready");
+  const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState("");
 
   useEffect(() => {
@@ -29,7 +34,19 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {\n    if (!window.vampire) return;\n    let active = true;\n    const unsubscribe = window.vampire.onGameStatus(message => { if (active) setGameStatus(message); });\n    Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.listMods()])\n      .then(([savedProfile, settings, catalog, installedFiles]) => {\n        if (!active) return;\n        setProfile(savedProfile.active); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setVersions(catalog); setInstalled(installedFiles);\n      }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });\n    return () => { active = false; unsubscribe(); };\n  }, []);\n\n  async function searchMods() {
+  useEffect(() => {
+    if (!window.vampire) return;
+    let active = true;
+    const unsubscribe = window.vampire.onGameStatus(message => { if (active) setGameStatus(message); });
+    Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.listMods()])
+      .then(([savedProfile, settings, catalog, installedFiles]) => {
+        if (!active) return;
+        setProfile(savedProfile.active); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setVersions(catalog); setInstalled(installedFiles);
+      }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });
+    return () => { active = false; unsubscribe(); };
+  }, []);
+
+  async function searchMods() {
     setLoading(true); setError("");
     try {
       const params = new URLSearchParams({ query: query.trim() || "performance", limit: "24", facets: JSON.stringify([[ "versions:" + version ], [ "categories:" + loader ]]) });
@@ -43,7 +60,30 @@ export default function App() {
 
   useEffect(() => { if (tab === "Mods" && mods.length === 0) void searchMods(); }, [tab]);
 
-  async function saveOfflineProfile() {\n    try { if (!window.vampire) throw new Error("Run the desktop app to save profiles."); const saved = await window.vampire.saveProfile(profile); setProfile(saved.active); notify("Offline profile saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save profile."); }\n  }\n  async function saveLauncherSettings() {\n    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }\n  }\n  async function installSelectedVersion() {\n    if (!window.vampire) return notify("Version installation is available in the desktop app.");\n    setBusy(true); try { await window.vampire.installVersion(version); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }\n  }\n  async function playGame() {\n    if (!window.vampire) return notify("Game launching is available in the desktop app.");\n    setBusy(true); try { await window.vampire.launchGame({ username: profile, version, ram, javaPath }); } catch (e) { notify(e instanceof Error ? e.message : "Could not launch Minecraft."); } finally { setBusy(false); }\n  }\n  async function installMod(mod: Mod) {\n    if (!window.vampire) return notify("Mod installation is available in the desktop app.");\n    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader }); const files = await window.vampire.listMods(); setInstalled(files); notify("Installed " + result.fileName); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }\n  }\n  async function removeMod(fileName: string) {\n    if (!window.vampire) return;\n    try { await window.vampire.removeMod(fileName); setInstalled(await window.vampire.listMods()); notify("Removed " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove mod."); }\n  }\n\n  function notify(message: string) {
+  async function saveOfflineProfile() {
+    try { if (!window.vampire) throw new Error("Run the desktop app to save profiles."); const saved = await window.vampire.saveProfile(profile); setProfile(saved.active); notify("Offline profile saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save profile."); }
+  }
+  async function saveLauncherSettings() {
+    try { if (!window.vampire) throw new Error("Settings can only be saved in the desktop app."); await window.vampire.saveSettings({ ram, javaPath, version, loader }); notify("Settings saved."); } catch (e) { notify(e instanceof Error ? e.message : "Could not save settings."); }
+  }
+  async function installSelectedVersion() {
+    if (!window.vampire) return notify("Version installation is available in the desktop app.");
+    setBusy(true); try { await window.vampire.installVersion({ version, loader }); notify("Minecraft " + version + " installed."); setGameStatus("Minecraft " + version + " installed."); } catch (e) { notify(e instanceof Error ? e.message : "Installation failed."); } finally { setBusy(false); }
+  }
+  async function playGame() {
+    if (!window.vampire) return notify("Game launching is available in the desktop app.");
+    setBusy(true); try { await window.vampire.launchGame({ username: profile, version, ram, javaPath }); } catch (e) { notify(e instanceof Error ? e.message : "Could not launch Minecraft."); } finally { setBusy(false); }
+  }
+  async function installMod(mod: Mod) {
+    if (!window.vampire) return notify("Mod installation is available in the desktop app.");
+    setBusy(true); try { const result = await window.vampire.installMod({ projectId: mod.project_id, minecraftVersion: version, loader }); const files = await window.vampire.listMods(); setInstalled(files); notify("Installed " + result.fileName); } catch (e) { notify(e instanceof Error ? e.message : "Mod installation failed."); } finally { setBusy(false); }
+  }
+  async function removeMod(fileName: string) {
+    if (!window.vampire) return;
+    try { await window.vampire.removeMod(fileName); setInstalled(await window.vampire.listMods()); notify("Removed " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove mod."); }
+  }
+
+  function notify(message: string) {
     setToast(message);
     window.setTimeout(() => setToast(""), 2600);
   }
@@ -54,7 +94,9 @@ export default function App() {
     { name: "FerriteCore", desc: "Lower memory usage", tag: "Memory" }
   ], []);
 
-  if (booting) return <div className="splash-screen"><div className="splash-emblem">V</div><div className="splash-title">VAMPIRE <span>STUDIOS</span></div><div className="splash-loader"><i/></div><small>INITIALIZING VAMPIRE CLIENT</small></div>;\n\n  return <div className="app-shell">
+  if (booting) return <div className="splash-screen"><div className="splash-emblem">V</div><div className="splash-title">VAMPIRE <span>STUDIOS</span></div><div className="splash-loader"><i/></div><small>INITIALIZING VAMPIRE CLIENT</small></div>;
+
+  return <div className="app-shell">
     <aside className="sidebar glass">
       <div className="brand"><div className="brand-mark">V</div><div><b>VAMPIRE</b><small>STUDIOS</small></div></div>
       <div className="side-label">LAUNCHER</div>
@@ -76,7 +118,7 @@ export default function App() {
           <section className="panel glass"><div className="panel-title"><div><h3>Recommended mods</h3><p>Popular performance additions</p></div><button className="text-button" onClick={() => setTab("Mods")}>Explore all <ExternalLink size={13}/></button></div>{popular.map(m => <div className="recommend" key={m.name}><div className="mod-symbol"><Blocks size={17}/></div><div><b>{m.name}</b><small>{m.desc}</small></div><span>{m.tag}</span></div>)}</section></div>
         </>}
         {tab === "Versions" && <><PageTitle eyebrow="GAME LIBRARY" title="Versions" desc="Choose a Minecraft release for your local profile."/><section className="panel glass"><div className="field-row"><label>Selected Minecraft version</label><select value={version} onChange={e => setVersion(e.target.value)}>{(versions.length ? versions.filter(v => v.type === "release") : [{id:"1.21.1",type:"release",releaseTime:""}]).slice(0,150).map(v => <option key={v.id} value={v.id}>{v.id}</option>)}</select></div><div className="info-banner"><ShieldCheck size={18}/><span>Installs the selected vanilla Minecraft version, assets and libraries from the official version metadata. Java must be installed and available on PATH or set in Settings.</span></div><button className="primary-button" disabled={busy} onClick={() => void installSelectedVersion()}><Download size={15}/>{busy ? "Working..." : "Install selected version"}</button></section></>}
-        {tab === "Mods" && <><PageTitle eyebrow="MOD LIBRARY" title="Discover mods" desc="Search the Modrinth catalog and explore compatible projects."/><section className="panel glass"><div className="field-row"><label>Mod loader compatibility</label><select value={loader} onChange={e => setLoader(e.target.value)}><option value="fabric">Fabric</option><option value="forge">Forge</option><option value="neoforge">NeoForge</option><option value="quilt">Quilt</option></select></div><div className="search-row"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && void searchMods()} placeholder="Search Sodium, Iris, Lithium..."/><button className="primary-button compact" onClick={() => void searchMods()} disabled={loading}>{loading ? "Searching..." : "Search"}</button></div>{error && <div className="error-text">{error}</div>}<div className="mod-grid">{mods.map(mod => <article className="mod-card" key={mod.project_id}><div className="mod-card-head">{mod.icon_url ? <img src={mod.icon_url} alt=""/> : <div className="mod-symbol"><Blocks/></div>}<div><b>{mod.title}</b><small>{mod.downloads.toLocaleString()} downloads</small></div></div><p>{mod.description}</p><div className="mod-card-foot"><a href={"https://modrinth.com/mod/" + mod.slug} target="_blank" rel="noreferrer">View on Modrinth <ExternalLink size={12}/></a><button className="secondary-button tiny" disabled={busy} onClick={() => void installMod(mod)}><Download size={12}/> Install</button></div></article>)}</div><div className="divider-line"/><h3>Installed mod files</h3>{installed.length ? installed.map(file => <div className="setting-row" key={file}><div><b>{file}</b><small>Stored in the active Minecraft mods folder</small></div><button className="secondary-button tiny" onClick={() => void removeMod(file)}>Remove</button></div>) : <p className="muted">No mod JAR files installed yet.</p>}<div className="info-banner"><Blocks size={17}/><span>Mods are downloaded to the Minecraft mods folder. A matching Fabric/Forge/NeoForge/Quilt loader must also be installed for them to load; automated loader installation is still pending.</span></div></section></>}
+        {tab === "Mods" && <><PageTitle eyebrow="MOD LIBRARY" title="Discover mods" desc="Search the Modrinth catalog and explore compatible projects."/><section className="panel glass"><div className="field-row"><label>Mod loader compatibility</label><select value={loader} onChange={e => setLoader(e.target.value)}><option value="fabric">Fabric</option><option value="vanilla">Vanilla (no mods)</option></select></div><div className="search-row"><Search size={18}/><input value={query} onChange={e => setQuery(e.target.value)} onKeyDown={e => e.key === "Enter" && void searchMods()} placeholder="Search Sodium, Iris, Lithium..."/><button className="primary-button compact" onClick={() => void searchMods()} disabled={loading}>{loading ? "Searching..." : "Search"}</button></div>{error && <div className="error-text">{error}</div>}<div className="mod-grid">{mods.map(mod => <article className="mod-card" key={mod.project_id}><div className="mod-card-head">{mod.icon_url ? <img src={mod.icon_url} alt=""/> : <div className="mod-symbol"><Blocks/></div>}<div><b>{mod.title}</b><small>{mod.downloads.toLocaleString()} downloads</small></div></div><p>{mod.description}</p><div className="mod-card-foot"><a href={"https://modrinth.com/mod/" + mod.slug} target="_blank" rel="noreferrer">View on Modrinth <ExternalLink size={12}/></a><button className="secondary-button tiny" disabled={busy} onClick={() => void installMod(mod)}><Download size={12}/> Install</button></div></article>)}</div><div className="divider-line"/><h3>Installed mod files</h3>{installed.length ? installed.map(file => <div className="setting-row" key={file}><div><b>{file}</b><small>Stored in the active Minecraft mods folder</small></div><button className="secondary-button tiny" onClick={() => void removeMod(file)}>Remove</button></div>) : <p className="muted">No mod JAR files installed yet.</p>}<div className="info-banner"><Blocks size={17}/><span>Mods are downloaded to the Minecraft mods folder. Select Fabric before installing the game version to automatically install the Fabric loader. Mods are not compatible with Vanilla-only profiles.</span></div></section></>}
         {tab === "Accounts" && <><PageTitle eyebrow="IDENTITY" title="Accounts" desc="Use a local offline profile for offline-mode servers, or sign in with Microsoft when authentication is implemented."/><section className="panel glass"><div className="field-row"><label>Offline profile name</label><input value={profile} maxLength={16} onChange={e => setProfile(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}/></div><div className="info-banner"><CircleUserRound size={18}/><span>Offline profiles do not authenticate ownership and only work on servers that explicitly allow offline-mode connections.</span></div><button className="primary-button" onClick={() => void saveOfflineProfile()}>Save profile</button><div className="divider-line"/><h3>Microsoft account</h3><p className="muted">Official Microsoft OAuth and Minecraft entitlement verification are not implemented yet.</p><button className="secondary-button" disabled>Sign in with Microsoft — coming later</button></section></>}
         {tab === "Settings" && <><PageTitle eyebrow="PREFERENCES" title="Settings" desc="Tune the launcher preview to match your system."/><section className="panel glass"><div className="setting-row"><div><b>Memory allocation</b><small>Recommended starting point for a 4 GB system: 1.5–2 GB.</small></div><div className="range-value">{ram} GB</div></div><input className="range" type="range" min="1" max="8" step=".5" value={ram} onChange={e => setRam(Number(e.target.value))}/><div className="field-row"><label>Java executable path</label><input value={javaPath} onChange={e => setJavaPath(e.target.value)} placeholder="java or full path to java.exe"/></div><div className="setting-row"><div><b>Launcher appearance</b><small>Vampire glass — dark translucent panels with red accents.</small></div><span className="pill">Active</span></div><div className="setting-row"><div><b>Quick menu shortcut</b><small>Right Shift toggles the desktop preview panel. In-game menu is provided by the separate Fabric mod module.</small></div><kbd>RIGHT SHIFT</kbd></div><button className="primary-button" onClick={() => void saveLauncherSettings()}>Save settings</button></section></>}
       </div>
