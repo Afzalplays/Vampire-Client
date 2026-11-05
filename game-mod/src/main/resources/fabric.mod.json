@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "id": "vampireclient",
+  "version": "${version}",
+  "name": "Vampire Client",
+  "description": "Vampire Studios in-game quick menu, opened with Right Shift.",
+  "authors": ["Vampire Studios"],
+  "environment": "client",
+  "entrypoints": { "client": ["fun.vampire.client.VampireClientMod"] },
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "minecraft": "~1.21.1",
+    "java": ">=21",
+    "fabric-api": "*"
+  }
+}
