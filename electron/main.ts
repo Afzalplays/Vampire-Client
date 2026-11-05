@@ -292,6 +292,17 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   return { success: true, pid: proc.pid };
 });
 
+ipcMain.handle("game:stop", async () => {
+  if (!gameProcess || gameProcess.exitCode !== null || gameProcess.killed) {
+    gameProcess = null;
+    return { success: true, stopped: false };
+  }
+  const pid = gameProcess.pid;
+  const stopped = gameProcess.kill("SIGTERM");
+  if (stopped) sendStatus("Stop signal sent to Minecraft (PID " + String(pid) + ").");
+  return { success: stopped, stopped, pid };
+});
+
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string }) => {
   const directory = safeInstance(args.version, args.loader).mods;
   await fs.mkdir(directory, { recursive: true });
