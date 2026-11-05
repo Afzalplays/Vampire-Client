@@ -11,7 +11,7 @@ contextBridge.exposeInMainWorld("vampire", {
   loginMicrosoft: (clientId: string) => ipcRenderer.invoke("auth:login", clientId),
   logoutMicrosoft: () => ipcRenderer.invoke("auth:logout"),
   saveProfile: (username: string) => ipcRenderer.invoke("profile:save", username),
-  getSettings: () => ipcRenderer.invoke("settings:get"),
+  getSettings: (instanceId?: string) => ipcRenderer.invoke("settings:get", instanceId),
   saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }) => ipcRenderer.invoke("settings:save", settings),
   listVersions: () => ipcRenderer.invoke("versions:list"),
   getSystemMemory: () => ipcRenderer.invoke("system:memory"),
