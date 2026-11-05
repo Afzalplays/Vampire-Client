@@ -280,6 +280,29 @@ ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: 
   return { success: true, fileName: nextName, enabled: !enabled };
 });
 
+ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string; version: string; loader: string }) => {
+  const presets: Record<string, Record<string, string>> = {
+    "celeron-low": { renderDistance: "5", simulationDistance: "4", graphicsMode: "0", particles: "0", entityDistanceScaling: "0.5", biomeBlendRadius: "0", mipmapLevels: "0", ao: "false", enableVsync: "false", clouds: "fast", entityShadows: "false", maxFps: "260" },
+    "i3-balanced": { renderDistance: "8", simulationDistance: "5", graphicsMode: "0", particles: "1", entityDistanceScaling: "0.75", biomeBlendRadius: "1", mipmapLevels: "2", ao: "false", enableVsync: "false", clouds: "fast", entityShadows: "false", maxFps: "500" }
+  };
+  const preset = presets[String(args.preset || "")];
+  if (!preset) throw new Error("Unknown performance preset.");
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(args.version || ""))) throw new Error("Invalid Minecraft version.");
+  if (!["vanilla", "fabric"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
+  const optionsFile = path.join(safeInstance(args.version, args.loader).root, "options.txt");
+  await fs.mkdir(path.dirname(optionsFile), { recursive: true });
+  let existing = "";
+  try { existing = await fs.readFile(optionsFile, "utf8"); } catch { /* first launch: create options file */ }
+  const values = new Map<string, string>();
+  for (const line of existing.split(/\r?\n/)) {
+    const split = line.indexOf(":");
+    if (split > 0) values.set(line.slice(0, split), line.slice(split + 1));
+  }
+  for (const [key, value] of Object.entries(preset)) values.set(key, value);
+  await fs.writeFile(optionsFile, Array.from(values.entries()).map(([key, value]) => key + ":" + value).join("\n") + "\n", "utf8");
+  return { success: true, preset: args.preset, optionsFile };
+});
+
 ipcMain.handle("performance:set", async (_event, args: { profile: string; version: string; loader: string }) => {
   const profile = String(args.profile || "");
   if (!["sodium", "vulkanmod"].includes(profile)) throw new Error("Unknown performance renderer profile.");
