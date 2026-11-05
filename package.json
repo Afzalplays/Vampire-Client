@@ -2,6 +2,7 @@
   "name": "vampire-client",
   "version": "0.3.0",
   "private": true,
+  "author": "Vampire Studios",
   "description": "An open-source-in-development Minecraft Java launcher by Vampire Studios.",
   "main": "dist-electron/main.js",
   "scripts": {
