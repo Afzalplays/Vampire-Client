@@ -2,6 +2,14 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Vampire Client Studio foundation
+
+- Added a Studio hub UI with HD cape design previews and selectable cape themes.
+- Added local gradient name/chat identity and nametag mark preference controls.
+- Added HUD, shader, Replay Mod, schematic and local world-hosting feature panels with explicit preview-state messaging.
+- Added locally persisted Studio preferences and a curated mod-category discovery surface.
+- Clarified that online cosmetics sync, shader ZIP management, replay/schematic integrations and world-host runtime are not yet implemented.
+
 ## 0.3.0 — Development preview
 
 - Added the Vampire Studios glassmorphism desktop launcher interface.
