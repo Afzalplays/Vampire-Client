@@ -47,16 +47,12 @@ public final class VampireClientMod implements ClientModInitializer {
         });
     }
 
-    private static void drawPanel(Screen screen, net.minecraft.client.gui.DrawContext context, String title) {
-        context.fill(0, 0, screen.width, screen.height, 0x55040008);
-        context.fill(screen.width / 2 - 190, screen.height / 2 - 130,
-            screen.width / 2 + 190, screen.height / 2 + 130, 0xE8101018);
-        context.fill(screen.width / 2 - 190, screen.height / 2 - 130,
-            screen.width / 2 + 190, screen.height / 2 - 128, 0xFFFF596F);
-        context.drawCenteredTextWithShadow(screen.textRenderer, "VAMPIRE STUDIOS",
-            screen.width / 2, screen.height / 2 - 116, 0xFFFF7182);
-        context.drawCenteredTextWithShadow(screen.textRenderer, title,
-            screen.width / 2, screen.height / 2 - 96, 0xFFFFFFFF);
+    private static void drawPanel(int width, int height, net.minecraft.client.font.TextRenderer textRenderer, net.minecraft.client.gui.DrawContext context, String title) {
+        context.fill(0, 0, width, height, 0x55040008);
+        context.fill(width / 2 - 190, height / 2 - 130, width / 2 + 190, height / 2 + 130, 0xE8101018);
+        context.fill(width / 2 - 190, height / 2 - 130, width / 2 + 190, height / 2 - 128, 0xFFFF596F);
+        context.drawCenteredTextWithShadow(textRenderer, "VAMPIRE STUDIOS", width / 2, height / 2 - 116, 0xFFFF7182);
+        context.drawCenteredTextWithShadow(textRenderer, title, width / 2, height / 2 - 96, 0xFFFFFFFF);
     }
 
     private static final class VampireQuickMenuScreen extends Screen {
@@ -79,7 +75,7 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override
         public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
-            drawPanel(this, context, "QUICK MENU");
+            drawPanel(width, height, textRenderer, context, "QUICK MENU");
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
@@ -102,7 +98,7 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override
         public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
-            drawPanel(this, context, "LOADED MODS  ·  " + mods.size());
+            drawPanel(width, height, textRenderer, context, "LOADED MODS  ·  " + mods.size());
             int y = height / 2 - 76;
             int max = Math.min(mods.size(), 9);
             for (int i = 0; i < max; i++) {
@@ -130,7 +126,7 @@ public final class VampireClientMod implements ClientModInitializer {
         }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
-            drawPanel(this, context, "PERFORMANCE");
+            drawPanel(width, height, textRenderer, context, "PERFORMANCE");
             Runtime runtime = Runtime.getRuntime();
             long used = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
             context.drawCenteredTextWithShadow(textRenderer, "Current FPS: " + client.getCurrentFps(),
@@ -159,7 +155,7 @@ public final class VampireClientMod implements ClientModInitializer {
         private static Text fpsLabel() { return Text.literal("FPS HUD: " + (showFpsHud ? "ON" : "OFF")); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
-            drawPanel(this, context, "HUD & SETTINGS");
+            drawPanel(width, height, textRenderer, context, "HUD & SETTINGS");
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
