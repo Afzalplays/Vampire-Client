@@ -421,7 +421,8 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
   if (manifest?.format !== "vampire-modpack" || manifest?.formatVersion !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length > 200) throw new Error("Invalid or unsupported Vampire modpack manifest.");
   if (manifest.minecraftVersion !== args.version || manifest.loader !== args.loader) throw new Error("This modpack targets Minecraft " + manifest.minecraftVersion + " / " + manifest.loader + ". Select that exact profile before importing.");
   if (args.loader !== "fabric") throw new Error("Modpack imports currently support Fabric only.");
-  const projectIds: string[] = manifest.projects.map((item: unknown) => { const value = (item as { projectId?: unknown } | null)?.projectId; return typeof value === "string" ? value : ""; }).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id));\n  const projects: string[] = Array.from(new Set<string>(projectIds));
+  const projectIds: string[] = manifest.projects.map((item: unknown) => { const value = (item as { projectId?: unknown } | null)?.projectId; return typeof value === "string" ? value : ""; }).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id));
+  const projects: string[] = Array.from(new Set<string>(projectIds));
   const failed: string[] = [];
   let installed = 0;
   for (const projectId of projects) {
@@ -456,7 +457,8 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
   if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
   const source = choice.filePaths[0];
   const stat = await fs.stat(source);
-  if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 4 bytes and 512 MB.");\n  await assertZipSignature(source);
+  if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 4 bytes and 512 MB.");
+  await assertZipSignature(source);
   const directory = path.join(root, "resourcepacks");
   await fs.mkdir(directory, { recursive: true });
   const name = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
