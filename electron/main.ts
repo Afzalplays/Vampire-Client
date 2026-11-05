@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { pathToFileURL } from "node:url";
+import { totalmem, freemem } from "node:os";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
@@ -197,6 +198,8 @@ ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
   const match = output.match(/version "([^"]+)"/i);
   return { success: true, executable, version: match?.[1] || "Detected (version string unavailable)", output: output.slice(0, 1200), platform: process.platform, architecture: process.arch };
 });
+
+ipcMain.handle("system:memory", async () => ({ totalBytes: totalmem(), freeBytes: freemem(), totalGB: Math.round((totalmem() / 1024 ** 3) * 10) / 10, freeGB: Math.round((freemem() / 1024 ** 3) * 10) / 10 }));
 
 ipcMain.handle("versions:list", async () => listVersions());
 
