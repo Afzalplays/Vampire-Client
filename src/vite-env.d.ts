@@ -12,7 +12,7 @@ interface Window {
     logoutMicrosoft(): Promise<{ success: boolean }>;
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
     getSettings(): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
-    saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string }>;
+    saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;
     getSystemMemory(): Promise<{ totalBytes: number; freeBytes: number; totalGB: number; freeGB: number }>;
     detectJava(javaPath?: string): Promise<{ success: boolean; executable: string; version: string; output: string; platform: string; architecture: string }>;
