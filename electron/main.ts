@@ -384,7 +384,7 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
   if (manifest?.format !== "vampire-modpack" || manifest?.formatVersion !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length > 200) throw new Error("Invalid or unsupported Vampire modpack manifest.");
   if (manifest.minecraftVersion !== args.version || manifest.loader !== args.loader) throw new Error("This modpack targets Minecraft " + manifest.minecraftVersion + " / " + manifest.loader + ". Select that exact profile before importing.");
   if (args.loader !== "fabric") throw new Error("Modpack imports currently support Fabric only.");
-  const projects = Array.from(new Set(manifest.projects.map((item: any) => String(item?.projectId || "")).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id))));
+  const projectIds: string[] = manifest.projects.map((item: unknown) => { const value = (item as { projectId?: unknown } | null)?.projectId; return typeof value === "string" ? value : ""; }).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id));\n  const projects: string[] = Array.from(new Set<string>(projectIds));
   const failed: string[] = [];
   let installed = 0;
   for (const projectId of projects) {
