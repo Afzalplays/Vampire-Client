@@ -230,6 +230,82 @@ ipcMain.handle("mods:list", async (_event, args: { version: string; loader: stri
   return files.filter(file => file.isFile() && (file.name.toLowerCase().endsWith(".jar") || file.name.toLowerCase().endsWith(".jar.disabled")))
     .map(file => ({ fileName: file.name, enabled: file.name.toLowerCase().endsWith(".jar") }));
 });
+async function fetchModrinthVersion(projectId: string, mcVersion: string, loader: string) {
+  const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(projectId) +
+    "/version?game_versions=" + encodeURIComponent(JSON.stringify([mcVersion])) +
+    "&loaders=" + encodeURIComponent(JSON.stringify([loader]));
+  const response = await fetch(endpoint);
+  if (!response.ok) throw new Error("Modrinth version lookup failed for " + projectId + " (" + response.status + ").");
+  const versions = await response.json() as any[];
+  const selected = versions[0];
+  if (!selected?.files?.length) throw new Error("No compatible file was found for dependency " + projectId + ".");
+  return selected;
+}
+
+async function installModrinthTree(projectId: string, mcVersion: string, loader: string) {
+  const visited = new Set<string>();
+  const installedFiles: string[] = [];
+  const skippedOptional: string[] = [];
+  const directory = modsRoot(mcVersion, loader);
+  await fs.mkdir(directory, { recursive: true });
+
+  async function installProject(id: string, pinnedVersionId?: string): Promise<void> {
+    if (visited.has(id)) return;
+    visited.add(id);
+    let selected: any;
+    if (pinnedVersionId) {
+      const pinned = await fetch("https://api.modrinth.com/v2/version/" + encodeURIComponent(pinnedVersionId));
+      if (!pinned.ok) throw new Error("Could not resolve required Modrinth dependency " + id + ".");
+      selected = await pinned.json();
+      if (!Array.isArray(selected.game_versions) || !selected.game_versions.includes(mcVersion) ||
+          !Array.isArray(selected.loaders) || !selected.loaders.includes(loader)) {
+        throw new Error("Required dependency " + id + " has no build compatible with " + mcVersion + " / " + loader + ".");
+      }
+    } else {
+      selected = await fetchModrinthVersion(id, mcVersion, loader);
+    }
+
+    for (const dependency of (Array.isArray(selected.dependencies) ? selected.dependencies : [])) {
+      const kind = String(dependency.dependency_type || "");
+      const depId = String(dependency.project_id || "");
+      const depVersion = String(dependency.version_id || "");
+      if (kind === "incompatible") {
+        if (depId && visited.has(depId)) throw new Error("Mod conflict detected: " + id + " conflicts with " + depId + ".");
+        continue;
+      }
+      if (kind === "optional") {
+        if (depId) skippedOptional.push(depId);
+        continue;
+      }
+      if (kind !== "required") continue;
+      if (!depId && !depVersion) throw new Error("A required dependency for " + id + " has invalid Modrinth metadata.");
+      await installProject(depId || ("version-" + depVersion), depVersion || undefined);
+    }
+
+    const file = selected.files.find((item: any) => item.primary) || selected.files[0];
+    const fileUrl = new URL(String(file?.url || ""));
+    if (fileUrl.protocol !== "https:" || fileUrl.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
+    const download = await fetch(fileUrl);
+    if (!download.ok) throw new Error("Mod download failed (" + download.status + ").");
+    const bytes = await verifyModrinthDownload(download, file);
+    const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
+    if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR file.");
+    const destination = path.join(directory, fileName);
+    try { await fs.writeFile(destination, bytes, { flag: "wx" }); }
+    catch (error: any) {
+      if (error.code === "EEXIST") {
+        if (id === projectId) throw new Error("This mod file is already installed: " + fileName);
+        return;
+      }
+      throw error;
+    }
+    installedFiles.push(fileName);
+  }
+
+  await installProject(projectId);
+  return { installedFiles, skippedOptional: Array.from(new Set(skippedOptional)) };
+}
+
 ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecraftVersion: string; loader: string }) => {
   const projectId = String(args.projectId || "");
   if (!/^[A-Za-z0-9_-]{3,64}$/.test(projectId)) throw new Error("Invalid Modrinth project ID.");
@@ -237,32 +313,8 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   if (loader !== "fabric") throw new Error("Mod downloads in this preview are configured for Fabric profiles only.");
   const mcVersion = String(args.minecraftVersion || "");
   if (!/^[0-9A-Za-z._-]{1,32}$/.test(mcVersion)) throw new Error("Invalid Minecraft version.");
-  const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(projectId) +
-    "/version?game_versions=" + encodeURIComponent(JSON.stringify([mcVersion])) +
-    "&loaders=" + encodeURIComponent(JSON.stringify([loader]));
-  const response = await fetch(endpoint);
-  if (!response.ok) throw new Error("Modrinth version lookup failed (" + response.status + ").");
-  const versions = await response.json() as any[];
-  const selected = versions[0];
-  if (!selected?.files?.length) throw new Error("No compatible file was found for this Minecraft version and loader.");
-  const file = selected.files.find((item: any) => item.primary) || selected.files[0];
-  const fileUrl = new URL(file.url);
-  if (fileUrl.protocol !== "https:" || fileUrl.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
-  const download = await fetch(fileUrl);
-  if (!download.ok) throw new Error("Mod download failed (" + download.status + ").");
-  const bytes = await verifyModrinthDownload(download, file);
-  const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
-  if (!fileName.toLowerCase().endsWith(".jar")) throw new Error("Modrinth returned a non-JAR file.");
-  const directory = modsRoot(mcVersion, loader);
-  await fs.mkdir(directory, { recursive: true });
-  const destination = path.join(directory, fileName);
-  try {
-    await fs.writeFile(destination, bytes, { flag: "wx" });
-  } catch (error: any) {
-    if (error.code === "EEXIST") throw new Error("This mod file is already installed.");
-    throw error;
-  }
-  return { success: true, fileName };
+  const result = await installModrinthTree(projectId, mcVersion, loader);
+  return { success: true, fileName: result.installedFiles[result.installedFiles.length - 1], installedFiles: result.installedFiles, skippedOptional: result.skippedOptional };
 });
 ipcMain.handle("mods:remove", async (_event, args: { fileName: string; version: string; loader: string }) => {
   const name = path.basename(String(args.fileName));
