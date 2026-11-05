@@ -13,7 +13,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Minecraft process launch integration with configurable Java path and RAM allocation.
 - Offline local profiles for single-player and servers that explicitly allow offline-mode connections.
 - Microsoft device-code authentication flow, Xbox/Minecraft token exchange and Java entitlement check. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
-- Modrinth project search and compatible Fabric JAR download.
+- Modrinth project search and compatible Fabric JAR download, including automatic installation of required Modrinth dependencies and rejection of declared incompatible dependencies.
 - Per-version mod folders, installed-mod list, enable/disable and remove actions.
 - One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
 - One-click low-end optimization packs that attempt compatible Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling versions from Modrinth.
@@ -33,7 +33,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 
 - Microsoft token refresh and a complete multi-account profile manager.
 - Forge, NeoForge and Quilt loader installation.
-- Mod updates, dependency resolution, conflict detection and modpack import/export.
+- Mod updates, broader cross-mod conflict analysis and modpack import/export.
 - Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
 - Full live mod configuration, draggable HUD editor, HUD persistence and nametag/chat rendering; current Studio switches are preference scaffolding.
