@@ -14,6 +14,8 @@ interface Window {
     installVersion(args: { version: string; loader: string }): Promise<{ success: boolean; version: string; launchVersion: string }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string }): Promise<{ success: boolean; pid?: number }>;
     listMods(args: { version: string; loader: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
+    checkModUpdates(args: { version: string; loader: string }): Promise<Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }>>;
+    updateMod(args: { version: string; loader: string; projectId: string }): Promise<{ success: boolean; fileName: string }>;
     installMod(args: { projectId: string; minecraftVersion: string; loader: string }): Promise<{ success: boolean; fileName: string; installedFiles?: string[]; skippedOptional?: string[] }>;
     removeMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean }>;
     toggleMod(args: { fileName: string; version: string; loader: string }): Promise<{ success: boolean; fileName: string; enabled: boolean }>;
