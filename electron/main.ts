@@ -327,6 +327,86 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   const result = await installModrinthTree(projectId, mcVersion, loader);
   return { success: true, fileName: result.installedFiles[result.installedFiles.length - 1], installedFiles: result.installedFiles, skippedOptional: result.skippedOptional };
 });
+ipcMain.handle("mods:bulkToggle", async (_event, args: { version: string; loader: string; enabled: boolean }) => {
+  const directory = safeInstance(args.version, args.loader).mods;
+  await fs.mkdir(directory, { recursive: true });
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  let changed = 0;
+  for (const entry of entries) {
+    if (!entry.isFile()) continue;
+    const name = entry.name;
+    const isDisabled = name.toLowerCase().endsWith(".jar.disabled");
+    const isEnabled = name.toLowerCase().endsWith(".jar") && !isDisabled;
+    if (args.enabled && isDisabled) {
+      await fs.rename(path.join(directory, name), path.join(directory, name.slice(0, -".disabled".length)));
+      changed++;
+    } else if (!args.enabled && isEnabled) {
+      await fs.rename(path.join(directory, name), path.join(directory, name + ".disabled"));
+      changed++;
+    }
+  }
+  return { success: true, changed };
+});
+
+ipcMain.handle("mods:exportPack", async (_event, args: { version: string; loader: string }) => {
+  const instance = safeInstance(args.version, args.loader);
+  const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(path.join(instance.mods, ".vampire-mods.json"), []);
+  const manifest = { format: "vampire-modpack", formatVersion: 1, minecraftVersion: args.version, loader: args.loader,
+    createdAt: new Date().toISOString(), projects: registry.map(item => ({ projectId: item.projectId, versionId: item.versionId })).filter(item => /^[A-Za-z0-9_-]{3,64}$/.test(item.projectId)) };
+  const choice = await dialog.showSaveDialog(mainWindow!, { title: "Export Vampire modpack", defaultPath: "Vampire-" + args.version + "-modpack.json", filters: [{ name: "Vampire modpack manifest", extensions: ["json"] }] });
+  if (choice.canceled || !choice.filePath) return { canceled: true };
+  await fs.writeFile(choice.filePath, JSON.stringify(manifest, null, 2), "utf8");
+  return { canceled: false, filePath: choice.filePath, count: manifest.projects.length };
+});
+
+ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader: string }) => {
+  safeInstance(args.version, args.loader);
+  const choice = await dialog.showOpenDialog(mainWindow!, { title: "Import Vampire modpack manifest", properties: ["openFile"], filters: [{ name: "Vampire modpack manifest", extensions: ["json"] }] });
+  if (choice.canceled || !choice.filePaths[0]) return { canceled: true, installed: 0, failed: [] };
+  const stat = await fs.stat(choice.filePaths[0]);
+  if (!stat.isFile() || stat.size > 1024 * 1024) throw new Error("Modpack manifest must be a JSON file smaller than 1 MB.");
+  const manifest = JSON.parse(await fs.readFile(choice.filePaths[0], "utf8"));
+  if (manifest?.format !== "vampire-modpack" || manifest?.formatVersion !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length > 200) throw new Error("Invalid or unsupported Vampire modpack manifest.");
+  if (manifest.minecraftVersion !== args.version || manifest.loader !== args.loader) throw new Error("This modpack targets Minecraft " + manifest.minecraftVersion + " / " + manifest.loader + ". Select that exact profile before importing.");
+  if (args.loader !== "fabric") throw new Error("Modpack imports currently support Fabric only.");
+  const projects = Array.from(new Set(manifest.projects.map((item: any) => String(item?.projectId || "")).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id))));
+  const failed: string[] = [];
+  let installed = 0;
+  for (const projectId of projects) {
+    try { await installModrinthTree(projectId, args.version, args.loader); installed++; }
+    catch (error) { failed.push(projectId + ": " + (error instanceof Error ? error.message : "install failed")); }
+  }
+  return { canceled: false, installed, failed };
+});
+
+ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loader: string }) => {
+  const root = safeInstance(args.version, args.loader).root;
+  const directory = path.join(root, "resourcepacks");
+  await fs.mkdir(directory, { recursive: true });
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip")).map(entry => entry.name).sort();
+});
+ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; loader: string }) => {
+  const root = safeInstance(args.version, args.loader).root;
+  const choice = await dialog.showOpenDialog(mainWindow!, { title: "Import Minecraft resource pack", properties: ["openFile"], filters: [{ name: "Resource pack ZIP", extensions: ["zip"] }] });
+  if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
+  const source = choice.filePaths[0];
+  const stat = await fs.stat(source);
+  if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 1 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 1 byte and 512 MB.");
+  const directory = path.join(root, "resourcepacks");
+  await fs.mkdir(directory, { recursive: true });
+  const name = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
+  await fs.copyFile(source, path.join(directory, name));
+  return { canceled: false, fileName: name };
+});
+ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; loader: string; fileName: string }) => {
+  const root = safeInstance(args.version, args.loader).root;
+  const name = String(args.fileName || "");
+  if (!/^[A-Za-z0-9._ -]{1,180}\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid resource pack filename.");
+  await fs.unlink(path.join(root, "resourcepacks", name));
+  return { success: true };
+});
+
 ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: string }) => {
   const directory = safeInstance(args.version, args.loader).mods;
   const registryFile = path.join(directory, ".vampire-mods.json");
