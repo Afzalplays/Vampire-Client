@@ -189,7 +189,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
     version: launchVersion,
     gameProfile: selectedProfile,
     accessToken,
-    userType: microsoft ? "mojang" : "legacy",
+    userType: microsoft ? undefined : "legacy",
     launcherName: "Vampire Client",
     launcherBrand: "Vampire Studios",
     maxMemory: memory * 1024,
