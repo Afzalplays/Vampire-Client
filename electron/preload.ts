@@ -6,7 +6,7 @@ contextBridge.exposeInMainWorld("vampire", {
   getProfile: () => ipcRenderer.invoke("profile:get"),\n  getMicrosoftAccount: () => ipcRenderer.invoke("auth:get"),\n  loginMicrosoft: (clientId: string) => ipcRenderer.invoke("auth:login", clientId),\n  logoutMicrosoft: () => ipcRenderer.invoke("auth:logout"),
   saveProfile: (username: string) => ipcRenderer.invoke("profile:save", username),
   getSettings: () => ipcRenderer.invoke("settings:get"),
-  saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string }) => ipcRenderer.invoke("settings:save", settings),
+  saveSettings: (settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string }) => ipcRenderer.invoke("settings:save", settings),
   listVersions: () => ipcRenderer.invoke("versions:list"),
   installVersion: (args: { version: string; loader: string }) => ipcRenderer.invoke("game:install", args),
   launchGame: (args: { username: string; version: string; ram: number; javaPath?: string }) => ipcRenderer.invoke("game:launch", args),
