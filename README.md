@@ -16,6 +16,9 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Modrinth project search and compatible Fabric JAR download.
 - Per-version mod folders, installed-mod list, enable/disable and remove actions.
 - One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
+- One-click low-end optimization packs that attempt compatible Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling versions from Modrinth.
+- Real per-instance Celeron/4 GB low-end and i3-balanced graphics presets that write Minecraft options such as render distance, simulation distance, particles, clouds and entity shadows.
+- Companion-mod 30-second in-game FPS benchmark reporting sampled average, minimum and maximum FPS, plus current Java memory usage.
 - One-click Sodium + low-end and VulkanMod + low-end optimization pack installers. Each pack attempts Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling, selecting Modrinth builds compatible with the chosen Minecraft version and reporting skipped mods.
 - Modrinth downloads are restricted to the official HTTPS CDN, checksum-verified, and limited to 150 MB per file.
 - Electron renderer isolation, sandboxing, restricted external navigation and encrypted Microsoft token storage when OS secure storage is available.
@@ -32,7 +35,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Mod updates, dependency resolution, conflict detection and modpack import/export.
 - Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
-- Full live mod configuration, draggable HUD editor and nametag/chat rendering; current Studio switches are preference scaffolding.
+- Full live mod configuration, draggable HUD editor, HUD persistence and nametag/chat rendering; current Studio switches are preference scaffolding.
 - Shader ZIP pack import/management, Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
 - Java runtime auto-download and installation.
 - Android application.
@@ -49,7 +52,7 @@ The GitHub Actions workflow builds:
 - Linux x64 AppImage and DEB packages.
 - macOS universal DMG and ZIP packages.
 
-Windows setup assets use the name format `VampireClient-Setup-<version>-<arch>.exe`. Builds must pass and be tested before a release is considered ready. FPS targets such as 150–200 on low-end Celeron systems or 400–500 on i3 systems are goals only, never guaranteed performance claims; actual results depend on hardware, Minecraft version, resolution, world and settings. No verified public installer release has been published yet.
+Windows setup assets use the name format `VampireClient-Setup-<version>-<arch>.exe`. Builds must pass and be tested before a release is considered ready. FPS targets such as 150–200 on low-end Celeron systems or 400–500 on i3 systems are goals only, never guaranteed performance claims; actual results depend on hardware, Minecraft version, resolution, world and settings. The in-game benchmark measures real results instead of claiming a target was achieved. No verified public installer release has been published yet.
 
 ## Run locally
 
