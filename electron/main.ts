@@ -147,7 +147,11 @@ ipcMain.handle("instances:delete", async (_event, idValue: string) => {
   for (const key of Object.keys(installed)) if (key.endsWith(":" + id)) delete installed[key];
   await writeJson(installedVersionsFile(), installed);
   const settings = await readJson<any>(settingsFile(), null);
-  if (settings?.instanceSettings?.[id]) { delete settings.instanceSettings[id]; await writeJson(settingsFile(), settings); }
+  if (settings) {
+    if (settings.instanceSettings?.[id]) delete settings.instanceSettings[id];
+    if (settings.instanceId === id) settings.instanceId = "default";
+    await writeJson(settingsFile(), settings);
+  }
   return { success: true };
 });
 ipcMain.handle("profile:get", async () =>
@@ -202,11 +206,19 @@ ipcMain.handle("settings:get", async (_event, instanceIdValue?: string) => {
   const manifest = saved ? null : await getVersionList();
   const latestRelease = manifest?.versions.find((item: any) => item.type === "release")?.id || "1.21.1";
   const base = saved || { ram: 2, javaPath: "java", version: latestRelease, loader: "fabric", clientId: "", instanceId: "default" };
-  const instanceId = typeof instanceIdValue === "string" ? instanceIdValue : (base.instanceId || "default");
+  const requestedInstanceId = typeof instanceIdValue === "string" ? instanceIdValue : (base.instanceId || "default");
+  let instanceId = requestedInstanceId;
   if (instanceId !== "default") {
-    if (!/^[a-f0-9-]{36}$/.test(instanceId)) throw new Error("Invalid Minecraft instance ID.");
-    const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
-    if (!instances.some(item => item.id === instanceId)) throw new Error("Minecraft instance not found.");
+    if (!/^[a-f0-9-]{36}$/.test(instanceId)) {
+      if (typeof instanceIdValue === "string") throw new Error("Invalid Minecraft instance ID.");
+      instanceId = "default";
+    } else {
+      const instances = await readJson<Array<{ id: string }>>(instancesFile(), [{ id: "default" }]);
+      if (!instances.some(item => item.id === instanceId)) {
+        if (typeof instanceIdValue === "string") throw new Error("Minecraft instance not found.");
+        instanceId = "default";
+      }
+    }
   }
   const scoped = base.instanceSettings?.[instanceId] || {};
   return { ...base, ram: Number(scoped.ram ?? base.ram), javaPath: typeof scoped.javaPath === "string" ? scoped.javaPath : base.javaPath, instanceId };
