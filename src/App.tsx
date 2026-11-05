@@ -16,7 +16,9 @@ export default function App() {
   const [installedFilter, setInstalledFilter] = useState("");
   const [catalogSort, setCatalogSort] = useState<"downloads" | "name">("downloads");
   const [javaCheck, setJavaCheck] = useState<{version:string;executable:string;platform:string;architecture:string}|null>(null);
-  const [javaChecking, setJavaChecking] = useState(false);\n  const [logText, setLogText] = useState("");\n  const [logsLoading, setLogsLoading] = useState(false);
+  const [javaChecking, setJavaChecking] = useState(false);
+  const [logText, setLogText] = useState("");
+  const [logsLoading, setLogsLoading] = useState(false);
   const [mods, setMods] = useState<Mod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
