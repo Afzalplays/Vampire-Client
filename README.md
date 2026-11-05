@@ -21,10 +21,9 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Per-instance mod folders with installed-mod list, individual and bulk enable/disable, remove actions, Modrinth update checks and one-click updates for mods installed through Vampire Client (legacy/manual JARs need reinstalling through the launcher to register).
 - Resource pack ZIP import/list/remove manager for each Minecraft instance; packs are copied into the standard `resourcepacks` folder and are enabled in-game through Minecraft Options.
 - One-click Sodium/VulkanMod renderer switching for Fabric instances; the two renderer mods are kept mutually exclusive.
-- One-click low-end optimization packs that attempt compatible Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling versions from Modrinth.
 - Real per-instance Celeron/4 GB low-end and i3-balanced graphics presets that write Minecraft options such as render distance, simulation distance, particles, clouds and entity shadows.
 - Companion-mod 30-second in-game FPS benchmark reporting sampled average, minimum and maximum FPS, plus current Java memory usage.
-- One-click Sodium + low-end and VulkanMod + low-end optimization pack installers. Each pack attempts Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling, selecting Modrinth builds compatible with the chosen Minecraft version and reporting skipped mods.
+- One-click low-end optimization packs, including Sodium or VulkanMod renderer profiles, that resolve compatible Fabric API, Lithium, FerriteCore, ImmediatelyFast, EntityCulling, Dynamic FPS and More Culling builds from Modrinth and report skipped mods.
 - Modrinth downloads are restricted to the official HTTPS CDN, checksum-verified, and limited to 150 MB per file.
 - Electron renderer isolation, sandboxing, restricted external navigation and encrypted Microsoft token storage when OS secure storage is available.
 - Desktop Right Shift quick menu.
@@ -104,7 +103,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Report bugs through GitHub Issues. Never
 
 ## Project license
 
-No project license has been selected or added. The repository is public for source visibility, but do not assume permission to reuse, redistribute or publish modified copies until a license is chosen.
+Vampire Client is distributed under the [MIT License](LICENSE). Third-party libraries, Minecraft assets, Modrinth projects and other community content remain subject to their own licenses and terms; this project does not grant rights to redistribute them.
 
 ## Disclaimer
 
