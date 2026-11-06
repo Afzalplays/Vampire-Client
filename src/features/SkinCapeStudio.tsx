@@ -46,6 +46,20 @@ export default function SkinCapeStudio() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); setMessage("Saved on this device."); }
     catch { setMessage("Browser storage is full. Use a smaller PNG (under 2 MB) and try again."); }
   }
+  function exportCapeTexture() {
+    const canvas = document.createElement("canvas"); canvas.width = 64; canvas.height = 32;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return setMessage("Could not create cape artwork.");
+    const colors = style === "void" ? ["#050509","#210714","#9e1235","#09070c"] : style === "royal" ? ["#09070b","#65152a","#d83d55","#17090d"] : ["#08080c","#4b0a1a","#ef334f","#09070b"];
+    const gradient = ctx.createLinearGradient(0,0,64,32);
+    gradient.addColorStop(0,colors[0]); gradient.addColorStop(.36,colors[1]); gradient.addColorStop(.58,colors[2]); gradient.addColorStop(1,colors[3]);
+    ctx.fillStyle=gradient; ctx.fillRect(0,0,64,32);
+    if(glitter){for(let i=0;i<150;i++){ctx.fillStyle=i%4===0?"#fff0f3":"#ff9bab";ctx.globalAlpha=.12+(i%5)*.09;ctx.fillRect((i*37+11)%64,(i*19+7)%32,1,1);}ctx.globalAlpha=1;}
+    if(sparkles){ctx.fillStyle="#fff";for(const [x,y] of [[8,6],[53,5],[12,25],[55,23],[31,4],[43,28]]){ctx.fillRect(x-1,y,3,1);ctx.fillRect(x,y-1,1,3);}}
+    if(logo){ctx.textAlign="center";ctx.textBaseline="middle";ctx.font="bold 22px Georgia";ctx.shadowColor="#ff3155";ctx.shadowBlur=8;ctx.fillStyle="#fff4f6";ctx.fillText("V",32,16);ctx.shadowBlur=0;}
+    const link=document.createElement("a");link.href=canvas.toDataURL("image/png");link.download="vampire-client-cape-64x32.png";link.click();
+    setMessage("Exported a real 64×32 cape texture PNG.");
+  }
   async function upload(file: File | undefined, kind: "skin" | "cape") {
     if (!file) return;
     try {
@@ -66,12 +80,12 @@ export default function SkinCapeStudio() {
         {skin && <button className="secondary-button tiny" onClick={()=>{setSkin(null);persist({skin:null});}}>Remove local skin</button>}
       </section>
       <section className="panel glass"><div className="panel-title"><div><h3><Crown size={17}/> HD cape designer</h3><p>Black, red, glitter and the centered Vampire emblem</p></div><Palette size={18}/></div>
-        <div className={"cape-large cape-"+style}>{sparkles && <i className="cape-stars"/>}{glitter && <i className="cape-glitter"/>}{logo && <b>V</b>}<small>VAMPIRE</small></div>
+        {cape ? <div className="custom-cape-texture"><img src={cape.data} alt="Uploaded custom cape texture"/><span>{cape.width} × {cape.height} · {cape.name}</span></div> : <div className={"cape-large cape-"+style}>{sparkles && <i className="cape-stars"/>}{glitter && <i className="cape-glitter"/>}{logo && <b>V</b>}<small>VAMPIRE</small></div>}
         <div className="cape-options">{[{id:"inferno",label:"Inferno"},{id:"void",label:"Blood Void"},{id:"royal",label:"Royal Ember"}].map(item=><button key={item.id} className={"cape-choice "+(style===item.id?"selected":"")} onClick={()=>{setStyle(item.id);persist({style:item.id});}}>{item.label}</button>)}</div>
         <div className="setting-row"><div><b>Centered Vampire logo</b><small>Brand emblem on the cape</small></div><button className={logo?"toggle-on":"toggle-off"} onClick={()=>{setLogo(v=>{persist({logo:!v});return !v;});}}>{logo?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Sparkle effects</b><small>Star highlights on the preview</small></div><button className={sparkles?"toggle-on":"toggle-off"} onClick={()=>{setSparkles(v=>{persist({sparkles:!v});return !v;});}}>{sparkles?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Glitter finish</b><small>Metallic shimmer pattern</small></div><button className={glitter?"toggle-on":"toggle-off"} onClick={()=>{setGlitter(v=>{persist({glitter:!v});return !v;});}}>{glitter?"ON":"OFF"}</button></div>
-        <label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label>
+        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label><button className="secondary-button" onClick={exportCapeTexture}><Sparkles size={15}/> Export 64×32 cape PNG</button></div>
         {cape && <div className="cosmetic-meta"><b>{cape.name}</b><small>{cape.width} × {cape.height} PNG · local artwork preview saved</small><button className="secondary-button tiny" onClick={()=>{setCape(null);persist({cape:null});}}>Remove custom cape</button></div>}
         <p className="muted">Cape PNG format: 64×32 or 128×64. The uploaded texture is stored locally; this preview does not animate the actual in-game cape.</p>
       </section>
