@@ -1,20 +1,24 @@
 # Vampire Identity & Chat Styling
 
-## Feature behavior
+## Implemented behavior
 
-Vampire Identity is a client-side cosmetic system. It stores the local player's identity preferences in `config/vampire-identity.properties`:
+Vampire Identity is a client-side cosmetic system. It stores local preferences in `config/vampire-identity.properties`:
 
-- Gradient enablement for chat names and overhead nametags.
-- Two validated six-digit HEX gradient endpoints.
-- Client badge visibility preference.
-- A font preset identifier.
+- Chat-name gradient toggle and two validated six-digit HEX gradient endpoints.
+- Overhead nametag gradient preference (the renderer hook is not implemented yet).
+- Local chat badge visibility preference.
+- Built-in font presets: Minecraft Default, Minecraft Uniform and Minecraft Alt.
 
-The companion mod also provides `VampireIdentity.gradientText(String)`, which builds per-character Minecraft text styles using linear RGB interpolation. This is the shared rendering primitive intended for the chat and nametag hooks.
+The Fabric companion mod now hooks both unsigned and signed `ChatHud.addMessage` entry points. When an incoming chat line begins with the exact local player's username in the standard `<username> message` or `username: message` format, the client styles that local username with the selected gradient/font and optional badge. Other players' messages are left unchanged. Chat body text is retained as plain text when the local prefix is rebuilt, so any original rich formatting within that message body is not preserved by this local prefix transformation.
 
 ## Visibility and compatibility
 
-These are local rendering preferences. They do not prove that another player is running Vampire Client, and they do not force other clients to render a gradient. To display a Vampire badge or a player's selected style to other Vampire users, a future compatible client handshake or trusted cosmetics service is required. A server plugin may be needed for server-authoritative identity metadata.
+These are local rendering preferences. The current chat hook recognizes only the local account name; it does not detect other people running Vampire Client. It does not send cosmetics to servers or other players, and it cannot force unmodified clients to render a gradient. Displaying another Vampire user's cosmetics requires a compatible client handshake or a trusted cosmetics service, and may require server-side metadata.
 
 ## Remaining implementation
 
-The current commit adds the persistent preference model and gradient text renderer utility. It does not yet hook Minecraft's chat-line and entity-label render paths, expose the full in-game editor, or load arbitrary TTF/OTF files. Those require version-specific mixins and renderer testing. Until those hooks are added, existing vanilla chat and nametags remain unchanged.
+- Player overhead nametag renderer hook and in-game controls for its appearance.
+- Detection/handshake for other Vampire Client users and cross-client cosmetics synchronization.
+- Arbitrary TTF/OTF font loading and custom font management.
+
+The chat mixin is version-specific to Minecraft 1.21.1 and must pass the Fabric build and in-game smoke tests before being treated as verified at runtime.
