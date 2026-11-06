@@ -304,7 +304,7 @@ public final class VampireClientMod implements ClientModInitializer {
 
         @Override protected void init() {
             clampPosition();
-            addDrawableChild(ButtonWidget.builder(Text.literal("Reset position"), button -> {
+            addDrawableChild(ButtonWidget.builder(Text.literal("Reset HUD layout"), button -> {
                 hudX = 8; hudY = 8; hudWidth = 220; hudScalePercent = 100; hudPadding = 6; saveHudSettings(); clampPosition();
             }).dimensions(width / 2 - 105, height - 54, 130, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> client.setScreen(new HudSettingsScreen()))
