@@ -125,6 +125,58 @@ export default function TexturePackEditor() {
     image.onerror = () => { URL.revokeObjectURL(image.src); setStatus("Could not read that image."); };
     image.src = URL.createObjectURL(file);
   }
+  function transformCanvas(kind: "flipH" | "flipV" | "rotateCW" | "rotateCCW" | "invert" | "grayscale") {
+    const canvas = canvasRef.current; const ctx = canvas?.getContext("2d"); if (!canvas || !ctx) return;
+    checkpoint();
+    const source = document.createElement("canvas"); source.width = size; source.height = size;
+    source.getContext("2d")!.drawImage(canvas, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    if (kind === "flipH" || kind === "flipV" || kind === "rotateCW" || kind === "rotateCCW") {
+      ctx.save();
+      if (kind === "flipH") { ctx.translate(size, 0); ctx.scale(-1, 1); }
+      if (kind === "flipV") { ctx.translate(0, size); ctx.scale(1, -1); }
+      if (kind === "rotateCW") { ctx.translate(size, 0); ctx.rotate(Math.PI / 2); }
+      if (kind === "rotateCCW") { ctx.translate(0, size); ctx.rotate(-Math.PI / 2); }
+      ctx.drawImage(source, 0, 0); ctx.restore();
+    } else {
+      ctx.drawImage(source, 0, 0);
+      const image = ctx.getImageData(0, 0, size, size);
+      for (let i = 0; i < image.data.length; i += 4) {
+        if (kind === "invert") { image.data[i] = 255-image.data[i]; image.data[i+1] = 255-image.data[i+1]; image.data[i+2] = 255-image.data[i+2]; }
+        else { const gray = Math.round(image.data[i]*.2126 + image.data[i+1]*.7152 + image.data[i+2]*.0722); image.data[i]=image.data[i+1]=image.data[i+2]=gray; }
+      }
+      ctx.putImageData(image, 0, 0);
+    }
+    setStatus("Applied " + kind + " to the texture.");
+  }
+  function saveProject() {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const project = { format: "vampire-texture-project", version: 1, width: size, height: size, packName, description, importName, category, image: canvas.toDataURL("image/png") };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(project)], {type:"application/json"}));
+    const a = document.createElement("a"); a.href=url; a.download=(importName || "vampire-project")+".vtexture.json"; a.click(); URL.revokeObjectURL(url);
+    setStatus("Editable Vampire texture project saved.");
+  }
+  async function loadProject(file?: File) {
+    if (!file) return;
+    try {
+      const project = JSON.parse(await file.text());
+      if (project.format !== "vampire-texture-project" || project.version !== 1 || project.width !== size || project.height !== size || typeof project.image !== "string" || !project.image.startsWith("data:image/png;base64,")) throw new Error("This is not a supported Vampire texture project.");
+      const image = new Image();
+      image.onload = () => {
+        checkpoint(); const ctx = canvasRef.current?.getContext("2d");
+        if (!ctx) return;
+        ctx.clearRect(0,0,size,size); ctx.drawImage(image,0,0,size,size);
+        setPackName(String(project.packName || "Vampire Custom Pack").slice(0,48));
+        setDescription(String(project.description || "").slice(0,256));
+        setImportName(String(project.importName || "vampire_custom").replace(/[^a-zA-Z0-9_]/g,"_").slice(0,48));
+        if (["block","item","entity","environment","gui"].includes(project.category)) setCategory(project.category);
+        setStatus("Project restored from " + file.name);
+      };
+      image.onerror = () => setStatus("Project image could not be decoded.");
+      image.src = project.image;
+    } catch (error) { setStatus(error instanceof Error ? error.message : "Could not load project."); }
+  }
+
   async function exportPack() {
     const canvas = canvasRef.current; if (!canvas) return;
     try {
@@ -179,6 +231,20 @@ export default function TexturePackEditor() {
           <p className="muted">Import any PNG or image and scale it to 128 × 128. Pencil, eraser and fill tools edit the actual pixel canvas.</p>
           <label className="secondary-button" style={{display:"inline-flex",cursor:"pointer"}}>Import PNG<input type="file" accept="image/png,image/*" hidden onChange={e=>void importPng(e.target.files?.[0])}/></label>
           <div style={{height:12}}/>
+          <div className="eyebrow">TRANSFORM</div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:8}}>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("flipH")}>Flip H</button>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("flipV")}>Flip V</button>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("rotateCW")}>Rotate ↻</button>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("rotateCCW")}>Rotate ↺</button>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("invert")}>Invert</button>
+            <button className="secondary-button tiny" onClick={()=>transformCanvas("grayscale")}>Grayscale</button>
+          </div>
+          <div className="eyebrow" style={{marginTop:14}}>PROJECT FILE</div>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap",marginTop:8}}>
+            <button className="secondary-button tiny" onClick={saveProject}>Save project JSON</button>
+            <label className="secondary-button tiny" style={{cursor:"pointer"}}>Load project JSON<input type="file" accept=".json,.vtexture.json,application/json" hidden onChange={e=>void loadProject(e.target.files?.[0])}/></label>
+          </div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button className="secondary-button" onClick={exportPng}>Export PNG</button><button className="primary-button" onClick={()=>void exportPack()}>Export resource pack ZIP</button></div>
           <p className="muted" style={{marginTop:12}}>Exports pack.mcmeta, pack.png and your texture at assets/minecraft/textures/{category}/. This creates a valid starter pack; a block/model or item definition must reference the texture for it to appear in-game.</p>
           <div className="info-banner">{status}</div>
