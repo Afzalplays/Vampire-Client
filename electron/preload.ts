@@ -10,6 +10,13 @@ contextBridge.exposeInMainWorld("vampire", {
   createWorldServer: (args: { name: string; version: string; ramGB?: number }) => ipcRenderer.invoke("servers:create", args),
   startWorldServer: (args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }) => ipcRenderer.invoke("servers:start", args),
   stopWorldServer: (id: string) => ipcRenderer.invoke("servers:stop", id),
+  getWorldServerInfo: (id: string) => ipcRenderer.invoke("servers:info", id),
+  sendWorldServerCommand: (args: { id: string; command: string }) => ipcRenderer.invoke("servers:command", args),
+  onWorldServerOutput: (callback: (event: { id: string; text: string }) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: { id: string; text: string }) => callback(payload);
+    ipcRenderer.on("server:output", listener);
+    return () => ipcRenderer.removeListener("server:output", listener);
+  },
   deleteWorldServer: (id: string) => ipcRenderer.invoke("servers:delete", id),
   getProfile: () => ipcRenderer.invoke("profile:get"),
   getMicrosoftAccount: () => ipcRenderer.invoke("auth:get"),
