@@ -15,3 +15,13 @@ export function scanModConflicts(files: ModFile[]): string[] {
 export function extractLogIssues(log: string): string[] {
   return log.split(/\r?\n/).filter(line => /\b(error|exception|fatal|failed|crash)\b/i.test(line));
 }
+
+export function extractLogIssueContext(log: string, radius = 2, maxLines = 120): string[] {
+  const lines = log.split(/\r?\n/);
+  const included = new Set<number>();
+  for (let index = 0; index < lines.length; index++) {
+    if (!/\b(error|exception|fatal|failed|crash)\b/i.test(lines[index])) continue;
+    for (let line = Math.max(0, index - radius); line <= Math.min(lines.length - 1, index + radius); line++) included.add(line);
+  }
+  return [...included].sort((left, right) => left - right).slice(0, maxLines).map(index => String(index + 1).padStart(5, " ") + " | " + lines[index]);
+}
