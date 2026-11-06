@@ -109,7 +109,12 @@ export default function TexturePackEditor() {
       const icon = document.createElement("canvas"); icon.width = 128; icon.height = 128;
       icon.getContext("2d")?.drawImage(canvas, 0, 0, 128, 128);
       const iconBytes = await blobBytes(await canvasBlob(icon));
-      const textureName = importName.trim();\n      if (!packName.trim()) throw new Error("Enter a pack name before exporting.");\n      if (!/^[a-zA-Z0-9_]{1,48}$/.test(textureName)) throw new Error("Texture filename may contain only letters, numbers and underscores.");\n      const pixels = canvas.getContext("2d")!.getImageData(0, 0, size, size).data;\n      if (!pixels.some((value, index) => index % 4 === 3 && value > 0)) throw new Error("Canvas is empty. Draw or import a texture first.");\n      const meta = new TextEncoder().encode(JSON.stringify({ pack: { pack_format: 34, description: description.slice(0, 256) } }, null, 2));
+      const textureName = importName.trim();
+      if (!packName.trim()) throw new Error("Enter a pack name before exporting.");
+      if (!/^[a-zA-Z0-9_]{1,48}$/.test(textureName)) throw new Error("Texture filename may contain only letters, numbers and underscores.");
+      const pixels = canvas.getContext("2d")!.getImageData(0, 0, size, size).data;
+      if (!pixels.some((value, index) => index % 4 === 3 && value > 0)) throw new Error("Canvas is empty. Draw or import a texture first.");
+      const meta = new TextEncoder().encode(JSON.stringify({ pack: { pack_format: 34, description: description.slice(0, 256) } }, null, 2));
       const zip = zipStore([
         { name: "pack.mcmeta", data: meta },
         { name: "pack.png", data: iconBytes },
@@ -128,7 +133,8 @@ export default function TexturePackEditor() {
       <div className="field-row"><label>Pack name</label><input value={packName} maxLength={48} onChange={e=>setPackName(e.target.value)}/></div>
       <div className="field-row"><label>Description</label><input value={description} maxLength={256} onChange={e=>setDescription(e.target.value)}/></div>
       <div className="field-row"><label>Texture file name</label><input value={importName} maxLength={48} onChange={e=>setImportName(e.target.value.replace(/[^a-zA-Z0-9_]/g,"_"))}/></div>
-      <div className="field-row"><label>Texture category</label><select value={category} onChange={e=>setCategory(e.target.value)}><option value="block">Block</option><option value="item">Item</option><option value="entity">Entity</option><option value="environment">Environment</option><option value="gui">GUI</option></select></div>\n      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(220px,1fr)",gap:18,alignItems:"start"}}>
+      <div className="field-row"><label>Texture category</label><select value={category} onChange={e=>setCategory(e.target.value)}><option value="block">Block</option><option value="item">Item</option><option value="entity">Entity</option><option value="environment">Environment</option><option value="gui">GUI</option></select></div>
+      <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(220px,1fr)",gap:18,alignItems:"start"}}>
         <div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
             {(["pencil","eraser","fill"] as Tool[]).map(item=><button key={item} className={tool===item?"primary-button compact":"secondary-button tiny"} onClick={()=>setTool(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}
@@ -139,7 +145,8 @@ export default function TexturePackEditor() {
             onPointerMove={e=>{if(drawing)paint(e);}} onPointerUp={()=>setDrawing(false)} onPointerCancel={()=>setDrawing(false)}/>
           <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Color <input type="color" value={color} onChange={e=>setColor(e.target.value)}/></label>
-            <label style={{display:"flex",gap:7,alignItems:"center"}}>Brush <input type="range" min="1" max="16" value={brush} onChange={e=>setBrush(Number(e.target.value))}/>{brush}px</label>\n            <label style={{display:"flex",gap:7,alignItems:"center"}}>Zoom <input type="range" min="1" max="4" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/>{zoom}×</label>
+            <label style={{display:"flex",gap:7,alignItems:"center"}}>Brush <input type="range" min="1" max="16" value={brush} onChange={e=>setBrush(Number(e.target.value))}/>{brush}px</label>
+            <label style={{display:"flex",gap:7,alignItems:"center"}}>Zoom <input type="range" min="1" max="4" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/>{zoom}×</label>
             <label><input type="checkbox" checked={grid} onChange={e=>setGrid(e.target.checked)}/> Pixel grid</label>
           </div>
         </div>
