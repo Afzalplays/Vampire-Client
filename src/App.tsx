@@ -249,7 +249,7 @@ export default function App() {
   }
 
   async function removeShaderPack(fileName: string) {
-    if (!window.vampire) return;
+    if (!window.vampire || !window.confirm("Remove shader pack \"" + fileName + "\" from this Minecraft instance?")) return;
     try { await window.vampire.removeShaderPack({ version, loader, instanceId, fileName }); setShaderPacks(await window.vampire.listShaderPacks({ version, loader, instanceId })); notify("Removed shader pack: " + fileName); } catch (e) { notify(e instanceof Error ? e.message : "Could not remove shader pack."); }
   }
 
