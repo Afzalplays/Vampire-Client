@@ -109,6 +109,57 @@ async function readPng(file: File, kind: "skin" | "cape"): Promise<SavedImage> {
   return { name: file.name, data, width, height };
 }
 
+
+type CosmeticsBackup = {
+  format: "vampire-client-cosmetics";
+  version: 1;
+  exportedAt: string;
+  preferences: CosmeticPreferences;
+  textures: { skin: SavedImage | null; cape: SavedImage | null };
+};
+
+async function replaceCosmeticImages(images: { skin: SavedImage | null; cape: SavedImage | null }): Promise<void> {
+  const database = await openCosmeticsDatabase();
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const transaction = database.transaction(IMAGE_STORE, "readwrite");
+      const store = transaction.objectStore(IMAGE_STORE);
+      for (const kind of ["skin", "cape"] as const) {
+        if (images[kind]) store.put(images[kind], kind);
+        else store.delete(kind);
+      }
+      transaction.oncomplete = () => resolve();
+      transaction.onerror = () => reject(transaction.error ?? new Error("Could not restore cosmetics backup."));
+      transaction.onabort = () => reject(transaction.error ?? new Error("Cosmetics restore was cancelled."));
+    });
+  } finally {
+    database.close();
+  }
+}
+
+async function validateBackupImage(value: unknown, kind: "skin" | "cape"): Promise<SavedImage | null> {
+  if (value === null || value === undefined) return null;
+  if (!value || typeof value !== "object") throw new Error("Backup contains an invalid " + kind + " entry.");
+  const image = value as Partial<SavedImage>;
+  const prefix = "data:image/png;base64,";
+  if (typeof image.data !== "string" || !image.data.startsWith(prefix)
+    || !/^[A-Za-z0-9+/]+={0,2}$/.test(image.data.slice(prefix.length))) {
+    throw new Error("Backup " + kind + " must contain a base64 PNG.");
+  }
+  const encoded = image.data.slice(prefix.length);
+  if (encoded.length > Math.ceil(MAX_FILE_BYTES * 4 / 3) + 8) throw new Error("Backup " + kind + " exceeds the 2 MB texture limit.");
+  let bytes: Uint8Array;
+  try {
+    const binary = atob(encoded);
+    bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  } catch {
+    throw new Error("Backup " + kind + " contains invalid base64 data.");
+  }
+  if (bytes.byteLength > MAX_FILE_BYTES) throw new Error("Backup " + kind + " exceeds the 2 MB texture limit.");
+  const safeName = typeof image.name === "string" ? image.name.slice(0, 120) : "vampire-" + kind + ".png";
+  return readPng(new File([bytes], safeName, { type: "image/png" }), kind);
+}
+
 export default function SkinCapeStudio() {
   const [skin, setSkin] = useState<SavedImage | null>(null);
   const [cape, setCape] = useState<SavedImage | null>(null);
@@ -117,6 +168,7 @@ export default function SkinCapeStudio() {
   const [sparkles, setSparkles] = useState(true);
   const [glitter, setGlitter] = useState(true);
   const [message, setMessage] = useState("Cosmetics are stored locally on this device.");
+  const [backupBusy, setBackupBusy] = useState(false);
   useEffect(() => {
     let active = true;
     async function restore() {
@@ -174,6 +226,74 @@ export default function SkinCapeStudio() {
       return false;
     }
   }
+
+  async function exportBackup() {
+    setBackupBusy(true);
+    try {
+      const backup: CosmeticsBackup = {
+        format: "vampire-client-cosmetics",
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        preferences: { style, logo, sparkles, glitter },
+        textures: { skin: await loadCosmeticImage("skin"), cape: await loadCosmeticImage("cape") }
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "vampire-client-cosmetics-backup.json";
+      link.click();
+      URL.revokeObjectURL(url);
+      setMessage("Cosmetics backup exported. Move the JSON file to another device and import it there.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not export cosmetics backup.");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
+  async function importBackup(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 6 * 1024 * 1024) {
+      setMessage("Backup file is too large. Maximum supported backup size is 6 MB.");
+      return;
+    }
+    setBackupBusy(true);
+    try {
+      const parsed: unknown = JSON.parse(await file.text());
+      if (!parsed || typeof parsed !== "object") throw new Error("This is not a Vampire Client cosmetics backup.");
+      const backup = parsed as Partial<CosmeticsBackup>;
+      if (backup.format !== "vampire-client-cosmetics" || backup.version !== 1) {
+        throw new Error("Unsupported backup format or version.");
+      }
+      const preferences = backup.preferences;
+      if (!preferences || !["inferno", "void", "royal"].includes(preferences.style)
+        || typeof preferences.logo !== "boolean" || typeof preferences.sparkles !== "boolean"
+        || typeof preferences.glitter !== "boolean") {
+        throw new Error("Backup contains invalid cosmetic preferences.");
+      }
+      if (!backup.textures || typeof backup.textures !== "object") throw new Error("Backup is missing its texture collection.");
+      const [nextSkin, nextCape] = await Promise.all([
+        validateBackupImage(backup.textures.skin, "skin"),
+        validateBackupImage(backup.textures.cape, "cape")
+      ]);
+      await replaceCosmeticImages({ skin: nextSkin, cape: nextCape });
+      const nextPreferences = { style: preferences.style, logo: preferences.logo, sparkles: preferences.sparkles, glitter: preferences.glitter };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextPreferences));
+      setSkin(nextSkin);
+      setCape(nextCape);
+      setStyle(nextPreferences.style);
+      setLogo(nextPreferences.logo);
+      setSparkles(nextPreferences.sparkles);
+      setGlitter(nextPreferences.glitter);
+      setMessage("Backup imported. Local skins, capes and designer preferences have been restored on this device.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Could not import cosmetics backup.");
+    } finally {
+      setBackupBusy(false);
+    }
+  }
+
   function downloadTexture(image: SavedImage | null, fallbackName: string, label: string) {
     if (!image) return;
     const link = document.createElement("a");
@@ -212,6 +332,14 @@ export default function SkinCapeStudio() {
   }
   return <section className="cosmetics-page">
     <div className="cosmetics-banner glass"><div><div className="eyebrow"><Sparkles size={14}/> VAMPIRE COSMETICS LAB</div><h2>Wear your identity.</h2><p>Upload your skin, design a signature cape and preview your black-and-crimson look.</p><div className="studio-tags"><span>HD PNG VALIDATION</span><span>LOCAL PREVIEW</span><span>VAMPIRE STYLE</span></div></div><div className={"cosmetic-cape cape-"+style}>{sparkles && <i className="cape-stars"/>}{glitter && <i className="cape-glitter"/>}{logo && <b>V</b>}<small>VAMPIRE</small></div></div>
+    <section className="panel glass cosmetics-backup">
+      <div className="panel-title"><div><h3><Download size={17}/> Local backup &amp; restore</h3><p>Transfer your uploaded textures and designer settings between devices.</p></div></div>
+      <div className="hero-buttons">
+        <button className="primary-button" onClick={() => { void exportBackup(); }} disabled={backupBusy}><Download size={15}/> {backupBusy ? "Working…" : "Export backup"}</button>
+        <label className="secondary-button upload-button"><Upload size={15}/> Import backup JSON<input type="file" accept="application/json,.json" disabled={backupBusy} onChange={e => { void importBackup(e.target.files?.[0]); e.currentTarget.value = ""; }}/></label>
+      </div>
+      <p className="muted">The backup file contains your skin/cape PNG data and style toggles. Keep it private; it stays on your device unless you choose to move the file. Import replaces the current local skin and cape.</p>
+    </section>
     <div className="cosmetics-grid">
       <section className="panel glass"><div className="panel-title"><div><h3><UserRound size={17}/> Skin uploader</h3><p>Classic or slim skin texture PNG</p></div><ImagePlus size={18}/></div>
         <div className="skin-preview">{skin ? <img src={skin.data} alt="Uploaded Minecraft skin texture"/> : <div className="skin-empty"><UserRound size={38}/><span>No skin uploaded</span></div>}</div>
