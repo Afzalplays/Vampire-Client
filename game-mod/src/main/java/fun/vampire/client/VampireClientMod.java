@@ -270,9 +270,15 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
+            if (VampireIdentity.showClientBadge) {
+                context.drawCenteredTextWithShadow(textRenderer,
+                    Text.literal("\\uE000").setStyle(net.minecraft.text.Style.EMPTY
+                        .withFont(net.minecraft.util.Identifier.of("vampireclient", "badge"))),
+                    width / 2 - 78, height / 2 - 91, 0xFFFFFFFF);
+            }
             context.drawCenteredTextWithShadow(textRenderer,
                 VampireIdentity.gradientText("Vampire Client  ·  Afzal"),
-                width / 2, height / 2 - 91, 0xFFFFFFFF);
+                width / 2 + (VampireIdentity.showClientBadge ? 12 : 0), height / 2 - 91, 0xFFFFFFFF);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
