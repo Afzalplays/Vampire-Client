@@ -31,6 +31,7 @@ public final class VampireClientMod implements ClientModInitializer {
     private static int hudX = 8;
     private static int hudY = 8;
     private static int hudWidth = 220;
+    private static int hudScalePercent = 100;
     private static final Path CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("vampire-client.properties");
 
     private static void loadHudSettings() {
@@ -42,6 +43,7 @@ public final class VampireClientMod implements ClientModInitializer {
             hudX = Math.max(0, Integer.parseInt(properties.getProperty("hud.x", "8")));
             hudY = Math.max(0, Integer.parseInt(properties.getProperty("hud.y", "8")));
             hudWidth = Math.max(140, Math.min(420, Integer.parseInt(properties.getProperty("hud.width", "220"))));
+            hudScalePercent = Math.max(75, Math.min(150, Integer.parseInt(properties.getProperty("hud.scale", "100"))));
         } catch (Exception ignored) {
             // First launch or malformed config: use the documented defaults.
         }
@@ -54,6 +56,7 @@ public final class VampireClientMod implements ClientModInitializer {
         properties.setProperty("hud.x", Integer.toString(hudX));
         properties.setProperty("hud.y", Integer.toString(hudY));
         properties.setProperty("hud.width", Integer.toString(hudWidth));
+        properties.setProperty("hud.scale", Integer.toString(hudScalePercent));
         try {
             Files.createDirectories(CONFIG_FILE.getParent());
             try (OutputStream output = Files.newOutputStream(CONFIG_FILE)) {
@@ -85,14 +88,20 @@ public final class VampireClientMod implements ClientModInitializer {
             int rows = (showFpsHud ? 1 : 0) + (showMemoryHud ? 1 : 0);
             int panelHeight = 8 + rows * 16 + 5;
             int panelWidth = hudWidth;
-            hudX = Math.max(0, Math.min(hudX, Math.max(0, client.getWindow().getScaledWidth() - panelWidth)));
-            hudY = Math.max(0, Math.min(hudY, Math.max(0, client.getWindow().getScaledHeight() - panelHeight)));
-            drawContext.fill(hudX, hudY, hudX + panelWidth, hudY + panelHeight, 0xB8101018);
-            drawContext.fill(hudX, hudY, hudX + 2, hudY + panelHeight, 0xFFFF596F);
-            int y = hudY + 6;
+            float scale = hudScalePercent / 100.0f;
+            int renderedWidth = Math.round(panelWidth * scale);
+            int renderedHeight = Math.round(panelHeight * scale);
+            hudX = Math.max(0, Math.min(hudX, Math.max(0, client.getWindow().getScaledWidth() - renderedWidth)));
+            hudY = Math.max(0, Math.min(hudY, Math.max(0, client.getWindow().getScaledHeight() - renderedHeight)));
+            drawContext.getMatrices().push();
+            drawContext.getMatrices().translate(hudX, hudY, 0);
+            drawContext.getMatrices().scale(scale, scale, 1.0f);
+            drawContext.fill(0, 0, panelWidth, panelHeight, 0xB8101018);
+            drawContext.fill(0, 0, 2, panelHeight, 0xFFFF596F);
+            int y = 6;
             if (showFpsHud) {
                 drawContext.drawTextWithShadow(client.textRenderer,
-                    "VAMPIRE  |  " + client.getCurrentFps() + " FPS", hudX + 8, y, 0xFFFF8290);
+                    "VAMPIRE  |  " + client.getCurrentFps() + " FPS", 8, y, 0xFFFF8290);
                 y += 16;
             }
             if (showMemoryHud) {
@@ -100,8 +109,9 @@ public final class VampireClientMod implements ClientModInitializer {
                 long used = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
                 long max = runtime.maxMemory() / (1024 * 1024);
                 drawContext.drawTextWithShadow(client.textRenderer,
-                    "MEMORY  |  " + used + " / " + max + " MB", hudX + 8, y, 0xFFF2E8EC);
+                    "MEMORY  |  " + used + " / " + max + " MB", 8, y, 0xFFF2E8EC);
             }
+            drawContext.getMatrices().pop();
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
@@ -292,31 +302,39 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override protected void init() {
             clampPosition();
             addDrawableChild(ButtonWidget.builder(Text.literal("Reset position"), button -> {
-                hudX = 8; hudY = 8; hudWidth = 220; saveHudSettings(); clampPosition();
+                hudX = 8; hudY = 8; hudWidth = 220; hudScalePercent = 100; saveHudSettings(); clampPosition();
             }).dimensions(width / 2 - 105, height - 54, 130, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> client.setScreen(new HudSettingsScreen()))
                 .dimensions(width / 2 + 35, height - 54, 70, 22).build());
         }
         private void clampPosition() {
             hudWidth = Math.max(140, Math.min(420, hudWidth));
-            hudX = Math.max(0, Math.min(hudX, Math.max(0, width - hudWidth)));
-            hudY = Math.max(0, Math.min(hudY, Math.max(0, height - PREVIEW_HEIGHT - 60)));
+            hudScalePercent = Math.max(75, Math.min(150, hudScalePercent));
+            int renderedWidth = Math.round(hudWidth * hudScalePercent / 100.0f);
+            hudX = Math.max(0, Math.min(hudX, Math.max(0, width - renderedWidth)));
+            int renderedHeight = Math.round(PREVIEW_HEIGHT * hudScalePercent / 100.0f);
+            hudY = Math.max(0, Math.min(hudY, Math.max(0, height - renderedHeight - 60)));
         }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "DRAG TO POSITION HUD");
             clampPosition();
-            context.fill(hudX, hudY, hudX + hudWidth, hudY + PREVIEW_HEIGHT, 0xD8101018);
-            context.fill(hudX, hudY, hudX + 2, hudY + PREVIEW_HEIGHT, 0xFFFF596F);
-            context.fill(hudX + hudWidth - 8, hudY + PREVIEW_HEIGHT - 8, hudX + hudWidth, hudY + PREVIEW_HEIGHT, 0xFFFF8290);
-            context.drawTextWithShadow(textRenderer, "VAMPIRE  |  120 FPS", hudX + 8, hudY + 7, 0xFFFF8290);
-            context.drawTextWithShadow(textRenderer, "MEMORY  |  2048 / 4096 MB", hudX + 8, hudY + 24, 0xFFF2E8EC);
-            context.drawCenteredTextWithShadow(textRenderer, "Drag to move · drag bottom-right corner to resize · changes save automatically.", width / 2, height - 78, 0xFFD8C5CC);
+            float scale = hudScalePercent / 100.0f;
+            context.getMatrices().push();
+            context.getMatrices().translate(hudX, hudY, 0);
+            context.getMatrices().scale(scale, scale, 1.0f);
+            context.fill(0, 0, hudWidth, PREVIEW_HEIGHT, 0xD8101018);
+            context.fill(0, 0, 2, PREVIEW_HEIGHT, 0xFFFF596F);
+            context.fill(hudWidth - 8, PREVIEW_HEIGHT - 8, hudWidth, PREVIEW_HEIGHT, 0xFFFF8290);
+            context.drawTextWithShadow(textRenderer, "VAMPIRE  |  120 FPS", 8, 7, 0xFFFF8290);
+            context.drawTextWithShadow(textRenderer, "MEMORY  |  2048 / 4096 MB", 8, 24, 0xFFF2E8EC);
+            context.getMatrices().pop();
+            context.drawCenteredTextWithShadow(textRenderer, "Drag to move · corner to resize · use HUD settings to change scale · auto-saved.", width / 2, height - 78, 0xFFD8C5CC);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
             if (button == 0 && mouseX >= hudX && mouseX <= hudX + hudWidth && mouseY >= hudY && mouseY <= hudY + PREVIEW_HEIGHT) {
-                if (mouseX >= hudX + hudWidth - 14 && mouseY >= hudY + PREVIEW_HEIGHT - 14) resizing = true;
+                if (mouseX >= hudX + Math.round((hudWidth - 14) * hudScalePercent / 100.0f) && mouseY >= hudY + Math.round((PREVIEW_HEIGHT - 14) * hudScalePercent / 100.0f)) resizing = true;
                 else { dragging = true; dragOffsetX = mouseX - hudX; dragOffsetY = mouseY - hudY; }
                 return true;
             }
@@ -324,7 +342,7 @@ public final class VampireClientMod implements ClientModInitializer {
         }
         @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
             if (resizing && button == 0) {
-                hudWidth = Math.max(140, Math.min(420, (int)Math.round(mouseX - hudX)));
+                hudWidth = Math.max(140, Math.min(420, (int)Math.round((mouseX - hudX) / (hudScalePercent / 100.0f))));
                 clampPosition(); saveHudSettings(); return true;
             }
             if (dragging && button == 0) {
@@ -354,13 +372,19 @@ public final class VampireClientMod implements ClientModInitializer {
                 saveHudSettings();
                 button.setMessage(memoryLabel());
             }).dimensions(width / 2 - 105, height / 2 + 1, 210, 24).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Position HUD"), button -> client.setScreen(new HudPositionScreen()))
-                .dimensions(width / 2 - 105, height / 2 + 34, 210, 24).build());
+            addDrawableChild(ButtonWidget.builder(scaleLabel(), button -> {
+                hudScalePercent = hudScalePercent >= 150 ? 75 : hudScalePercent + 25;
+                saveHudSettings();
+                button.setMessage(scaleLabel());
+            }).dimensions(width / 2 - 105, height / 2 + 28, 210, 24).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Position & Size"), button -> client.setScreen(new HudPositionScreen()))
+                .dimensions(width / 2 - 105, height / 2 + 58, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen()))
-                .dimensions(width / 2 - 75, height / 2 + 66, 150, 22).build());
+                .dimensions(width / 2 - 75, height / 2 + 88, 150, 22).build());
         }
         private static Text fpsLabel() { return Text.literal("FPS HUD: " + (showFpsHud ? "ON" : "OFF")); }
+        private static Text scaleLabel() { return Text.literal("HUD scale: " + hudScalePercent + "% (click to cycle)"); }
         private static Text memoryLabel() { return Text.literal("Memory HUD: " + (showMemoryHud ? "ON" : "OFF")); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
