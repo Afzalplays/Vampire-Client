@@ -31,7 +31,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Per-instance shader ZIP import/list/remove manager plus a curated 10-entry Shader Library page with creator-page links and installed-pack management. Download shader ZIPs from their creator pages and import them into the selected instance; Iris or another compatible shader loader must be installed separately.
 - Locally saved Studio preferences, including account-synced cape visibility selection and LAN + Internet world-hosting mode selection.
 - World-hosting and cosmetics architecture documented with explicit security boundaries; actual server runtime and remote cosmetics service remain pending.
-- Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout, FPS HUD toggle and a Vampire Identity settings screen with saved chat/nametag gradient toggles, client-badge preference and gradient presets. The shared gradient text utility is implemented; live chat and overhead nametag renderer hooks are still pending.
+- Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout, FPS HUD toggle and Vampire Identity settings. The local player's own chat-name prefix now has a client-side gradient/badge renderer, with saved gradient presets and built-in Minecraft Default/Uniform/Alt font presets. This does not detect or style other Vampire Client users; overhead nametag rendering and remote cosmetics remain pending.
 
 ## Not implemented / still in development
 
@@ -40,7 +40,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Broader cross-mod conflict analysis and support for modpack formats beyond Vampire Client’s Modrinth-based JSON manifest.
 - Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
-- Full live mod configuration and draggable HUD editor. Vampire Identity now saves local gradient and badge preferences and provides a gradient text utility, but chat-line/overhead-nametag rendering hooks, remote Vampire-client detection, cross-client cosmetics sync and arbitrary TTF/OTF font loading are not implemented yet. Shader Library currently links to creator downloads rather than silently installing third-party files.
+- Full live mod configuration and draggable HUD editor. Vampire Identity currently styles only the local player's own chat-name prefix; remote Vampire-client detection, overhead nametag rendering, cross-client cosmetics sync and arbitrary TTF/OTF font loading are not implemented. Shader Library currently links to creator downloads rather than silently installing third-party files.
 - Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
 - Java runtime auto-download and installation.
 - Android application.
