@@ -240,7 +240,7 @@ public final class VampireClientMod implements ClientModInitializer {
             int x = width / 2 - 125;
             int y = height / 2 - 112;
             addDrawableChild(ButtonWidget.builder(chatLabel(), button -> { VampireIdentity.chatGradientEnabled = !VampireIdentity.chatGradientEnabled; VampireIdentity.save(); button.setMessage(chatLabel()); }).dimensions(x, y, 250, 20).build());
-            addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> { VampireIdentity.nametagGradientEnabled = !VampireIdentity.nametagGradientEnabled; VampireIdentity.save(); button.setMessage(nametagLabel()); }).dimensions(x, y + 25, 250, 20).build());
+            addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> {}).dimensions(x, y + 25, 250, 20).build()).active = false;
             addDrawableChild(ButtonWidget.builder(badgeLabel(), button -> { VampireIdentity.showClientBadge = !VampireIdentity.showClientBadge; VampireIdentity.save(); button.setMessage(badgeLabel()); }).dimensions(x, y + 50, 250, 20).build());
             addDrawableChild(ButtonWidget.builder(gradientLabel(), button -> {
                 if ("#FF526F".equals(VampireIdentity.gradientStart)) { VampireIdentity.gradientStart = "#35D6FF"; VampireIdentity.gradientEnd = "#9B5CFF"; }
@@ -264,7 +264,7 @@ public final class VampireClientMod implements ClientModInitializer {
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button -> client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 187, 250, 20).build());
         }
         private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
-        private static Text nametagLabel() { return Text.literal("Nametag gradient (pending): " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
+        private static Text nametagLabel() { return Text.literal("Overhead nametags: coming soon"); }
         private static Text badgeLabel() { return Text.literal("Logo badge in chat: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
         private static Text gradientLabel() { return Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " -> " + VampireIdentity.gradientEnd); }
         private static Text fontLabel() { return Text.literal("Font preset: " + VampireIdentity.fontPreset); }
