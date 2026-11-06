@@ -46,6 +46,14 @@ export default function SkinCapeStudio() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); setMessage("Saved on this device."); }
     catch { setMessage("Browser storage is full. Use a smaller PNG (under 2 MB) and try again."); }
   }
+  function downloadUploadedCape() {
+    if (!cape) return;
+    const link = document.createElement("a");
+    link.href = cape.data;
+    link.download = (cape.name.replace(/[^a-z0-9._-]/gi, "_") || "vampire-cape.png").toLowerCase();
+    link.click();
+    setMessage("Downloaded your uploaded cape PNG without changing its texture.");
+  }
   function exportCapeTexture() {
     const canvas = document.createElement("canvas"); canvas.width = 64; canvas.height = 32;
     const ctx = canvas.getContext("2d");
@@ -85,7 +93,7 @@ export default function SkinCapeStudio() {
         <div className="setting-row"><div><b>Centered Vampire logo</b><small>Brand emblem on the cape</small></div><button className={logo?"toggle-on":"toggle-off"} onClick={()=>{setLogo(v=>{persist({logo:!v});return !v;});}}>{logo?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Sparkle effects</b><small>Star highlights on the preview</small></div><button className={sparkles?"toggle-on":"toggle-off"} onClick={()=>{setSparkles(v=>{persist({sparkles:!v});return !v;});}}>{sparkles?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Glitter finish</b><small>Metallic shimmer pattern</small></div><button className={glitter?"toggle-on":"toggle-off"} onClick={()=>{setGlitter(v=>{persist({glitter:!v});return !v;});}}>{glitter?"ON":"OFF"}</button></div>
-        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label><button className="secondary-button" onClick={exportCapeTexture}><Sparkles size={15}/> Export 64×32 cape PNG</button></div>
+        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label>{cape && <button className="secondary-button" onClick={downloadUploadedCape}><Upload size={15}/> Download uploaded PNG</button>}<button className="secondary-button" onClick={exportCapeTexture}><Sparkles size={15}/> Export 64×32 cape PNG</button></div>
         {cape && <div className="cosmetic-meta"><b>{cape.name}</b><small>{cape.width} × {cape.height} PNG · local artwork preview saved</small><button className="secondary-button tiny" onClick={()=>{setCape(null);persist({cape:null});}}>Remove custom cape</button></div>}
         <p className="muted">Cape PNG format: 64×32 or 128×64. The uploaded texture is stored locally; this preview does not animate the actual in-game cape.</p>
       </section>
