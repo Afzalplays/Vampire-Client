@@ -371,27 +371,27 @@ public final class VampireClientMod implements ClientModInitializer {
                 showFpsHud = !showFpsHud;
                 saveHudSettings();
                 button.setMessage(fpsLabel());
-            }).dimensions(width / 2 - 105, height / 2 - 32, 210, 24).build());
+            }).dimensions(width / 2 - 105, height / 2 - 38, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(memoryLabel(), button -> {
                 showMemoryHud = !showMemoryHud;
                 saveHudSettings();
                 button.setMessage(memoryLabel());
-            }).dimensions(width / 2 - 105, height / 2 + 1, 210, 24).build());
+            }).dimensions(width / 2 - 105, height / 2 - 10, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(scaleLabel(), button -> {
                 hudScalePercent = hudScalePercent >= 150 ? 75 : hudScalePercent + 25;
                 saveHudSettings();
                 button.setMessage(scaleLabel());
-            }).dimensions(width / 2 - 105, height / 2 + 28, 210, 24).build());
+            }).dimensions(width / 2 - 105, height / 2 + 18, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(paddingLabel(), button -> {
                 hudPadding = hudPadding >= 12 ? 4 : hudPadding + 2;
                 saveHudSettings();
                 button.setMessage(paddingLabel());
-            }).dimensions(width / 2 - 105, height / 2 + 58, 210, 24).build());
+            }).dimensions(width / 2 - 105, height / 2 + 46, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Position & Size"), button -> client.setScreen(new HudPositionScreen()))
-                .dimensions(width / 2 - 105, height / 2 + 86, 210, 24).build());
+                .dimensions(width / 2 - 105, height / 2 + 74, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen()))
-                .dimensions(width / 2 - 75, height / 2 + 116, 150, 22).build());
+                .dimensions(width / 2 - 75, height / 2 + 102, 150, 22).build());
         }
         private static Text fpsLabel() { return Text.literal("FPS HUD: " + (showFpsHud ? "ON" : "OFF")); }
         private static Text scaleLabel() { return Text.literal("HUD scale: " + hudScalePercent + "% (click to cycle)"); }
