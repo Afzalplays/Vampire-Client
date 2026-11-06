@@ -14,7 +14,7 @@ const library: Shader[] = [
   {id:"solas",name:"Solas",creator:"Solas team",description:"Atmospheric shader with stylized lighting.",slug:"solas-shader",versions:"Version-dependent",loader:"Iris"}
 ];
 
-export default function ShaderLibrary({ installed, onImport, onRemove, onDownload, version }: {installed:string[];onImport:()=>void;onRemove:(name:string)=>void;onDownload:(slug:string)=>void;version:string}) {
+export default function ShaderLibrary({ installed, installedMods, loader, onImport, onRemove, onDownload, version }: {installed:string[];installedMods:Array<{fileName:string;enabled:boolean}>;loader:string;onImport:()=>void;onRemove:(name:string)=>void;onDownload:(slug:string)=>void;version:string}) {
   const [query,setQuery]=useState("");
   const [details,setDetails]=useState<Record<string,string>>({});
   useEffect(()=>{
@@ -29,9 +29,17 @@ export default function ShaderLibrary({ installed, onImport, onRemove, onDownloa
     })).then(items=>{if(live)setDetails(Object.fromEntries(items));});
     return ()=>{live=false;};
   },[]);
+  const enabledMods = installedMods.filter(mod => mod.enabled).map(mod => mod.fileName.toLowerCase());
+  const hasIris = enabledMods.some(name => /(^|[-_.])iris([-_.]|$)/.test(name));
+  const hasOptiFine = enabledMods.some(name => name.includes("optifine"));
+  const hasVulkanMod = enabledMods.some(name => name.includes("vulkanmod"));
+  const hasSodium = enabledMods.some(name => name.includes("sodium"));
+  const shaderLoader = loader === "fabric" && hasIris ? "Iris detected" : hasOptiFine ? "OptiFine detected" : "No shader loader detected";
+  const shaderReady = (loader === "fabric" && hasIris) || hasOptiFine;
   const visible=library.filter(item=>(details[item.id]||item.name).toLowerCase().includes(query.toLowerCase())||item.description.toLowerCase().includes(query.toLowerCase()));
   return <section className="panel glass">
     <div className="panel-title"><div><h3>Vampire Shader Library</h3><p>Curated community shader packs · selected Minecraft {version}</p></div><span className="pill">{installed.length} INSTALLED</span></div>
+    <div className="info-banner"><b>{shaderLoader}</b><span>{shaderReady ? "Shader loader found in enabled mods. Shader packs can be selected in Minecraft video settings." : "Install and enable Iris for Fabric or OptiFine for a compatible profile before expecting shaders to work in-game."}{hasVulkanMod && hasIris ? " Iris and VulkanMod are both enabled; this combination may be incompatible. Disable one renderer before launching." : ""}{hasSodium && hasVulkanMod ? " Sodium and VulkanMod are both enabled; use one rendering stack at a time." : ""}</span></div>
     <div className="search-row"><input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search shader library..."/><button className="primary-button compact" onClick={onImport}>Import ZIP</button></div>
     <div className="mod-grid">{visible.map(shader=>{
       const file=installed.find(name=>name.toLowerCase().includes(shader.id.split("-")[0]));
