@@ -77,5 +77,9 @@ export function redactDiagnosticLog(log: string): string {
     .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[IP]")
     .replace(/([A-Za-z]:\\Users\\)[^\\\r\n]+/g, "$1[USER]")
     .replace(/(\/home\/)[^/\s]+/g, "$1[USER]")
-    .replace(/(\/Users\/)[^/\s]+/g, "$1[USER]");
+    .replace(/(\/Users\/)[^/\s]+/g, "$1[USER]")
+    .replace(/\b(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}\b/gi, "[MAC]")
+    .replace(/\b(?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{0,4}\b/gi, "[IPV6]")
+    .replace(/([?&](?:client_id|device_code|code_verifier|state)=)[^&\s]+/gi, "$1[REDACTED]")
+    .replace(/(\\\\[^\\\\]+\\\\)[^\\\\]+/g, "$1[USER]");
 }

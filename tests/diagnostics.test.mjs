@@ -56,3 +56,14 @@ test("warns when mutually exclusive renderers are enabled", () => {
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /one renderer at a time/);
 });
+
+test("redacts MAC, IPv6 and OAuth query credentials", () => {
+  const input = "adapter 00:1A:2B:3C:4D:5E host 2001:db8:85a3::8a2e:370:7334 ?device_code=private-device-code&client_id=public-id";
+  const output = redactDiagnosticLog(input);
+  for (const secret of ["00:1A:2B:3C:4D:5E", "2001:db8:85a3::8a2e:370:7334", "private-device-code"]) {
+    assert.equal(output.includes(secret), false, "leaked: " + secret);
+  }
+  assert.match(output, /\\[MAC\\]/);
+  assert.match(output, /\\[IPV6\\]/);
+  assert.match(output, /device_code=\\[REDACTED\\]/);
+});
