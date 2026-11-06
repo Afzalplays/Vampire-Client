@@ -902,7 +902,7 @@ async function inspectResourcePackZip(file: string) {
       const dataStart = localOffset + 30 + localNameLength + localExtraLength;
       if (dataStart + compressed > centralOffset) throw new Error("Resource pack compressed data is out of bounds.");
       summary.fileCount++;
-      if (/^assets\\/.+\\/textures\\//i.test(entryName)) summary.textureCount++;
+      if (entryName.startsWith("assets/") && entryName.includes("/textures/")) summary.textureCount++;
       if (entryName.toLowerCase() === "pack.png") summary.hasPackIcon = true;
       if (entryName === "pack.mcmeta") {
         if (hasMetadata || uncompressed < 2 || uncompressed > 1024 * 1024 || compressed > 1024 * 1024) {
