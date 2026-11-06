@@ -65,6 +65,14 @@ public final class VampireIdentity {
         }
     }
 
+    public static MutableText styledName(String value) {
+        if (chatGradientEnabled) return gradientText(value);
+        MutableText text = Text.literal(value == null ? "" : value);
+        Identifier font = selectedFont();
+        if (font != null) text.setStyle(Style.EMPTY.withFont(font));
+        return text;
+    }
+
     public static MutableText gradientText(String value) {
         String input = value == null ? "" : value;
         int start = parseHex(gradientStart, 0xFFFF526F);
