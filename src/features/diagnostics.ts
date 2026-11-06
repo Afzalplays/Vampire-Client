@@ -65,6 +65,16 @@ export function analyzeLauncherLog(log: string): DiagnosticFinding[] {
 
 
 /** Best-effort privacy filter for common credentials and machine/network identifiers. */
+function isIPv6Literal(value: string): boolean {
+  if (!/^[0-9a-f:]+$/i.test(value) || value.includes(":::")) return false;
+  const compressed = value.includes("::");
+  if (compressed && value.indexOf("::") !== value.lastIndexOf("::")) return false;
+  const groups = value.split(":");
+  const nonEmpty = groups.filter(Boolean);
+  if (nonEmpty.some(group => group.length > 4)) return false;
+  return compressed ? nonEmpty.length >= 2 && nonEmpty.length < 8 : groups.length === 8 && nonEmpty.length === 8;
+}
+
 export function redactDiagnosticLog(log: string): string {
   return log
     .replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,;]+/gi, "$1[REDACTED]")
@@ -79,7 +89,7 @@ export function redactDiagnosticLog(log: string): string {
     .replace(/(\/home\/)[^/\s]+/g, "$1[USER]")
     .replace(/(\/Users\/)[^/\s]+/g, "$1[USER]")
     .replace(/\b(?:[0-9A-F]{2}[:-]){5}[0-9A-F]{2}\b/gi, "[MAC]")
-    .replace(/\b(?:[A-F0-9]{1,4}:){2,7}[A-F0-9]{0,4}\b/gi, "[IPV6]")
+    .replace(/[0-9a-f:]{2,}/gi, candidate => isIPv6Literal(candidate) ? "[IPV6]" : candidate)
     .replace(/([?&](?:client_id|device_code|code_verifier|state)=)[^&\s]+/gi, "$1[REDACTED]")
     .replace(/(\\\\[^\\\\]+\\\\)[^\\\\]+/g, "$1[USER]");
 }
