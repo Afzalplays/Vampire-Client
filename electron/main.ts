@@ -10,7 +10,7 @@ import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
-import { inflateRawSync } from "node:zlib";
+import { installJava21Runtime } from "./java-runtime";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
 let mainWindow: BrowserWindow | null = null;
@@ -437,6 +437,11 @@ ipcMain.handle("logs:export", async () => {
   if (choice.canceled || !choice.filePath) return { canceled: true };
   await fs.copyFile(source, choice.filePath);
   return { canceled: false, filePath: choice.filePath };
+});
+
+ipcMain.handle("java:install", async () => {
+  if (gameProcess && gameProcess.exitCode === null) throw new Error("Stop Minecraft before installing Java.");
+  return installJava21Runtime(dataRoot(), process.platform, process.arch, message => sendStatus(message));
 });
 
 ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {

@@ -4,6 +4,8 @@ All notable Vampire Client changes are recorded here.
 
 ## Unreleased — Vampire Client Studio foundation
 
+- Added automatic Eclipse Temurin Java 21 JRE installation for supported Windows, Linux and macOS architectures. Downloads are SHA-256 verified and archives are safely extracted with traversal/link/size checks; installed Java is selected and saved for the active instance.
+
 - Added local Skin & Cape Studio with validated PNG uploads/previews, three Vampire cape themes, centered emblem/glitter/sparkle controls, local persistence and 64×32 cape texture export. Cloud upload, multiplayer rendering and purchases remain pending.
 - Latest CI run for commit `0cca75c3` passed all five build jobs ([Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42179876795)).
 

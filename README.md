@@ -46,7 +46,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
 - Full live mod configuration and draggable HUD editor. Vampire Identity currently styles only the local player's own chat-name prefix; remote Vampire-client detection, overhead nametag rendering, cross-client cosmetics sync and arbitrary TTF/OTF font loading are not implemented. Shader Library currently links to creator downloads rather than silently installing third-party files.
 - Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
-- Java runtime auto-download and installation.
+- Forge, NeoForge and Quilt runtime support.
 - Android application.
 - Branded application icons, Windows code signing and macOS notarization.
 - macOS code signing/notarization and Linux ARM64 packages.
@@ -106,7 +106,7 @@ Use Inspect beside an imported pack to read its root `pack.mcmeta` summary and a
 
 ## Java runtime detection
 
-The Settings page can run the configured Java executable (or `java` from PATH) with `-version` and displays its reported version, executable path, operating system and architecture. The launcher compares the detected major version with the Minecraft version's expected Java requirement. Minecraft 1.21.1 requires Java 21. Detection does not download or install Java; install a supported runtime separately and select its executable when it is not available on PATH.
+The Settings page can detect Java and install Eclipse Temurin Java 21 JRE automatically. Runtime metadata comes from Adoptium; the downloaded package is SHA-256 verified before extraction. ZIP/TAR entries are checked for path traversal, links, unsupported entry types, oversized files and excessive expansion. The launcher stores the runtime in its user-data folder and selects it for the active instance. Java 21 is appropriate for Minecraft 1.21.1; older Minecraft versions may require a different major version, so the auto-installer is not a universal Java selector.
 
 ## In-game Right Shift menu (Fabric)
 

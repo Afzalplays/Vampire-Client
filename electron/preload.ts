@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld("vampire", {
   listVersions: () => ipcRenderer.invoke("versions:list"),
   getSystemMemory: () => ipcRenderer.invoke("system:memory"),
   detectJava: (javaPath?: string) => ipcRenderer.invoke("java:detect", { javaPath }),
+  installJava21: () => ipcRenderer.invoke("java:install"),
   readLogs: () => ipcRenderer.invoke("logs:read"),
   exportLogs: () => ipcRenderer.invoke("logs:export"),
   installVersion: (args: { version: string; loader: string; instanceId?: string }) => ipcRenderer.invoke("game:install", args),
