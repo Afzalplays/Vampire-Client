@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Crown, ImagePlus, LockKeyhole, Palette, Sparkles, Upload, UserRound } from "lucide-react";
+import { Crown, Download, ImagePlus, LockKeyhole, Palette, Sparkles, Upload, UserRound } from "lucide-react";
 
 type SavedImage = { name: string; data: string; width: number; height: number };
 const STORAGE_KEY = "vampire-cosmetics-local-v1";
