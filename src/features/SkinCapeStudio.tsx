@@ -67,13 +67,13 @@ export default function SkinCapeStudio() {
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); setMessage("Saved on this device."); }
     catch { setMessage("Browser storage is full. Use a smaller PNG (under 2 MB) and try again."); }
   }
-  function downloadUploadedCape() {
-    if (!cape) return;
+  function downloadTexture(image: SavedImage | null, fallbackName: string, label: string) {
+    if (!image) return;
     const link = document.createElement("a");
-    link.href = cape.data;
-    link.download = (cape.name.replace(/[^a-z0-9._-]/gi, "_") || "vampire-cape.png").toLowerCase();
+    link.href = image.data;
+    link.download = (image.name.replace(/[^a-z0-9._-]/gi, "_") || fallbackName).toLowerCase();
     link.click();
-    setMessage("Downloaded your uploaded cape PNG without changing its texture.");
+    setMessage("Downloaded your uploaded " + label + " PNG without changing its texture.");
   }
   function exportCapeTexture() {
     const canvas = document.createElement("canvas"); canvas.width = 64; canvas.height = 32;
@@ -104,7 +104,7 @@ export default function SkinCapeStudio() {
       <section className="panel glass"><div className="panel-title"><div><h3><UserRound size={17}/> Skin uploader</h3><p>Classic or slim skin texture PNG</p></div><ImagePlus size={18}/></div>
         <div className="skin-preview">{skin ? <img src={skin.data} alt="Uploaded Minecraft skin texture"/> : <div className="skin-empty"><UserRound size={38}/><span>No skin uploaded</span></div>}</div>
         <div className="cosmetic-meta">{skin ? <><b>{skin.name}</b><small>{skin.width} × {skin.height} PNG</small></> : <small>Supported: 64×64, 64×32, 128×128, 128×64</small>}</div>
-        <label className="primary-button upload-button"><Upload size={15}/> Upload skin PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"skin");e.currentTarget.value="";}}/></label>
+        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload skin PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"skin");e.currentTarget.value="";}}/></label>{skin && <button className="secondary-button" onClick={()=>downloadTexture(skin,"vampire-skin.png","skin")}><Download size={15}/> Download skin PNG</button>}</div>
         <p className="muted">This validates and previews the skin texture. It does not yet change your official Minecraft profile or sync to other players.</p>
         {skin && <button className="secondary-button tiny" onClick={()=>{setSkin(null);persist({skin:null});}}>Remove local skin</button>}
       </section>
@@ -114,7 +114,7 @@ export default function SkinCapeStudio() {
         <div className="setting-row"><div><b>Centered Vampire logo</b><small>Brand emblem on the cape</small></div><button className={logo?"toggle-on":"toggle-off"} onClick={()=>{setLogo(v=>{persist({logo:!v});return !v;});}}>{logo?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Sparkle effects</b><small>Star highlights on the preview</small></div><button className={sparkles?"toggle-on":"toggle-off"} onClick={()=>{setSparkles(v=>{persist({sparkles:!v});return !v;});}}>{sparkles?"ON":"OFF"}</button></div>
         <div className="setting-row"><div><b>Glitter finish</b><small>Metallic shimmer pattern</small></div><button className={glitter?"toggle-on":"toggle-off"} onClick={()=>{setGlitter(v=>{persist({glitter:!v});return !v;});}}>{glitter?"ON":"OFF"}</button></div>
-        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label>{cape && <button className="secondary-button" onClick={downloadUploadedCape}><Upload size={15}/> Download uploaded PNG</button>}<button className="secondary-button" onClick={exportCapeTexture}><Sparkles size={15}/> Export 64×32 cape PNG</button></div>
+        <div className="hero-buttons"><label className="primary-button upload-button"><Upload size={15}/> Upload custom cape PNG<input type="file" accept="image/png" onChange={e=>{void upload(e.target.files?.[0],"cape");e.currentTarget.value="";}}/></label>{cape && <button className="secondary-button" onClick={()=>downloadTexture(cape,"vampire-cape.png","cape")}><Download size={15}/> Download uploaded PNG</button>}<button className="secondary-button" onClick={exportCapeTexture}><Sparkles size={15}/> Export 64×32 cape PNG</button></div>
         {cape && <div className="cosmetic-meta"><b>{cape.name}</b><small>{cape.width} × {cape.height} PNG · local artwork preview saved</small><button className="secondary-button tiny" onClick={()=>{setCape(null);persist({cape:null});}}>Remove custom cape</button></div>}
         <p className="muted">Cape PNG format: 64×32 or 128×64. The uploaded texture is stored locally; this preview does not animate the actual in-game cape.</p>
       </section>
