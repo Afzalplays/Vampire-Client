@@ -67,6 +67,8 @@ jobs:
           npm audit --json > npm-audit.json || true
           node -e "const a=require('./npm-audit.json'); console.log('npm audit summary:', JSON.stringify(a.metadata?.vulnerabilities)); for (const [name, issue] of Object.entries(a.vulnerabilities || {})) console.log(name, issue.severity, JSON.stringify(issue.via), JSON.stringify(issue.fixAvailable));"
       - run: npm run build
+      - name: Run launcher regression tests
+        run: npm test
       - name: Package desktop app (retry transient download failures)
         shell: bash
         run: |
