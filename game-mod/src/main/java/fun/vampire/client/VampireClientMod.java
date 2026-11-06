@@ -61,6 +61,7 @@ public final class VampireClientMod implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         loadHudSettings();
+        VampireIdentity.load();
         openMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
             "key.vampireclient.open_menu",
             InputUtil.Type.KEYSYM,
@@ -124,8 +125,10 @@ public final class VampireClientMod implements ClientModInitializer {
                 client.setScreen(new PerformanceScreen())).dimensions(center - 100, top + 31, 200, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("HUD & Settings"), button ->
                 client.setScreen(new HudSettingsScreen())).dimensions(center - 100, top + 62, 200, 24).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Identity & Chat Styling"), button ->
+                client.setScreen(new IdentitySettingsScreen())).dimensions(center - 100, top + 93, 200, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Close"), button -> close())
-                .dimensions(center - 100, top + 93, 200, 24).build());
+                .dimensions(center - 100, top + 124, 200, 24).build());
         }
 
         @Override
@@ -213,6 +216,61 @@ public final class VampireClientMod implements ClientModInitializer {
             }
             context.drawCenteredTextWithShadow(textRenderer, "Close background apps and keep the same world/settings when comparing.",
                 width / 2, height / 2 + 12, 0xFFB49EA7);
+            super.render(context, mouseX, mouseY, delta);
+        }
+        @Override public boolean shouldPause() { return false; }
+    }
+
+
+    private static final class IdentitySettingsScreen extends Screen {
+        protected IdentitySettingsScreen() { super(Text.literal("Vampire Identity")); }
+        @Override protected void init() {
+            int x = width / 2 - 125;
+            int y = height / 2 - 64;
+            addDrawableChild(ButtonWidget.builder(chatLabel(), button -> {
+                VampireIdentity.chatGradientEnabled = !VampireIdentity.chatGradientEnabled;
+                VampireIdentity.save();
+                button.setMessage(chatLabel());
+            }).dimensions(x, y, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> {
+                VampireIdentity.nametagGradientEnabled = !VampireIdentity.nametagGradientEnabled;
+                VampireIdentity.save();
+                button.setMessage(nametagLabel());
+            }).dimensions(x, y + 29, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(badgeLabel(), button -> {
+                VampireIdentity.showClientBadge = !VampireIdentity.showClientBadge;
+                VampireIdentity.save();
+                button.setMessage(badgeLabel());
+            }).dimensions(x, y + 58, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd), button -> {
+                if ("#FF526F".equals(VampireIdentity.gradientStart)) {
+                    VampireIdentity.gradientStart = "#35D6FF";
+                    VampireIdentity.gradientEnd = "#9B5CFF";
+                } else if ("#35D6FF".equals(VampireIdentity.gradientStart)) {
+                    VampireIdentity.gradientStart = "#42E695";
+                    VampireIdentity.gradientEnd = "#3BB2B8";
+                } else {
+                    VampireIdentity.gradientStart = "#FF526F";
+                    VampireIdentity.gradientEnd = "#9B5CFF";
+                }
+                VampireIdentity.save();
+                button.setMessage(Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd));
+            }).dimensions(x, y + 87, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Font: " + VampireIdentity.fontPreset + " (presets planned)"), button ->
+                button.setMessage(Text.literal("Font presets are not wired yet")))
+                .dimensions(x, y + 116, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
+                client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 145, 250, 22).build());
+        }
+        private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
+        private static Text nametagLabel() { return Text.literal("Nametag gradient: " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
+        private static Text badgeLabel() { return Text.literal("Vampire badge: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
+        @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
+            renderBackground(context, mouseX, mouseY, delta);
+            drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
+            context.drawCenteredTextWithShadow(textRenderer,
+                VampireIdentity.gradientText("Vampire Client  ·  Afzal").getString(),
+                width / 2, height / 2 - 91, 0xFFFFFFFF);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
