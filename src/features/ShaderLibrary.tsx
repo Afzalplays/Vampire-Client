@@ -6,12 +6,12 @@ const library: Shader[] = [
   {id:"complementary-unbound",name:"Complementary Unbound",creator:"Complementary",description:"Cinematic lighting and broad visual customization.",slug:"complementary-unbound",versions:"1.16.5–1.21.x (check current file)",loader:"Iris / OptiFine"},
   {id:"bsl",name:"BSL Shaders",creator:"CaptTatsu",description:"Soft lighting, rich colors and configurable effects.",slug:"bsl-shaders",versions:"Version-dependent",loader:"Iris / OptiFine"},
   {id:"sildurs-vibrant",name:"Sildur's Vibrant",creator:"Sildur",description:"Vibrant lighting presets with multiple performance tiers.",slug:"sildurs-vibrant-shaders",versions:"Version-dependent",loader:"Iris / OptiFine"},
-  {id:"makeup-ultra-fast",name:"MakeUp Ultra Fast",creator:" հր",description:"Performance-focused effects with granular toggles.",slug:"makeup-ultra-fast-shaders",versions:"Version-dependent",loader:"Iris / OptiFine"},
+  {id:"makeup-ultra-fast",name:"MakeUp Ultra Fast",creator:"MakeUp team",description:"Performance-focused effects with granular toggles.",slug:"makeup-ultra-fast-shaders",versions:"Version-dependent",loader:"Iris / OptiFine"},
   {id:"chocapic13",name:"Chocapic13",creator:"Chocapic13",description:"Classic shader family with several quality levels.",slug:"chocapic13-shaders",versions:"Version-dependent",loader:"Iris / OptiFine"},
   {id:"astralex",name:"AstraLex",creator:"AstraLex",description:"Stylized visuals and cinematic effects.",slug:"astralex-shader-bsl-edit",versions:"Version-dependent",loader:"Iris / OptiFine"},
   {id:"photon",name:"Photon",creator:"sixthsurge",description:"Modern lighting and atmosphere with detailed settings.",slug:"photon-shader",versions:"Version-dependent",loader:"Iris"},
   {id:"nostalgia",name:"Nostalgia",creator:"RRe36",description:"Classic Minecraft-inspired lighting and colors.",slug:"nostalgia-shader",versions:"Version-dependent",loader:"Iris / OptiFine"},
-  {id:"solas",name:"Solas",creator:"ต้อง",description:"Atmospheric shader with stylized lighting.",slug:"solas-shader",versions:"Version-dependent",loader:"Iris"}
+  {id:"solas",name:"Solas",creator:"Solas team",description:"Atmospheric shader with stylized lighting.",slug:"solas-shader",versions:"Version-dependent",loader:"Iris"}
 ];
 
 export default function ShaderLibrary({ installed, onImport, onRemove, version }: {installed:string[];onImport:()=>void;onRemove:(name:string)=>void;version:string}) {
