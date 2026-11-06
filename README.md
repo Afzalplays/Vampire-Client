@@ -86,6 +86,10 @@ npm run dist:linux
 npm run dist:mac
 ```
 
+## Java runtime detection
+
+The Settings page can run the configured Java executable (or `java` from PATH) with `-version` and displays its reported version, executable path, operating system and architecture. The launcher compares the detected major version with the Minecraft version's expected Java requirement. Minecraft 1.21.1 requires Java 21. Detection does not download or install Java; install a supported runtime separately and select its executable when it is not available on PATH.
+
 ## In-game Right Shift menu (Fabric)
 
 The companion module source targets Minecraft 1.21.1 and Java 21. See [docs/IN_GAME_MENU.md](docs/IN_GAME_MENU.md) for build and installation instructions.
