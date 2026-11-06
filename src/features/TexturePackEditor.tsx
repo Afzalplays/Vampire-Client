@@ -57,6 +57,9 @@ export default function TexturePackEditor() {
   const [zoom, setZoom] = useState(2);
   const [category, setCategory] = useState("block");
   const [packFormat, setPackFormat] = useState(34);
+  const [mirrorX, setMirrorX] = useState(false);
+  const [mirrorY, setMirrorY] = useState(false);
+  const palette = ["#FF526F", "#F5A623", "#F8E16C", "#65D6A6", "#55B8FF", "#9B7BFF", "#FFFFFF", "#17131B"];
   const undoStack = useRef<ImageData[]>([]);
   const redoStack = useRef<ImageData[]>([]);
   const [historyCount, setHistoryCount] = useState(0);
@@ -129,11 +132,21 @@ export default function TexturePackEditor() {
     const previous = start ? p : (lastPoint.current || p);
     const dx = p.x - previous.x, dy = p.y - previous.y;
     const steps = Math.max(Math.abs(dx), Math.abs(dy), 1);
+    const variants = [
+      { x: 1, y: 1 },
+      ...(mirrorX ? [{ x: -1, y: 1 }] : []),
+      ...(mirrorY ? [{ x: 1, y: -1 }] : []),
+      ...(mirrorX && mirrorY ? [{ x: -1, y: -1 }] : [])
+    ];
     ctx.fillStyle = color;
     ctx.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
     for (let step = 0; step <= steps; step++) {
       const x = Math.round(previous.x + dx * step / steps), y = Math.round(previous.y + dy * step / steps);
-      ctx.fillRect(x - Math.floor(brush / 2), y - Math.floor(brush / 2), brush, brush);
+      for (const variant of variants) {
+        const mirroredX = variant.x === -1 ? size - 1 - x : x;
+        const mirroredY = variant.y === -1 ? size - 1 - y : y;
+        ctx.fillRect(mirroredX - Math.floor(brush / 2), mirroredY - Math.floor(brush / 2), brush, brush);
+      }
     }
     ctx.globalCompositeOperation = "source-over";
     lastPoint.current = p;
@@ -265,6 +278,9 @@ export default function TexturePackEditor() {
           <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
             <span className="muted">Pixel: {cursorPixel ? cursorPixel.x + ", " + cursorPixel.y : "—"}</span>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Color <input type="color" value={color} onChange={e=>setColor(e.target.value)}/></label>
+            <div style={{display:"flex",gap:5,alignItems:"center"}} aria-label="Quick color palette">{palette.map(swatch=><button key={swatch} type="button" title={"Select "+swatch} aria-label={"Select color "+swatch} onClick={()=>setColor(swatch)} style={{width:22,height:22,padding:0,borderRadius:6,border:color.toUpperCase()===swatch?"2px solid white":"1px solid #776878",background:swatch,cursor:"pointer"}}/>)}</div>
+            <label><input type="checkbox" checked={mirrorX} onChange={e=>setMirrorX(e.target.checked)}/> Mirror X</label>
+            <label><input type="checkbox" checked={mirrorY} onChange={e=>setMirrorY(e.target.checked)}/> Mirror Y</label>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Brush <input type="range" min="1" max="16" value={brush} onChange={e=>setBrush(Number(e.target.value))}/>{brush}px</label>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Zoom <input type="range" min="1" max="4" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/>{zoom}×</label>
             <label><input type="checkbox" checked={grid} onChange={e=>setGrid(e.target.checked)}/> Pixel grid</label>
