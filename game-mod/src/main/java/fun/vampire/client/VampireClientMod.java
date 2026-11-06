@@ -28,6 +28,8 @@ public final class VampireClientMod implements ClientModInitializer {
     private KeyBinding openMenu;
     private static boolean showFpsHud = true;
     private static boolean showMemoryHud = false;
+    private static int hudX = 8;
+    private static int hudY = 8;
     private static final Path CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("vampire-client.properties");
 
     private static void loadHudSettings() {
@@ -36,6 +38,8 @@ public final class VampireClientMod implements ClientModInitializer {
             properties.load(input);
             showFpsHud = Boolean.parseBoolean(properties.getProperty("hud.fps", "true"));
             showMemoryHud = Boolean.parseBoolean(properties.getProperty("hud.memory", "false"));
+            hudX = Math.max(0, Integer.parseInt(properties.getProperty("hud.x", "8")));
+            hudY = Math.max(0, Integer.parseInt(properties.getProperty("hud.y", "8")));
         } catch (java.io.IOException ignored) {
             // First launch: use the documented defaults.
         }
@@ -45,6 +49,8 @@ public final class VampireClientMod implements ClientModInitializer {
         Properties properties = new Properties();
         properties.setProperty("hud.fps", Boolean.toString(showFpsHud));
         properties.setProperty("hud.memory", Boolean.toString(showMemoryHud));
+        properties.setProperty("hud.x", Integer.toString(hudX));
+        properties.setProperty("hud.y", Integer.toString(hudY));
         try {
             Files.createDirectories(CONFIG_FILE.getParent());
             try (OutputStream output = Files.newOutputStream(CONFIG_FILE)) {
@@ -74,14 +80,16 @@ public final class VampireClientMod implements ClientModInitializer {
             if (!showFpsHud && !showMemoryHud) return;
             MinecraftClient client = MinecraftClient.getInstance();
             int rows = (showFpsHud ? 1 : 0) + (showMemoryHud ? 1 : 0);
-            int bottom = 8 + rows * 16 + 5;
+            int panelHeight = 8 + rows * 16 + 5;
             int panelWidth = 220;
-            drawContext.fill(8, 8, panelWidth, bottom, 0xB8101018);
-            drawContext.fill(8, 8, 10, bottom, 0xFFFF596F);
-            int y = 14;
+            hudX = Math.max(0, Math.min(hudX, Math.max(0, client.getWindow().getScaledWidth() - panelWidth)));
+            hudY = Math.max(0, Math.min(hudY, Math.max(0, client.getWindow().getScaledHeight() - panelHeight)));
+            drawContext.fill(hudX, hudY, hudX + panelWidth, hudY + panelHeight, 0xB8101018);
+            drawContext.fill(hudX, hudY, hudX + 2, hudY + panelHeight, 0xFFFF596F);
+            int y = hudY + 6;
             if (showFpsHud) {
                 drawContext.drawTextWithShadow(client.textRenderer,
-                    "VAMPIRE  |  " + client.getCurrentFps() + " FPS", 16, y, 0xFFFF8290);
+                    "VAMPIRE  |  " + client.getCurrentFps() + " FPS", hudX + 8, y, 0xFFFF8290);
                 y += 16;
             }
             if (showMemoryHud) {
@@ -89,7 +97,7 @@ public final class VampireClientMod implements ClientModInitializer {
                 long used = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024);
                 long max = runtime.maxMemory() / (1024 * 1024);
                 drawContext.drawTextWithShadow(client.textRenderer,
-                    "MEMORY  |  " + used + " / " + max + " MB", 16, y, 0xFFF2E8EC);
+                    "MEMORY  |  " + used + " / " + max + " MB", hudX + 8, y, 0xFFF2E8EC);
             }
         });
 
@@ -270,6 +278,57 @@ public final class VampireClientMod implements ClientModInitializer {
         @Override public boolean shouldPause() { return false; }
     }
 
+    private static final class HudPositionScreen extends Screen {
+        private boolean dragging;
+        private double dragOffsetX;
+        private double dragOffsetY;
+        private static final int PREVIEW_WIDTH = 220;
+        private static final int PREVIEW_HEIGHT = 45;
+        protected HudPositionScreen() { super(Text.literal("Position Vampire HUD")); }
+
+        @Override protected void init() {
+            clampPosition();
+            addDrawableChild(ButtonWidget.builder(Text.literal("Reset position"), button -> {
+                hudX = 8; hudY = 8; saveHudSettings(); clampPosition();
+            }).dimensions(width / 2 - 105, height - 54, 130, 22).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> client.setScreen(new HudSettingsScreen()))
+                .dimensions(width / 2 + 35, height - 54, 70, 22).build());
+        }
+        private void clampPosition() {
+            hudX = Math.max(0, Math.min(hudX, Math.max(0, width - PREVIEW_WIDTH)));
+            hudY = Math.max(0, Math.min(hudY, Math.max(0, height - PREVIEW_HEIGHT - 60)));
+        }
+        @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
+            renderBackground(context, mouseX, mouseY, delta);
+            drawPanel(width, height, textRenderer, context, "DRAG TO POSITION HUD");
+            clampPosition();
+            context.fill(hudX, hudY, hudX + PREVIEW_WIDTH, hudY + PREVIEW_HEIGHT, 0xD8101018);
+            context.fill(hudX, hudY, hudX + 2, hudY + PREVIEW_HEIGHT, 0xFFFF596F);
+            context.drawTextWithShadow(textRenderer, "VAMPIRE  |  120 FPS", hudX + 8, hudY + 7, 0xFFFF8290);
+            context.drawTextWithShadow(textRenderer, "MEMORY  |  2048 / 4096 MB", hudX + 8, hudY + 24, 0xFFF2E8EC);
+            context.drawCenteredTextWithShadow(textRenderer, "Click and drag the preview. Position is saved automatically.", width / 2, height - 78, 0xFFD8C5CC);
+            super.render(context, mouseX, mouseY, delta);
+        }
+        @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
+            if (button == 0 && mouseX >= hudX && mouseX <= hudX + PREVIEW_WIDTH && mouseY >= hudY && mouseY <= hudY + PREVIEW_HEIGHT) {
+                dragging = true; dragOffsetX = mouseX - hudX; dragOffsetY = mouseY - hudY; return true;
+            }
+            return super.mouseClicked(mouseX, mouseY, button);
+        }
+        @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            if (dragging && button == 0) {
+                hudX = (int)Math.round(mouseX - dragOffsetX); hudY = (int)Math.round(mouseY - dragOffsetY);
+                clampPosition(); saveHudSettings(); return true;
+            }
+            return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        }
+        @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
+            if (button == 0 && dragging) { dragging = false; saveHudSettings(); return true; }
+            return super.mouseReleased(mouseX, mouseY, button);
+        }
+        @Override public boolean shouldPause() { return false; }
+    }
+
     private static final class HudSettingsScreen extends Screen {
         private ButtonWidget toggle;
         protected HudSettingsScreen() { super(Text.literal("Vampire HUD Settings")); }
@@ -284,9 +343,11 @@ public final class VampireClientMod implements ClientModInitializer {
                 saveHudSettings();
                 button.setMessage(memoryLabel());
             }).dimensions(width / 2 - 105, height / 2 + 1, 210, 24).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Position HUD"), button -> client.setScreen(new HudPositionScreen()))
+                .dimensions(width / 2 - 105, height / 2 + 34, 210, 24).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen()))
-                .dimensions(width / 2 - 75, height / 2 + 34, 150, 22).build());
+                .dimensions(width / 2 - 75, height / 2 + 66, 150, 22).build());
         }
         private static Text fpsLabel() { return Text.literal("FPS HUD: " + (showFpsHud ? "ON" : "OFF")); }
         private static Text memoryLabel() { return Text.literal("Memory HUD: " + (showMemoryHud ? "ON" : "OFF")); }
