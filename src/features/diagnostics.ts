@@ -25,3 +25,16 @@ export function extractLogIssueContext(log: string, radius = 2, maxLines = 120):
   }
   return [...included].sort((left, right) => left - right).slice(0, maxLines).map(index => String(index + 1).padStart(5, " ") + " | " + lines[index]);
 }
+
+export type LogIssueSummary = { errors: number; exceptions: number; fatal: number; crashes: number; failed: number };
+export function summarizeLogIssues(log: string): LogIssueSummary {
+  const summary: LogIssueSummary = { errors: 0, exceptions: 0, fatal: 0, crashes: 0, failed: 0 };
+  for (const line of log.split(/\r?\n/)) {
+    if (/\berror\b/i.test(line)) summary.errors++;
+    if (/\bexception\b/i.test(line)) summary.exceptions++;
+    if (/\bfatal\b/i.test(line)) summary.fatal++;
+    if (/\bcrash(?:ed)?\b/i.test(line)) summary.crashes++;
+    if (/\bfailed\b/i.test(line)) summary.failed++;
+  }
+  return summary;
+}
