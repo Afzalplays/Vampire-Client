@@ -34,8 +34,10 @@ const profilesFile = () => path.join(dataRoot(), "profiles.json");
 const settingsFile = () => path.join(dataRoot(), "settings.json");
 const installedVersionsFile = () => path.join(dataRoot(), "installed-versions.json");
 const microsoftSessionFile = () => path.join(dataRoot(), "microsoft-session.bin");
+const microsoftCacheFile = () => path.join(dataRoot(), "msal-cache.bin");
 const accountFile = () => path.join(dataRoot(), "account.json");
-let memoryMicrosoftSession: { accessToken: string; expiresAt: number; profile: { id: string; name: string } } | null = null;
+type MicrosoftSession = { accessToken: string; expiresAt: number; profile: { id: string; name: string }; microsoftAccountId?: string };
+let memoryMicrosoftSession: MicrosoftSession | null = null;
 
 async function readJson<T>(file: string, fallback: T): Promise<T> {
   try { return JSON.parse(await fs.readFile(file, "utf8")) as T; } catch { return fallback; }
@@ -44,27 +46,104 @@ async function writeJson(file: string, value: unknown) {
   await fs.mkdir(path.dirname(file), { recursive: true });
   await fs.writeFile(file, JSON.stringify(value, null, 2), "utf8");
 }
-async function getMicrosoftSession() {
-  if (memoryMicrosoftSession && memoryMicrosoftSession.expiresAt > Date.now() + 60_000) return memoryMicrosoftSession;
+async function writeEncryptedFile(file: string, value: string) {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("OS secure storage is unavailable; Microsoft account persistence is disabled.");
+  const encrypted = safeStorage.encryptString(value);
+  await fs.mkdir(dataRoot(), { recursive: true });
+  const temporary = file + ".tmp";
+  await fs.writeFile(temporary, encrypted.toString("base64"), { mode: 0o600 });
+  await fs.rename(temporary, file);
+}
+async function readEncryptedFile(file: string) {
   if (!safeStorage.isEncryptionAvailable()) return null;
   try {
-    const encrypted = await fs.readFile(microsoftSessionFile(), "utf8");
-    const decrypted = safeStorage.decryptString(Buffer.from(encrypted, "base64"));
-    const session = JSON.parse(decrypted);
-    if (session?.accessToken && session?.profile?.id && session?.profile?.name && session.expiresAt > Date.now() + 60_000) {
-      memoryMicrosoftSession = session;
-      return session;
-    }
-  } catch { /* no stored or decryptable Microsoft session */ }
-  return null;
+    const encrypted = await fs.readFile(file, "utf8");
+    return safeStorage.decryptString(Buffer.from(encrypted, "base64"));
+  } catch { return null; }
 }
-async function saveMicrosoftSession(session: { accessToken: string; expiresAt: number; profile: { id: string; name: string } }) {
-  memoryMicrosoftSession = session;
-  if (safeStorage.isEncryptionAvailable()) {
-    const encrypted = safeStorage.encryptString(JSON.stringify(session));
-    await fs.mkdir(dataRoot(), { recursive: true });
-    await fs.writeFile(microsoftSessionFile(), encrypted.toString("base64"), { mode: 0o600 });
+function createMicrosoftClient(clientId: string) {
+  const cachePlugin = {
+    beforeCacheAccess: async (context: any) => {
+      const serialized = await readEncryptedFile(microsoftCacheFile());
+      if (serialized) context.tokenCache.deserialize(serialized);
+    },
+    afterCacheAccess: async (context: any) => {
+      if (context.cacheHasChanged && safeStorage.isEncryptionAvailable()) {
+        await writeEncryptedFile(microsoftCacheFile(), context.tokenCache.serialize());
+      }
+    }
+  };
+  return new PublicClientApplication({
+    auth: { clientId, authority: "https://login.microsoftonline.com/consumers" },
+    cache: { cachePlugin }
+  });
+}
+async function exchangeMicrosoftToken(accessToken: string, expectedProfileId?: string): Promise<MicrosoftSession> {
+  const signal = new AbortController().signal;
+  const authenticator = new MicrosoftAuthenticator({});
+  const { minecraftXstsResponse } = await authenticator.acquireXBoxToken(accessToken, signal);
+  const claim = minecraftXstsResponse.DisplayClaims?.xui?.[0];
+  if (!claim?.uhs) throw new Error("Xbox authentication did not return a valid user hash.");
+  const minecraftAuth = await authenticator.loginMinecraftWithXBox(claim.uhs, minecraftXstsResponse.Token, signal);
+  const mojang = new MojangClient({});
+  const ownership = await mojang.checkGameOwnership(minecraftAuth.access_token, signal);
+  if (!ownership.items?.some((item: any) => item.name === "game_minecraft" || item.name === "product_minecraft")) {
+    throw new Error("This Microsoft account does not have Minecraft Java Edition entitlement.");
   }
+  const gameProfile = await mojang.getProfile(minecraftAuth.access_token, signal);
+  if (expectedProfileId && gameProfile.id !== expectedProfileId) {
+    throw new Error("The cached Microsoft account no longer matches the active Minecraft profile. Sign in again.");
+  }
+  return {
+    accessToken: minecraftAuth.access_token,
+    expiresAt: Date.now() + Math.max(60, minecraftAuth.expires_in - 120) * 1000,
+    profile: { id: gameProfile.id, name: gameProfile.name }
+  };
+}
+async function refreshMicrosoftSession(): Promise<MicrosoftSession | null> {
+  if (!safeStorage.isEncryptionAvailable()) return null;
+  const saved = await readEncryptedFile(microsoftSessionFile());
+  if (!saved) return null;
+  let previous: MicrosoftSession;
+  try { previous = JSON.parse(saved) as MicrosoftSession; } catch { return null; }
+  const settings = await readJson<{ clientId?: string }>(settingsFile(), {});
+  const clientId = String(settings.clientId || "");
+  if (!/^[0-9a-fA-F-]{36}$/.test(clientId) || !previous.profile?.id) return null;
+  try {
+    const msal = createMicrosoftClient(clientId);
+    const accounts = await msal.getTokenCache().getAllAccounts();
+    const account = (previous.microsoftAccountId
+      ? accounts.find(item => item.homeAccountId === previous.microsoftAccountId)
+      : undefined) || accounts[0];
+    if (!account) return null;
+    const tokenResult = await msal.acquireTokenSilent({ account, scopes: ["XboxLive.signin", "offline_access"] });
+    if (!tokenResult?.accessToken) return null;
+    const refreshed = await exchangeMicrosoftToken(tokenResult.accessToken, previous.profile.id);
+    refreshed.microsoftAccountId = account.homeAccountId;
+    await saveMicrosoftSession(refreshed);
+    return refreshed;
+  } catch (error) {
+    sendStatus("Microsoft session refresh failed. Sign in again if prompted.");
+    return null;
+  }
+}
+async function getMicrosoftSession(): Promise<MicrosoftSession | null> {
+  if (memoryMicrosoftSession && memoryMicrosoftSession.expiresAt > Date.now() + 60_000) return memoryMicrosoftSession;
+  const decrypted = await readEncryptedFile(microsoftSessionFile());
+  if (decrypted) {
+    try {
+      const session = JSON.parse(decrypted) as MicrosoftSession;
+      if (session?.accessToken && session?.profile?.id && session?.profile?.name && session.expiresAt > Date.now() + 60_000) {
+        memoryMicrosoftSession = session;
+        return session;
+      }
+    } catch { /* invalid encrypted session payload */ }
+  }
+  return refreshMicrosoftSession();
+}
+async function saveMicrosoftSession(session: MicrosoftSession) {
+  memoryMicrosoftSession = session;
+  if (safeStorage.isEncryptionAvailable()) await writeEncryptedFile(microsoftSessionFile(), JSON.stringify(session));
 }
 
 async function verifyModrinthDownload(response: Response, file: any) {
@@ -346,33 +425,25 @@ ipcMain.handle("auth:get", async () => {
 ipcMain.handle("auth:logout", async () => {
   memoryMicrosoftSession = null;
   await fs.unlink(microsoftSessionFile()).catch(() => undefined);
+  await fs.unlink(microsoftCacheFile()).catch(() => undefined);
   await writeJson(accountFile(), { type: "offline" });
   return { success: true };
 });
 ipcMain.handle("auth:login", async (_event, clientId: string) => {
   if (!/^[0-9a-fA-F-]{36}$/.test(String(clientId || ""))) throw new Error("Enter a valid Microsoft app Client ID first.");
   sendStatus("Starting Microsoft device-code sign-in…");
-  const msal = new PublicClientApplication({ auth: { clientId, authority: "https://login.microsoftonline.com/consumers" } });
+  const msal = createMicrosoftClient(clientId);
   const tokenResult = await msal.acquireTokenByDeviceCode({
     scopes: ["XboxLive.signin", "offline_access"],
     deviceCodeCallback: (response) => sendStatus(response.message)
   });
   if (!tokenResult?.accessToken) throw new Error("Microsoft sign-in did not return an access token.");
-  const signal = new AbortController().signal;
-  const authenticator = new MicrosoftAuthenticator({});
-  const { minecraftXstsResponse } = await authenticator.acquireXBoxToken(tokenResult.accessToken, signal);
-  const claim = minecraftXstsResponse.DisplayClaims?.xui?.[0];
-  if (!claim?.uhs) throw new Error("Xbox authentication did not return a valid user hash.");
-  const minecraftAuth = await authenticator.loginMinecraftWithXBox(claim.uhs, minecraftXstsResponse.Token, signal);
-  const mojang = new MojangClient({});
-  const ownership = await mojang.checkGameOwnership(minecraftAuth.access_token, signal);
-  if (!ownership.items?.some((item: any) => item.name === "game_minecraft" || item.name === "product_minecraft")) throw new Error("This Microsoft account does not have Minecraft Java Edition entitlement.");
-  const gameProfile = await mojang.getProfile(minecraftAuth.access_token, signal);
-  const session = { accessToken: minecraftAuth.access_token, expiresAt: Date.now() + Math.max(60, minecraftAuth.expires_in - 120) * 1000, profile: { id: gameProfile.id, name: gameProfile.name } };
+  const session = await exchangeMicrosoftToken(tokenResult.accessToken);
+  session.microsoftAccountId = tokenResult.account?.homeAccountId;
   await saveMicrosoftSession(session);
   await writeJson(accountFile(), { type: "microsoft", profile: session.profile });
-  await writeJson(profilesFile(), { active: gameProfile.name, names: [gameProfile.name] });
-  sendStatus("Signed in as " + gameProfile.name + ".");
+  await writeJson(profilesFile(), { active: session.profile.name, names: [session.profile.name] });
+  sendStatus("Signed in as " + session.profile.name + ".");
   return { success: true, profile: session.profile, encryptedStorage: safeStorage.isEncryptionAvailable() };
 });
 ipcMain.handle("settings:get", async (_event, instanceIdValue?: string) => {
