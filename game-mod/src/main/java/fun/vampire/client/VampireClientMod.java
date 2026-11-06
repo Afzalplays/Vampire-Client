@@ -263,7 +263,7 @@ public final class VampireClientMod implements ClientModInitializer {
                 client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 145, 250, 22).build());
         }
         private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
-        private static Text nametagLabel() { return Text.literal("Nametag gradient: " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
+        private static Text nametagLabel() { return Text.literal("Nametag gradient (pending): " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
         private static Text badgeLabel() { return Text.literal("Vampire badge: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
         private static Text fontLabel() { return fontLabel(VampireIdentity.fontPreset); }
         private static Text fontLabel(String preset) { return Text.literal("Font preset: " + preset); }
