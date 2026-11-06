@@ -333,7 +333,9 @@ public final class VampireClientMod implements ClientModInitializer {
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0 && mouseX >= hudX && mouseX <= hudX + hudWidth && mouseY >= hudY && mouseY <= hudY + PREVIEW_HEIGHT) {
+            int renderedWidth = Math.round(hudWidth * hudScalePercent / 100.0f);
+            int renderedHeight = Math.round(PREVIEW_HEIGHT * hudScalePercent / 100.0f);
+            if (button == 0 && mouseX >= hudX && mouseX <= hudX + renderedWidth && mouseY >= hudY && mouseY <= hudY + renderedHeight) {
                 if (mouseX >= hudX + Math.round((hudWidth - 14) * hudScalePercent / 100.0f) && mouseY >= hudY + Math.round((PREVIEW_HEIGHT - 14) * hudScalePercent / 100.0f)) resizing = true;
                 else { dragging = true; dragOffsetX = mouseX - hudX; dragOffsetY = mouseY - hudY; }
                 return true;
