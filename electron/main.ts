@@ -3,6 +3,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
+import { inflateRawSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
 import { spawn, type ChildProcess } from "node:child_process";
 import { totalmem, freemem, networkInterfaces } from "node:os";
