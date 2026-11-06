@@ -51,6 +51,10 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 
 Offline profiles do not authenticate Minecraft ownership or grant access to online-mode/premium servers. Microsoft sign-in verifies Minecraft Java entitlement before official-account launch.
 
+## Build verification
+
+The latest completed GitHub Actions run on `main` (commit `c4276027`) passed all five build jobs: Windows x64, Windows x86, Linux x64, macOS universal, and the Fabric companion mod. The workflow uploaded one artifact for each target. Download the matching artifact from [the successful Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42174992397). These are CI build checks, not a substitute for installing and testing the Windows installer on a physical PC, signing/notarization, or testing Microsoft sign-in with a real Minecraft account.
+
 ## Desktop platforms
 
 The GitHub Actions workflow builds:
