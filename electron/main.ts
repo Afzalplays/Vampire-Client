@@ -877,6 +877,38 @@ ipcMain.handle("shaders:import", async (_event, args: { version: string; loader:
   return { canceled: false, fileName: base };
 });
 
+ipcMain.handle("shaders:download", async (_event, args: { slug: string; version: string; loader: string; instanceId?: string }) => {
+  const slug = String(args.slug || "");
+  if (!/^[a-z0-9-]{2,80}$/i.test(slug)) throw new Error("Invalid Modrinth shader project.");
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(args.version || ""))) throw new Error("Invalid Minecraft version.");
+  const instance = await safeInstanceAsync(args.version, args.loader, args.instanceId || "default");
+  const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(slug) +
+    "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version]));
+  const response = await fetch(endpoint, { headers: { "User-Agent": "VampireClient/0.3.0 (shader-installer)" } });
+  if (!response.ok) throw new Error("Modrinth shader lookup failed (" + response.status + ").");
+  const versions = await response.json() as any[];
+  const release = versions.find((entry: any) => Array.isArray(entry.files) && entry.files.some((file: any) => String(file.filename || "").toLowerCase().endsWith(".zip")));
+  if (!release) throw new Error("No shader ZIP release was found for Minecraft " + args.version + ".");
+  const file = release.files.find((entry: any) => entry.primary && String(entry.filename || "").toLowerCase().endsWith(".zip"))
+    || release.files.find((entry: any) => String(entry.filename || "").toLowerCase().endsWith(".zip"));
+  if (!file?.url) throw new Error("Modrinth did not provide a shader ZIP download.");
+  const url = new URL(String(file.url));
+  if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Shader download host was rejected.");
+  const download = await fetch(url);
+  if (!download.ok) throw new Error("Shader download failed (" + download.status + ").");
+  const bytes = await verifyModrinthDownload(download, file);
+  const fileName = path.basename(String(file.filename || "shader.zip")).replace(/[^A-Za-z0-9._ -]/g, "_");
+  if (!fileName.toLowerCase().endsWith(".zip")) throw new Error("Modrinth returned a non-ZIP shader file.");
+  const directory = path.join(instance.root, "shaderpacks");
+  await fs.mkdir(directory, { recursive: true });
+  const destination = path.join(directory, fileName);
+  const temporary = destination + ".vampire-tmp";
+  await fs.writeFile(temporary, bytes, { flag: "w" });
+  try { await assertZipSignature(temporary); await fs.rename(temporary, destination); }
+  catch (error) { await fs.unlink(temporary).catch(() => undefined); throw error; }
+  return { success: true, fileName };
+});
+
 ipcMain.handle("shaders:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
   const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const name = String(args.fileName || "");

@@ -46,6 +46,7 @@ interface Window {
     applyPerformancePreset(args: { preset: string; version: string; loader: string; instanceId?: string }): Promise<{ success: boolean; preset: string; optionsFile: string }>;
     listShaderPacks(args: { version: string; loader: string ; instanceId?: string }): Promise<string[]>;
     importShaderPack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; fileName?: string }>;
+    downloadShaderPack(args: { slug: string; version: string; loader: string; instanceId?: string }): Promise<{ success: boolean; fileName: string }>;
     removeShaderPack(args: { version: string; loader: string; fileName: string ; instanceId?: string }): Promise<{ success: boolean }>;
     onGameStatus(callback: (message: string) => void): () => void;
   };

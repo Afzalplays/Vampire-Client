@@ -14,7 +14,7 @@ const library: Shader[] = [
   {id:"solas",name:"Solas",creator:"Solas team",description:"Atmospheric shader with stylized lighting.",slug:"solas-shader",versions:"Version-dependent",loader:"Iris"}
 ];
 
-export default function ShaderLibrary({ installed, onImport, onRemove, version }: {installed:string[];onImport:()=>void;onRemove:(name:string)=>void;version:string}) {
+export default function ShaderLibrary({ installed, onImport, onRemove, onDownload, version }: {installed:string[];onImport:()=>void;onRemove:(name:string)=>void;onDownload:(slug:string)=>void;version:string}) {
   const [query,setQuery]=useState("");
   const [details,setDetails]=useState<Record<string,string>>({});
   useEffect(()=>{
@@ -39,10 +39,10 @@ export default function ShaderLibrary({ installed, onImport, onRemove, version }
         <div className="mod-card-head"><div className="mod-symbol">✦</div><div><b>{details[shader.id]||shader.name}</b><small>{shader.creator}</small></div></div>
         <p>{shader.description}</p>
         <div className="feature-pills"><span>{shader.loader}</span><span>{shader.versions}</span></div>
-        <div className="mod-card-foot"><a href={"https://modrinth.com/shader/"+shader.slug} target="_blank" rel="noreferrer">Modrinth page ↗</a>{file?<button className="secondary-button tiny" onClick={()=>onRemove(file)}>Remove</button>:<a className="secondary-button tiny" href={"https://modrinth.com/shader/"+shader.slug} target="_blank" rel="noreferrer">Get pack</a>}</div>
+        <div className="mod-card-foot"><a href={"https://modrinth.com/shader/"+shader.slug} target="_blank" rel="noreferrer">Modrinth page ↗</a>{file?<button className="secondary-button tiny" onClick={()=>onRemove(file)}>Remove</button>:<button className="primary-button tiny" onClick={()=>onDownload(shader.slug)}>Install</button>}</div>
       </article>;
     })}</div>
-    <div className="info-banner">Compatibility and current releases must be checked on each creator's Modrinth page. Download the shader ZIP there, then use Import ZIP to add it to this Minecraft instance. Iris or compatible OptiFine support is required; this catalogue does not claim automatic installation.</div>
+    <div className="info-banner">Install downloads the latest Modrinth release matching the selected Minecraft version directly into this instance’s shaderpacks folder. Enable shaders in Iris or compatible OptiFine settings after installation; this launcher does not toggle the in-game shader selection.</div>
     {installed.length>0&&<><div className="divider-line"/><h3>Installed in this instance</h3>{installed.map(file=><div className="setting-row" key={file}><div><b>{file}</b><small>Minecraft {version} · shaderpacks folder</small></div><button className="secondary-button tiny" onClick={()=>onRemove(file)}>Remove</button></div>)}</>}
   </section>;
 }
