@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 
-type Tool = "pencil" | "eraser" | "fill";
+type Tool = "pencil" | "eraser" | "fill" | "eyedropper";
 const size = 128;
 
 function crc32(bytes: Uint8Array) {
@@ -61,6 +61,7 @@ export default function TexturePackEditor() {
   const [historyCount, setHistoryCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
   const [cursorPixel, setCursorPixel] = useState<{x:number;y:number}|null>(null);
+  const lastPoint = useRef<{x:number;y:number}|null>(null);
   function checkpoint() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; undoStack.current.push(ctx.getImageData(0, 0, size, size)); if (undoStack.current.length > 40) undoStack.current.shift(); redoStack.current = []; setHistoryCount(undoStack.current.length); setRedoCount(0); }
   function undo() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx || !undoStack.current.length) return; redoStack.current.push(ctx.getImageData(0, 0, size, size)); ctx.putImageData(undoStack.current.pop()!, 0, 0); setHistoryCount(undoStack.current.length); setRedoCount(redoStack.current.length); }
   function redo() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx || !redoStack.current.length) return; undoStack.current.push(ctx.getImageData(0, 0, size, size)); ctx.putImageData(redoStack.current.pop()!, 0, 0); setHistoryCount(undoStack.current.length); setRedoCount(redoStack.current.length); }
@@ -92,14 +93,49 @@ export default function TexturePackEditor() {
   function paint(event: React.PointerEvent<HTMLCanvasElement>, start = false) {
     const canvas = canvasRef.current, p = point(event); if (!canvas || !p) return;
     const ctx = canvas.getContext("2d"); if (!ctx) return;
+    if (tool === "eyedropper" && start) {
+      const pixel = ctx.getImageData(p.x, p.y, 1, 1).data;
+      setColor("#" + [pixel[0], pixel[1], pixel[2]].map(value => value.toString(16).padStart(2, "0")).join("").toUpperCase());
+      setStatus("Picked color from pixel " + p.x + ", " + p.y + ".");
+      return;
+    }
     if (tool === "fill" && start) {
       checkpoint();
-      ctx.fillStyle = color; ctx.fillRect(0, 0, size, size); return;
+      const image = ctx.getImageData(0, 0, size, size);
+      const data = image.data, startIndex = (p.y * size + p.x) * 4;
+      const target = [data[startIndex], data[startIndex + 1], data[startIndex + 2], data[startIndex + 3]];
+      const fill = [parseInt(color.slice(1, 3), 16), parseInt(color.slice(3, 5), 16), parseInt(color.slice(5, 7), 16), 255];
+      if (target.every((value, index) => value === fill[index])) return;
+      const matches = (index: number) => data[index] === target[0] && data[index + 1] === target[1] && data[index + 2] === target[2] && data[index + 3] === target[3];
+      const stack = [p.y * size + p.x], visited = new Uint8Array(size * size);
+      while (stack.length) {
+        const pixel = stack.pop()!;
+        if (visited[pixel]) continue;
+        visited[pixel] = 1;
+        const index = pixel * 4;
+        if (!matches(index)) continue;
+        data[index] = fill[0]; data[index + 1] = fill[1]; data[index + 2] = fill[2]; data[index + 3] = fill[3];
+        const x = pixel % size, y = Math.floor(pixel / size);
+        if (x > 0) stack.push(pixel - 1);
+        if (x < size - 1) stack.push(pixel + 1);
+        if (y > 0) stack.push(pixel - size);
+        if (y < size - 1) stack.push(pixel + size);
+      }
+      ctx.putImageData(image, 0, 0);
+      setStatus("Filled connected region at " + p.x + ", " + p.y + ".");
+      return;
     }
-    ctx.fillStyle = tool === "eraser" ? "#00000000" : color;
+    const previous = start ? p : (lastPoint.current || p);
+    const dx = p.x - previous.x, dy = p.y - previous.y;
+    const steps = Math.max(Math.abs(dx), Math.abs(dy), 1);
+    ctx.fillStyle = color;
     ctx.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
-    ctx.fillRect(p.x - Math.floor(brush / 2), p.y - Math.floor(brush / 2), brush, brush);
+    for (let step = 0; step <= steps; step++) {
+      const x = Math.round(previous.x + dx * step / steps), y = Math.round(previous.y + dy * step / steps);
+      ctx.fillRect(x - Math.floor(brush / 2), y - Math.floor(brush / 2), brush, brush);
+    }
     ctx.globalCompositeOperation = "source-over";
+    lastPoint.current = p;
   }
   function clear() {
     checkpoint();
@@ -110,6 +146,7 @@ export default function TexturePackEditor() {
   async function importPng(file?: File) {
     if (!file) return;
     if (!file.type.startsWith("image/")) return setStatus("Choose a PNG or image file.");
+    if (file.size > 20 * 1024 * 1024) return setStatus("Image is too large. Choose a file smaller than 20 MB.");
     const image = new Image();
     image.onload = () => {
       checkpoint();
@@ -153,16 +190,18 @@ export default function TexturePackEditor() {
     const canvas = canvasRef.current; if (!canvas) return;
     const project = { format: "vampire-texture-project", version: 1, width: size, height: size, packName, description, importName, category, image: canvas.toDataURL("image/png") };
     const url = URL.createObjectURL(new Blob([JSON.stringify(project)], {type:"application/json"}));
-    const a = document.createElement("a"); a.href=url; a.download=(importName || "vampire-project")+".vtexture.json"; a.click(); URL.revokeObjectURL(url);
+    const a = document.createElement("a"); a.href=url; a.download=(importName || "vampire-project")+".vtexture.json"; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setStatus("Editable Vampire texture project saved.");
   }
   async function loadProject(file?: File) {
     if (!file) return;
     try {
+      if (file.size > 8 * 1024 * 1024) throw new Error("Project file is too large (8 MB maximum).");
       const project = JSON.parse(await file.text());
       if (project.format !== "vampire-texture-project" || project.version !== 1 || project.width !== size || project.height !== size || typeof project.image !== "string" || !project.image.startsWith("data:image/png;base64,")) throw new Error("This is not a supported Vampire texture project.");
       const image = new Image();
       image.onload = () => {
+        URL.revokeObjectURL(image.src);
         checkpoint(); const ctx = canvasRef.current?.getContext("2d");
         if (!ctx) return;
         ctx.clearRect(0,0,size,size); ctx.drawImage(image,0,0,size,size);
@@ -212,12 +251,12 @@ export default function TexturePackEditor() {
       <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(220px,1fr)",gap:18,alignItems:"start"}}>
         <div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
-            {(["pencil","eraser","fill"] as Tool[]).map(item=><button key={item} className={tool===item?"primary-button compact":"secondary-button tiny"} onClick={()=>setTool(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}
+            {(["pencil","eraser","fill","eyedropper"] as Tool[]).map(item=><button key={item} className={tool===item?"primary-button compact":"secondary-button tiny"} onClick={()=>setTool(item)}>{item[0].toUpperCase()+item.slice(1)}</button>)}
             <button className="secondary-button tiny" onClick={undo} disabled={!historyCount}>Undo</button><button className="secondary-button tiny" onClick={redo} disabled={!redoCount}>Redo</button><button className="secondary-button tiny" onClick={clear}>Clear</button>
           </div>
           <canvas ref={canvasRef} width={size} height={size} style={{width:`${210 * zoom}px`,maxWidth:"none",aspectRatio:"1",backgroundColor:"#17131b",backgroundImage:grid?"linear-gradient(45deg,#29232e 25%,transparent 25%),linear-gradient(-45deg,#29232e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#29232e 75%),linear-gradient(-45deg,transparent 75%,#29232e 75%)":undefined,backgroundSize:grid?"16px 16px":undefined,backgroundPosition:grid?"0 0,0 8px,8px -8px,-8px 0":undefined,imageRendering:"pixelated",border:"1px solid #66515e",borderRadius:12,touchAction:"none",cursor:"crosshair"}}
-            onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);if(tool!=="fill")checkpoint();setDrawing(true);paint(e,true);}}
-            onPointerMove={e=>{setCursorPixel(point(e));if(drawing)paint(e);}} onPointerLeave={()=>setCursorPixel(null)} onPointerUp={()=>setDrawing(false)} onPointerCancel={()=>setDrawing(false)}/>
+            onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);lastPoint.current=null;if(tool==="pencil"||tool==="eraser")checkpoint();setDrawing(tool!=="eyedropper");paint(e,true);}}
+            onPointerMove={e=>{setCursorPixel(point(e));if(drawing)paint(e);}} onPointerLeave={()=>setCursorPixel(null)} onPointerUp={()=>{setDrawing(false);lastPoint.current=null;}} onPointerCancel={()=>{setDrawing(false);lastPoint.current=null;}}/>
           <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
             <span className="muted">Pixel: {cursorPixel ? cursorPixel.x + ", " + cursorPixel.y : "—"}</span>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Color <input type="color" value={color} onChange={e=>setColor(e.target.value)}/></label>
