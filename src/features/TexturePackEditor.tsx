@@ -1,4 +1,4 @@
-import { useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent } from "react";
 
 type Tool = "pencil" | "eraser" | "fill";
 const size = 128;
@@ -60,10 +60,29 @@ export default function TexturePackEditor() {
   const redoStack = useRef<ImageData[]>([]);
   const [historyCount, setHistoryCount] = useState(0);
   const [redoCount, setRedoCount] = useState(0);
+  const [cursorPixel, setCursorPixel] = useState<{x:number;y:number}|null>(null);
   function checkpoint() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx) return; undoStack.current.push(ctx.getImageData(0, 0, size, size)); if (undoStack.current.length > 40) undoStack.current.shift(); redoStack.current = []; setHistoryCount(undoStack.current.length); setRedoCount(0); }
   function undo() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx || !undoStack.current.length) return; redoStack.current.push(ctx.getImageData(0, 0, size, size)); ctx.putImageData(undoStack.current.pop()!, 0, 0); setHistoryCount(undoStack.current.length); setRedoCount(redoStack.current.length); }
   function redo() { const ctx = canvasRef.current?.getContext("2d"); if (!ctx || !redoStack.current.length) return; undoStack.current.push(ctx.getImageData(0, 0, size, size)); ctx.putImageData(redoStack.current.pop()!, 0, 0); setHistoryCount(undoStack.current.length); setRedoCount(redoStack.current.length); }
-  function exportPng() { const canvas = canvasRef.current; if (!canvas) return; const link = document.createElement("a"); link.href = canvas.toDataURL("image/png"); link.download = (importName || "vampire_texture") + ".png"; link.click(); setStatus("PNG texture exported."); }
+  function exportPng() {
+    const canvas = canvasRef.current; if (!canvas) return;
+    const safeName = importName.trim().replace(/[^a-zA-Z0-9_]/g, "_") || "vampire_texture";
+    const link = document.createElement("a"); link.href = canvas.toDataURL("image/png"); link.download = safeName + ".png"; link.click();
+    setStatus("PNG texture exported as " + safeName + ".png");
+  }
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable)) return;
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const key = event.key.toLowerCase();
+      if (key === "z") { event.preventDefault(); if (event.shiftKey) redo(); else undo(); }
+      else if (key === "y") { event.preventDefault(); redo(); }
+      else if (key === "s") { event.preventDefault(); exportPng(); }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  });
 
   function point(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current; if (!canvas) return null;
@@ -74,6 +93,7 @@ export default function TexturePackEditor() {
     const canvas = canvasRef.current, p = point(event); if (!canvas || !p) return;
     const ctx = canvas.getContext("2d"); if (!ctx) return;
     if (tool === "fill" && start) {
+      checkpoint();
       ctx.fillStyle = color; ctx.fillRect(0, 0, size, size); return;
     }
     ctx.fillStyle = tool === "eraser" ? "#00000000" : color;
@@ -82,6 +102,7 @@ export default function TexturePackEditor() {
     ctx.globalCompositeOperation = "source-over";
   }
   function clear() {
+    checkpoint();
     const ctx = canvasRef.current?.getContext("2d");
     ctx?.clearRect(0, 0, size, size);
     setStatus("Canvas cleared.");
@@ -91,6 +112,8 @@ export default function TexturePackEditor() {
     if (!file.type.startsWith("image/")) return setStatus("Choose a PNG or image file.");
     const image = new Image();
     image.onload = () => {
+      checkpoint();
+      URL.revokeObjectURL(image.src);
       const ctx = canvasRef.current?.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, size, size);
@@ -99,7 +122,7 @@ export default function TexturePackEditor() {
       setImportName(file.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 48) || "vampire_custom");
       setStatus("Imported " + file.name + " and scaled it to 128 × 128 pixels.");
     };
-    image.onerror = () => setStatus("Could not read that image.");
+    image.onerror = () => { URL.revokeObjectURL(image.src); setStatus("Could not read that image."); };
     image.src = URL.createObjectURL(file);
   }
   async function exportPack() {
@@ -142,8 +165,9 @@ export default function TexturePackEditor() {
           </div>
           <canvas ref={canvasRef} width={size} height={size} style={{width:`${210 * zoom}px`,maxWidth:"none",aspectRatio:"1",backgroundColor:"#17131b",backgroundImage:grid?"linear-gradient(45deg,#29232e 25%,transparent 25%),linear-gradient(-45deg,#29232e 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#29232e 75%),linear-gradient(-45deg,transparent 75%,#29232e 75%)":undefined,backgroundSize:grid?"16px 16px":undefined,backgroundPosition:grid?"0 0,0 8px,8px -8px,-8px 0":undefined,imageRendering:"pixelated",border:"1px solid #66515e",borderRadius:12,touchAction:"none",cursor:"crosshair"}}
             onPointerDown={e=>{e.currentTarget.setPointerCapture(e.pointerId);if(tool!=="fill")checkpoint();setDrawing(true);paint(e,true);}}
-            onPointerMove={e=>{if(drawing)paint(e);}} onPointerUp={()=>setDrawing(false)} onPointerCancel={()=>setDrawing(false)}/>
+            onPointerMove={e=>{setCursorPixel(point(e));if(drawing)paint(e);}} onPointerLeave={()=>setCursorPixel(null)} onPointerUp={()=>setDrawing(false)} onPointerCancel={()=>setDrawing(false)}/>
           <div style={{display:"flex",gap:12,alignItems:"center",flexWrap:"wrap",marginTop:10}}>
+            <span className="muted">Pixel: {cursorPixel ? cursorPixel.x + ", " + cursorPixel.y : "—"}</span>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Color <input type="color" value={color} onChange={e=>setColor(e.target.value)}/></label>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Brush <input type="range" min="1" max="16" value={brush} onChange={e=>setBrush(Number(e.target.value))}/>{brush}px</label>
             <label style={{display:"flex",gap:7,alignItems:"center"}}>Zoom <input type="range" min="1" max="4" value={zoom} onChange={e=>setZoom(Number(e.target.value))}/>{zoom}×</label>
@@ -156,7 +180,7 @@ export default function TexturePackEditor() {
           <label className="secondary-button" style={{display:"inline-flex",cursor:"pointer"}}>Import PNG<input type="file" accept="image/png,image/*" hidden onChange={e=>void importPng(e.target.files?.[0])}/></label>
           <div style={{height:12}}/>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button className="secondary-button" onClick={exportPng}>Export PNG</button><button className="primary-button" onClick={()=>void exportPack()}>Export resource pack ZIP</button></div>
-          <p className="muted" style={{marginTop:12}}>Exports pack.mcmeta, pack.png and your texture at assets/minecraft/textures/block/. This creates a valid starter pack; a block/model or item definition must reference the texture for it to appear in-game.</p>
+          <p className="muted" style={{marginTop:12}}>Exports pack.mcmeta, pack.png and your texture at assets/minecraft/textures/{category}/. This creates a valid starter pack; a block/model or item definition must reference the texture for it to appear in-game.</p>
           <div className="info-banner">{status}</div>
         </div>
       </div>
