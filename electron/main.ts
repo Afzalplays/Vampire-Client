@@ -906,12 +906,10 @@ async function assertResourcePackZip(file: string) {
         }
         const metadataBytes = Buffer.alloc(compressed);
         await handle.read(metadataBytes, 0, compressed, dataStart);
-        let metadataText: string;
         try {
           const decoded = method === 0 ? metadataBytes : inflateRawSync(metadataBytes, { maxOutputLength: 1024 * 1024 });
           if (decoded.length !== uncompressed) throw new Error("Metadata size mismatch.");
-          metadataText = decoded.toString("utf8");
-          const metadata = JSON.parse(metadataText) as { pack?: { pack_format?: unknown; description?: unknown } };
+          const metadata = JSON.parse(decoded.toString("utf8")) as { pack?: { pack_format?: unknown; description?: unknown } };
           if (!metadata.pack || !Number.isInteger(metadata.pack.pack_format) ||
               Number(metadata.pack.pack_format) < 1 || metadata.pack.pack_format > 10_000) {
             throw new Error("Missing or invalid pack_format.");
