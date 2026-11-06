@@ -55,7 +55,7 @@ Offline profiles do not authenticate Minecraft ownership or grant access to onli
 
 ## Build verification
 
-The latest completed GitHub Actions run on `main` (commit `0cca75c3`) passed all five build jobs: Windows x64, Windows x86, Linux x64, macOS universal, and the Fabric companion mod. Download the build artifacts from [the successful Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42179876795). These are CI build checks, not a substitute for installing and testing the Windows installer on a physical PC, signing/notarization, or testing Microsoft sign-in with a real Minecraft account.
+The latest verified GitHub Actions run on `main` (commit `7f7277ac43a487e57fa9c82aaa27daa0955c3129`) passed all five build jobs: Windows x64, Windows x86, Linux x64, macOS universal, and the Fabric companion mod. Download the build artifacts from [the successful Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42190895953). These are CI build checks, not a substitute for installing and testing the Windows installer on a physical PC, signing/notarization, or testing Microsoft sign-in with a real Minecraft account.
 
 ## Desktop platforms
 
