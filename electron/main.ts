@@ -969,6 +969,17 @@ ipcMain.handle("mods:toggle", async (_event, args: { fileName: string; version: 
   return { success: true, fileName: nextName, enabled: !enabled };
 });
 
+async function uniqueArchivePath(directory: string, fileName: string) {
+  const extension = path.extname(fileName);
+  const stem = path.basename(fileName, extension);
+  for (let index = 1; index <= 10_000; index++) {
+    const candidate = path.join(directory, index === 1 ? fileName : stem + " (" + index + ")" + extension);
+    try { await fs.access(candidate); }
+    catch { return candidate; }
+  }
+  throw new Error("Too many files with this name in the destination folder.");
+}
+
 ipcMain.handle("shaders:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
   const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
   const dir = path.join(instance.root, "shaderpacks");
@@ -994,9 +1005,9 @@ ipcMain.handle("shaders:import", async (_event, args: { version: string; loader:
   const dir = path.join(instance.root, "shaderpacks");
   await fs.mkdir(dir, { recursive: true });
   const base = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
-  const destination = path.join(dir, base);
-  await fs.copyFile(source, destination);
-  return { canceled: false, fileName: base };
+  const destination = await uniqueArchivePath(dir, base);
+  await fs.copyFile(source, destination, fsConstants.COPYFILE_EXCL);
+  return { canceled: false, fileName: path.basename(destination) };
 });
 
 ipcMain.handle("shaders:download", async (_event, args: { slug: string; version: string; loader: string; instanceId?: string }) => {
@@ -1023,12 +1034,19 @@ ipcMain.handle("shaders:download", async (_event, args: { slug: string; version:
   if (!fileName.toLowerCase().endsWith(".zip")) throw new Error("Modrinth returned a non-ZIP shader file.");
   const directory = path.join(instance.root, "shaderpacks");
   await fs.mkdir(directory, { recursive: true });
-  const destination = path.join(directory, fileName);
-  const temporary = destination + ".vampire-tmp";
-  await fs.writeFile(temporary, bytes, { flag: "w" });
-  try { await assertZipSignature(temporary); await fs.rename(temporary, destination); }
-  catch (error) { await fs.unlink(temporary).catch(() => undefined); throw error; }
-  return { success: true, fileName };
+  const destination = await uniqueArchivePath(directory, fileName);
+  const temporary = path.join(directory, ".vampire-" + randomUUID() + ".tmp");
+  await fs.writeFile(temporary, bytes, { flag: "wx" });
+  try {
+    await assertZipSignature(temporary);
+    await fs.copyFile(temporary, destination, fsConstants.COPYFILE_EXCL);
+  } catch (error) {
+    await fs.unlink(destination).catch(() => undefined);
+    throw error;
+  } finally {
+    await fs.unlink(temporary).catch(() => undefined);
+  }
+  return { success: true, fileName: path.basename(destination) };
 });
 
 ipcMain.handle("shaders:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
