@@ -10,6 +10,7 @@ import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
+import { inflateRawSync } from "node:zlib";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
 let mainWindow: BrowserWindow | null = null;
@@ -900,7 +901,24 @@ async function assertResourcePackZip(file: string) {
       const dataStart = localOffset + 30 + localNameLength + localExtraLength;
       if (dataStart + compressed > centralOffset) throw new Error("Resource pack compressed data is out of bounds.");
       if (entryName === "pack.mcmeta") {
-        if (hasMetadata || uncompressed > 1024 * 1024) throw new Error("Resource pack metadata is duplicated or too large.");
+        if (hasMetadata || uncompressed < 2 || uncompressed > 1024 * 1024 || compressed > 1024 * 1024) {
+          throw new Error("Resource pack metadata is duplicated or outside the 1 MB safety limit.");
+        }
+        const metadataBytes = Buffer.alloc(compressed);
+        await handle.read(metadataBytes, 0, compressed, dataStart);
+        let metadataText: string;
+        try {
+          const decoded = method === 0 ? metadataBytes : inflateRawSync(metadataBytes, { maxOutputLength: 1024 * 1024 });
+          if (decoded.length !== uncompressed) throw new Error("Metadata size mismatch.");
+          metadataText = decoded.toString("utf8");
+          const metadata = JSON.parse(metadataText) as { pack?: { pack_format?: unknown; description?: unknown } };
+          if (!metadata.pack || !Number.isInteger(metadata.pack.pack_format) ||
+              Number(metadata.pack.pack_format) < 1 || metadata.pack.pack_format > 10_000) {
+            throw new Error("Missing or invalid pack_format.");
+          }
+        } catch {
+          throw new Error("Resource pack root pack.mcmeta must contain valid JSON and a positive pack.pack_format.");
+        }
         hasMetadata = true;
       }
       totalUncompressed += uncompressed;
