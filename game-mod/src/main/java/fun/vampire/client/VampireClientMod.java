@@ -74,7 +74,8 @@ public final class VampireClientMod implements ClientModInitializer {
             MinecraftClient client = MinecraftClient.getInstance();
             int rows = (showFpsHud ? 1 : 0) + (showMemoryHud ? 1 : 0);
             int bottom = 8 + rows * 16 + 5;
-            drawContext.fill(8, 8, 190, bottom, 0xB8101018);
+            int panelWidth = 220;
+            drawContext.fill(8, 8, panelWidth, bottom, 0xB8101018);
             drawContext.fill(8, 8, 10, bottom, 0xFFFF596F);
             int y = 14;
             if (showFpsHud) {
@@ -242,7 +243,7 @@ public final class VampireClientMod implements ClientModInitializer {
                 VampireIdentity.save();
                 button.setMessage(badgeLabel());
             }).dimensions(x, y + 58, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd), button -> {
+            addDrawableChild(ButtonWidget.builder(gradientLabel(), button -> {
                 if ("#FF526F".equals(VampireIdentity.gradientStart)) {
                     VampireIdentity.gradientStart = "#35D6FF";
                     VampireIdentity.gradientEnd = "#9B5CFF";
@@ -254,17 +255,28 @@ public final class VampireClientMod implements ClientModInitializer {
                     VampireIdentity.gradientEnd = "#9B5CFF";
                 }
                 VampireIdentity.save();
-                button.setMessage(Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd));
+                button.setMessage(gradientLabel());
             }).dimensions(x, y + 87, 250, 22).build());
             addDrawableChild(ButtonWidget.builder(fontLabel(), button ->
                 button.setMessage(fontLabel(VampireIdentity.nextFontPreset())))
                 .dimensions(x, y + 116, 250, 22).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Reset identity settings"), button -> {
+                VampireIdentity.chatGradientEnabled = true;
+                VampireIdentity.nametagGradientEnabled = true;
+                VampireIdentity.showClientBadge = true;
+                VampireIdentity.gradientStart = "#FF526F";
+                VampireIdentity.gradientEnd = "#9B5CFF";
+                VampireIdentity.fontPreset = "Minecraft Default";
+                VampireIdentity.save();
+                clearAndInit();
+            }).dimensions(x, y + 145, 250, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
-                client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 145, 250, 22).build());
+                client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 174, 250, 22).build());
         }
         private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
         private static Text nametagLabel() { return Text.literal("Nametag gradient (pending): " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
-        private static Text badgeLabel() { return Text.literal("Vampire badge: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
+        private static Text badgeLabel() { return Text.literal("Logo badge in chat: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
+        private static Text gradientLabel() { return Text.literal("Gradient: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd); }
         private static Text fontLabel() { return fontLabel(VampireIdentity.fontPreset); }
         private static Text fontLabel(String preset) { return Text.literal("Font preset: " + preset); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
@@ -272,7 +284,7 @@ public final class VampireClientMod implements ClientModInitializer {
             drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
             if (VampireIdentity.showClientBadge) {
                 context.drawCenteredTextWithShadow(textRenderer,
-                    Text.literal("\\uE000").setStyle(net.minecraft.text.Style.EMPTY
+                    Text.literal("\uE000").setStyle(net.minecraft.text.Style.EMPTY
                         .withFont(net.minecraft.util.Identifier.of("vampireclient", "badge"))),
                     width / 2 - 78, height / 2 - 91, 0xFFFFFFFF);
             }
