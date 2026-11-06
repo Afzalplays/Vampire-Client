@@ -1040,9 +1040,6 @@ ipcMain.handle("shaders:download", async (_event, args: { slug: string; version:
   try {
     await assertZipSignature(temporary);
     await fs.copyFile(temporary, destination, fsConstants.COPYFILE_EXCL);
-  } catch (error) {
-    await fs.unlink(destination).catch(() => undefined);
-    throw error;
   } finally {
     await fs.unlink(temporary).catch(() => undefined);
   }
