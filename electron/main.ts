@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { createHash, randomUUID } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { spawn, type ChildProcess } from "node:child_process";
-import { totalmem, freemem } from "node:os";
+import { totalmem, freemem, networkInterfaces } from "node:os";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
@@ -250,6 +250,29 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   });
   append("launcher", "Starting " + record.name + " with " + Math.round(requestedRam) + " GB RAM.");
   return { success: true, pid: proc.pid };
+});
+ipcMain.handle("servers:info", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (!records.some(record => record.id === id)) throw new Error("World server not found.");
+  const root = worldServerRoot(id);
+  let logs = "";
+  try { const contents = await fs.readFile(path.join(root, "server.log"), "utf8"); logs = contents.slice(-80 * 1024); } catch {}
+  const addresses = Object.values(networkInterfaces()).flatMap(items => (items || [])
+    .filter(item => item.family === "IPv4" && !item.internal)
+    .map(item => item.address)).filter((value, index, all) => all.indexOf(value) === index);
+  const proc = worldServerProcesses.get(id);
+  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port: 25565 };
+});
+ipcMain.handle("servers:command", async (_event, args: { id: string; command: string }) => {
+  const id = String(args?.id || "");
+  const command = String(args?.command || "").trim();
+  if (!command || command.length > 256 || /[\r\n\0]/.test(command)) throw new Error("Enter a single server command (maximum 256 characters).");
+  if (/^stop$/i.test(command)) throw new Error("Use the Stop button for a graceful shutdown.");
+  const proc = worldServerProcesses.get(id);
+  if (!proc || proc.exitCode !== null || !proc.stdin || proc.stdin.destroyed) throw new Error("This world server is not running.");
+  proc.stdin.write(command + "\n");
+  return { success: true };
 });
 ipcMain.handle("servers:stop", async (_event, idValue: string) => {
   const id = String(idValue || "");
