@@ -26,8 +26,13 @@ The output JAR is created in `game-mod/build/libs/`.
 ## Current menu
 
 - Right Shift opens/closes the Vampire Quick Menu.
-- Mods screen lists loaded Fabric mods and versions.
-- Performance screen shows current FPS and Java heap usage.
-- HUD settings can toggle a small Vampire FPS overlay.
+- The Mods screen lists loaded Fabric mods and their versions. It displays up to nine entries at a time; use the mouse wheel over the list to browse longer lists. A range indicator shows which entries are currently visible.
+- The Performance screen displays current FPS and Java heap usage, with a short sampling-based performance view.
+- HUD settings provide an FPS/heap overlay with configurable visibility, scale, padding and screen position.
+- Vampire Identity settings include local chat-prefix styling options such as a badge, gradient colors and font preset.
 
-The companion mod does not yet implement live mod configuration screens, arbitrary mod enable/disable while Minecraft is running, a full HUD editor, or Sodium/VulkanMod switching. Those features require their own safe integration and restart handling.
+## Current limitations
+
+- Identity styling is local; it is not a server-wide or account-synced cosmetic system.
+- Overhead nametags and remote player cosmetics are not implemented.
+- The companion mod does not yet implement live mod configuration screens, arbitrary mod enable/disable while Minecraft is running, a full drag-and-drop HUD editor, or Sodium/VulkanMod switching. Those features require their own safe integration and restart handling.
