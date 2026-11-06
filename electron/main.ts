@@ -13,7 +13,7 @@ import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJava21Runtime } from "./java-runtime";
 
-const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com"]);
+const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
 const worldServerProcesses = new Map<string, ChildProcess>();
@@ -212,6 +212,7 @@ async function listVersions() {
 }
 
 ipcMain.handle("instances:list", async () => readJson<Array<{ id: string; name: string; createdAt: string }>>(instancesFile(), [{ id: "default", name: "Default", createdAt: "" }]));
+ipcMain.handle("billing:openPortal", async () => { await shell.openExternal("https://billing.vampirenodes.in/"); return { success: true }; });
 ipcMain.handle("instances:create", async (_event, nameValue: string) => {
   const name = String(nameValue || "").trim();
   if (name.length < 2 || name.length > 32 || !/^[A-Za-z0-9 _.-]+$/.test(name)) throw new Error("Instance name must be 2–32 letters, numbers, spaces, dots or dashes.");
