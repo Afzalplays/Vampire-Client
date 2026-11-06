@@ -6,7 +6,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 
 ## Current implementation (v0.3.0 preview)
 
-- Skin & Cape Studio: local PNG validation and preview for classic/slim skin textures and HD cape textures; saved locally with a red/black Vampire cape designer, centered emblem, sparkle/glitter preview toggles and a clearly labeled future premium collection. Uploads are local previews only; account skin changes, cloud sync, purchases and multiplayer cape delivery are not implemented yet.
+- Skin & Cape Studio: local PNG signature/header and dimension validation before image decoding, preview for classic/slim skin textures and HD cape textures, original uploaded skin/cape PNG downloads, and saved local previews. Includes a red/black Vampire cape designer, centered emblem, sparkle/glitter preview toggles and a clearly labeled future premium collection. Uploads are local previews only; account skin changes, cloud sync, purchases and multiplayer cape delivery are not implemented yet.
 
 - Electron + React + TypeScript desktop launcher.
 - Glass UI, Vampire Studios splash screen, Home, Versions, Mods, Accounts and Settings pages.
