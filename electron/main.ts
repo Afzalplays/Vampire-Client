@@ -238,7 +238,19 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   const logPath = path.join(root, "server.log");
   const append = (label: string, chunk: unknown) => {
     const line = "[" + new Date().toISOString() + "] [" + label + "] " + String(chunk).replace(/[\r]+/g, "").slice(0, 8000);
-    void fs.appendFile(logPath, line.endsWith("\n") ? line : line + "\n", "utf8").catch(() => undefined);
+    void (async () => {
+      try {
+        await fs.mkdir(root, { recursive: true });
+        try {
+          const stat = await fs.stat(logPath);
+          if (stat.size > 2 * 1024 * 1024) {
+            const previous = await fs.readFile(logPath, "utf8");
+            await fs.writeFile(logPath, previous.slice(-1024 * 1024), "utf8");
+          }
+        } catch {}
+        await fs.appendFile(logPath, line.endsWith("\n") ? line : line + "\n", "utf8");
+      } catch {}
+    })();
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("server:output", { id, text: line });
   };
   proc.stdout?.on("data", chunk => append("stdout", chunk));
@@ -960,6 +972,19 @@ app.whenReady().then(() => {
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+});
+app.on("before-quit", () => {
+  for (const proc of worldServerProcesses.values()) {
+    if (proc.exitCode !== null) continue;
+    try {
+      if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\\n");
+      else proc.kill("SIGTERM");
+      const forceTimer = setTimeout(() => {
+        if (proc.exitCode === null) proc.kill("SIGTERM");
+      }, 8000);
+      forceTimer.unref();
+    } catch { /* best-effort graceful shutdown during app exit */ }
+  }
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
