@@ -865,11 +865,11 @@ async function assertResourcePackZip(file: string) {
       }
       const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\/g, "/");
       const parts = entryName.split("/");
-      if (!entryName || entryName.includes("\\0") || entryName.startsWith("/") || /^[A-Za-z]:/.test(entryName) ||
-          parts.some(part => part === ".." || part === ".") || entryNames.has(entryName)) {
+      if (!entryName || entryName.includes("\0") || entryName.startsWith("/") || /^[A-Za-z]:/.test(entryName) ||
+          parts.some(part => part === ".." || part === ".") || entryNames.has(entryName.toLowerCase())) {
         throw new Error("Resource pack contains an unsafe or duplicate file path.");
       }
-      entryNames.add(entryName);
+      entryNames.add(entryName.toLowerCase());
       const unixMode = externalAttributes >>> 16;
       if (((unixMode & 0xf000) === 0xa000) || ((unixMode & 0xf000) !== 0 && (unixMode & 0xf000) !== 0x8000 && (unixMode & 0xf000) !== 0x4000)) {
         throw new Error("Resource pack contains a symbolic link or unsupported filesystem entry.");
@@ -883,6 +883,7 @@ async function assertResourcePackZip(file: string) {
       }
       const localNameLength = localHeader.readUInt16LE(26);
       const localExtraLength = localHeader.readUInt16LE(28);
+      if (localNameLength !== nameLength || localOffset + 30 + localNameLength + localExtraLength > centralOffset) throw new Error("Resource pack local filename or extra field is out of bounds.");
       const localName = Buffer.alloc(localNameLength);
       await handle.read(localName, 0, localNameLength, localOffset + 30);
       if (localName.toString("utf8") !== directory.toString("utf8", offset + 46, offset + 46 + nameLength)) {
