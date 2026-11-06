@@ -86,6 +86,10 @@ npm run dist:linux
 npm run dist:mac
 ```
 
+## Resource pack import validation
+
+Resource pack ZIP imports are checked without extracting archive contents. The importer rejects unsafe paths, duplicate names, encrypted or unsupported entries, symbolic links, malformed local headers, ZIP64/multi-disk archives, excessive expansion ratios and oversized archives. The root `pack.mcmeta` must also be valid JSON with a positive integer `pack.pack_format`; this is structural validation, not a full Minecraft compatibility test.
+
 ## Java runtime detection
 
 The Settings page can run the configured Java executable (or `java` from PATH) with `-version` and displays its reported version, executable path, operating system and architecture. The launcher compares the detected major version with the Minecraft version's expected Java requirement. Minecraft 1.21.1 requires Java 21. Detection does not download or install Java; install a supported runtime separately and select its executable when it is not available on PATH.
