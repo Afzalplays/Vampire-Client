@@ -18,6 +18,7 @@ import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.TextFieldWidget;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.text.Text;
@@ -224,73 +225,46 @@ public final class VampireClientMod implements ClientModInitializer {
 
 
     private static final class IdentitySettingsScreen extends Screen {
+        private TextFieldWidget startHex;
+        private TextFieldWidget endHex;
         protected IdentitySettingsScreen() { super(Text.literal("Vampire Identity")); }
         @Override protected void init() {
             int x = width / 2 - 125;
-            int y = height / 2 - 64;
-            addDrawableChild(ButtonWidget.builder(chatLabel(), button -> {
-                VampireIdentity.chatGradientEnabled = !VampireIdentity.chatGradientEnabled;
-                VampireIdentity.save();
-                button.setMessage(chatLabel());
-            }).dimensions(x, y, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> {
-                VampireIdentity.nametagGradientEnabled = !VampireIdentity.nametagGradientEnabled;
-                VampireIdentity.save();
-                button.setMessage(nametagLabel());
-            }).dimensions(x, y + 29, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(badgeLabel(), button -> {
-                VampireIdentity.showClientBadge = !VampireIdentity.showClientBadge;
-                VampireIdentity.save();
-                button.setMessage(badgeLabel());
-            }).dimensions(x, y + 58, 250, 22).build());
+            int y = height / 2 - 112;
+            addDrawableChild(ButtonWidget.builder(chatLabel(), button -> { VampireIdentity.chatGradientEnabled = !VampireIdentity.chatGradientEnabled; VampireIdentity.save(); button.setMessage(chatLabel()); }).dimensions(x, y, 250, 20).build());
+            addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> { VampireIdentity.nametagGradientEnabled = !VampireIdentity.nametagGradientEnabled; VampireIdentity.save(); button.setMessage(nametagLabel()); }).dimensions(x, y + 25, 250, 20).build());
+            addDrawableChild(ButtonWidget.builder(badgeLabel(), button -> { VampireIdentity.showClientBadge = !VampireIdentity.showClientBadge; VampireIdentity.save(); button.setMessage(badgeLabel()); }).dimensions(x, y + 50, 250, 20).build());
             addDrawableChild(ButtonWidget.builder(gradientLabel(), button -> {
-                if ("#FF526F".equals(VampireIdentity.gradientStart)) {
-                    VampireIdentity.gradientStart = "#35D6FF";
-                    VampireIdentity.gradientEnd = "#9B5CFF";
-                } else if ("#35D6FF".equals(VampireIdentity.gradientStart)) {
-                    VampireIdentity.gradientStart = "#42E695";
-                    VampireIdentity.gradientEnd = "#3BB2B8";
-                } else {
-                    VampireIdentity.gradientStart = "#FF526F";
-                    VampireIdentity.gradientEnd = "#9B5CFF";
-                }
-                VampireIdentity.save();
-                button.setMessage(gradientLabel());
-            }).dimensions(x, y + 87, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(fontLabel(), button ->
-                button.setMessage(fontLabel(VampireIdentity.nextFontPreset())))
-                .dimensions(x, y + 116, 250, 22).build());
+                if ("#FF526F".equals(VampireIdentity.gradientStart)) { VampireIdentity.gradientStart = "#35D6FF"; VampireIdentity.gradientEnd = "#9B5CFF"; }
+                else if ("#35D6FF".equals(VampireIdentity.gradientStart)) { VampireIdentity.gradientStart = "#42E695"; VampireIdentity.gradientEnd = "#3BB2B8"; }
+                else { VampireIdentity.gradientStart = "#FF526F"; VampireIdentity.gradientEnd = "#9B5CFF"; }
+                VampireIdentity.save(); startHex.setText(VampireIdentity.gradientStart); endHex.setText(VampireIdentity.gradientEnd); button.setMessage(gradientLabel());
+            }).dimensions(x, y + 75, 250, 20).build());
+            startHex = new TextFieldWidget(textRenderer, x, y + 112, 120, 20, Text.literal("Start HEX"));
+            startHex.setMaxLength(7); startHex.setText(VampireIdentity.gradientStart);
+            startHex.setChangedListener(value -> { if (value.matches("#?[0-9a-fA-F]{6}")) { VampireIdentity.gradientStart = VampireIdentity.normalizeHex(value); VampireIdentity.save(); } });
+            endHex = new TextFieldWidget(textRenderer, x + 130, y + 112, 120, 20, Text.literal("End HEX"));
+            endHex.setMaxLength(7); endHex.setText(VampireIdentity.gradientEnd);
+            endHex.setChangedListener(value -> { if (value.matches("#?[0-9a-fA-F]{6}")) { VampireIdentity.gradientEnd = VampireIdentity.normalizeHex(value); VampireIdentity.save(); } });
+            addDrawableChild(startHex); addDrawableChild(endHex);
+            addDrawableChild(ButtonWidget.builder(fontLabel(), button -> button.setMessage(fontLabel(VampireIdentity.nextFontPreset()))).dimensions(x, y + 137, 250, 20).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Reset identity settings"), button -> {
-                VampireIdentity.chatGradientEnabled = true;
-                VampireIdentity.nametagGradientEnabled = true;
-                VampireIdentity.showClientBadge = true;
-                VampireIdentity.gradientStart = "#FF526F";
-                VampireIdentity.gradientEnd = "#9B5CFF";
-                VampireIdentity.fontPreset = "Minecraft Default";
-                VampireIdentity.save();
-                clearAndInit();
-            }).dimensions(x, y + 145, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
-                client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 174, 250, 22).build());
+                VampireIdentity.chatGradientEnabled = true; VampireIdentity.nametagGradientEnabled = true; VampireIdentity.showClientBadge = true;
+                VampireIdentity.gradientStart = "#FF526F"; VampireIdentity.gradientEnd = "#9B5CFF"; VampireIdentity.fontPreset = "Minecraft Default";
+                VampireIdentity.save(); clearAndInit();
+            }).dimensions(x, y + 162, 250, 20).build());
+            addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button -> client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 187, 250, 20).build());
         }
         private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
         private static Text nametagLabel() { return Text.literal("Nametag gradient (pending): " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
         private static Text badgeLabel() { return Text.literal("Logo badge in chat: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
-        private static Text gradientLabel() { return Text.literal("Gradient: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd); }
-        private static Text fontLabel() { return fontLabel(VampireIdentity.fontPreset); }
+        private static Text gradientLabel() { return Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " -> " + VampireIdentity.gradientEnd); }
+        private static Text fontLabel() { return Text.literal("Font preset: " + VampireIdentity.fontPreset); }
         private static Text fontLabel(String preset) { return Text.literal("Font preset: " + preset); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
-            renderBackground(context, mouseX, mouseY, delta);
-            drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
-            if (VampireIdentity.showClientBadge) {
-                context.drawCenteredTextWithShadow(textRenderer,
-                    Text.literal("\uE000").setStyle(net.minecraft.text.Style.EMPTY
-                        .withFont(net.minecraft.util.Identifier.of("vampireclient", "badge"))),
-                    width / 2 - 78, height / 2 - 91, 0xFFFFFFFF);
-            }
-            context.drawCenteredTextWithShadow(textRenderer,
-                VampireIdentity.gradientText("Vampire Client  ·  Afzal"),
-                width / 2 + (VampireIdentity.showClientBadge ? 12 : 0), height / 2 - 91, 0xFFFFFFFF);
+            renderBackground(context, mouseX, mouseY, delta); drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
+            context.drawTextWithShadow(textRenderer, "START HEX", width / 2 - 125, height / 2 + 13, 0xFFD8C5CC);
+            context.drawTextWithShadow(textRenderer, "END HEX", width / 2 + 5, height / 2 + 13, 0xFFD8C5CC);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
