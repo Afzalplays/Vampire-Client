@@ -70,7 +70,7 @@ export function redactDiagnosticLog(log: string): string {
     .replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,;]+/gi, "$1[REDACTED]")
     .replace(/\bBearer\s+[A-Za-z0-9._~+/=-]{12,}/gi, "Bearer [REDACTED]")
     .replace(/\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g, "[JWT]")
-    .replace(/((?:access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|password|passwd)\s*[=:]\s*["']?)[^\s"',;&}]+/gi, "$1[REDACTED]")
+    .replace(/((?:token|access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|password|passwd)\s*[=:]\s*["']?)[^\s"',;&}]+/gi, "$1[REDACTED]")
     .replace(/([?&](?:access_token|refresh_token|id_token|client_secret|api_key|code)=)[^&\s]+/gi, "$1[REDACTED]")
     .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL]")
     .replace(/\b[A-F0-9]{8}-[A-F0-9]{4}-[1-8][A-F0-9]{3}-[89AB][A-F0-9]{3}-[A-F0-9]{12}\b/gi, "[UUID]")
