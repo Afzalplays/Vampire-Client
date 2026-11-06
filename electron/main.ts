@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, safeStorage, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, shell, safeStorage, dialog, session } from "electron";
 import path from "node:path";
 import fs from "node:fs/promises";
 import { constants as fsConstants } from "node:fs";
@@ -1329,6 +1329,7 @@ function createWindow() {
       sandbox: true
     }
   });
+  mainWindow.webContents.on("will-attach-webview", (event) => { event.preventDefault(); });
   mainWindow.webContents.on("will-navigate", (event, url) => {
     try {
       const parsed = new URL(url);
@@ -1350,6 +1351,9 @@ function createWindow() {
   mainWindow.on("closed", () => { mainWindow = null; });
 }
 app.whenReady().then(() => {
+  // The launcher has no browser-permission features; deny requests from both the app and remote content.
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, callback) => callback(false));
+  session.defaultSession.setPermissionCheckHandler(() => false);
   void fs.mkdir(dataRoot(), { recursive: true });
   createWindow();
   app.on("activate", () => {
