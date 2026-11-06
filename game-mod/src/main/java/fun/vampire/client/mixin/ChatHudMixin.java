@@ -5,7 +5,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.text.Style;
+import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
@@ -58,7 +59,7 @@ abstract class ChatHudMixin {
 
         MutableText styled = Text.empty();
         if (VampireIdentity.showClientBadge) {
-            styled.append(Text.literal("✦ ").formatted(Formatting.LIGHT_PURPLE));
+            styled.append(Text.literal("\uE000 ").setStyle(Style.EMPTY.withFont(Identifier.of("vampireclient", "badge"))));
         }
         if (!delimiter.isEmpty()) styled.append(Text.literal(delimiter));
         styled.append(VampireIdentity.styledName(username));
