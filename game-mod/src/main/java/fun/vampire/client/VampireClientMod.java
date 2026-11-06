@@ -42,8 +42,8 @@ public final class VampireClientMod implements ClientModInitializer {
             hudX = Math.max(0, Integer.parseInt(properties.getProperty("hud.x", "8")));
             hudY = Math.max(0, Integer.parseInt(properties.getProperty("hud.y", "8")));
             hudWidth = Math.max(140, Math.min(420, Integer.parseInt(properties.getProperty("hud.width", "220"))));
-        } catch (java.io.IOException ignored) {
-            // First launch: use the documented defaults.
+        } catch (Exception ignored) {
+            // First launch or malformed config: use the documented defaults.
         }
     }
 
