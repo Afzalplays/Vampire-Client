@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, type PointerEvent } from "react";
 
 type Tool = "pencil" | "eraser" | "fill";
 const size = 128;
@@ -55,7 +55,7 @@ export default function TexturePackEditor() {
   const [importName, setImportName] = useState("vampire_custom");
   const [grid, setGrid] = useState(true);
 
-  function point(event: React.PointerEvent<HTMLCanvasElement>) {
+  function point(event: PointerEvent<HTMLCanvasElement>) {
     const canvas = canvasRef.current; if (!canvas) return null;
     const rect = canvas.getBoundingClientRect();
     return { x: Math.max(0, Math.min(size - 1, Math.floor((event.clientX - rect.left) * size / rect.width))), y: Math.max(0, Math.min(size - 1, Math.floor((event.clientY - rect.top) * size / rect.height))) };
