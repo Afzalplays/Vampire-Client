@@ -748,6 +748,70 @@ ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loa
   const entries = await fs.readdir(directory, { withFileTypes: true });
   return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip")).map(entry => entry.name).sort();
 });
+async function assertZipSignature(file: string) {
+  const handle = await fs.open(file, "r");
+  try {
+    const stat = await handle.stat();
+    if (!stat.isFile() || stat.size < 22) throw new Error("ZIP archive is empty or incomplete.");
+    const tailLength = Math.min(stat.size, 65_557);
+    const tail = Buffer.alloc(tailLength);
+    await handle.read(tail, 0, tailLength, stat.size - tailLength);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i--) {
+      if (tail.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error("ZIP archive directory is missing or damaged.");
+    const disk = tail.readUInt16LE(eocd + 4);
+    const centralDisk = tail.readUInt16LE(eocd + 6);
+    const diskEntries = tail.readUInt16LE(eocd + 8);
+    const entries = tail.readUInt16LE(eocd + 10);
+    const centralSize = tail.readUInt32LE(eocd + 12);
+    const centralOffset = tail.readUInt32LE(eocd + 16);
+    if (disk || centralDisk || diskEntries !== entries || entries === 0xffff ||
+        centralSize === 0xffffffff || centralOffset === 0xffffffff) {
+      throw new Error("Multi-disk and ZIP64 shader archives are not supported.");
+    }
+    if (!entries || entries > 50_000 || centralSize > 32 * 1024 * 1024 ||
+        centralOffset + centralSize > stat.size) {
+      throw new Error("ZIP archive directory exceeds safety limits.");
+    }
+    const directory = Buffer.alloc(centralSize);
+    await handle.read(directory, 0, centralSize, centralOffset);
+    let offset = 0;
+    let totalUncompressed = 0;
+    for (let index = 0; index < entries; index++) {
+      if (offset + 46 > directory.length || directory.readUInt32LE(offset) !== 0x02014b50) {
+        throw new Error("ZIP archive directory is invalid.");
+      }
+      const flags = directory.readUInt16LE(offset + 8);
+      const method = directory.readUInt16LE(offset + 10);
+      const compressed = directory.readUInt32LE(offset + 20);
+      const uncompressed = directory.readUInt32LE(offset + 24);
+      const nameLength = directory.readUInt16LE(offset + 28);
+      const extraLength = directory.readUInt16LE(offset + 30);
+      const commentLength = directory.readUInt16LE(offset + 32);
+      const end = offset + 46 + nameLength + extraLength + commentLength;
+      if (end > directory.length || (flags & 1) !== 0 || ![0, 8].includes(method) ||
+          compressed === 0xffffffff || uncompressed === 0xffffffff) {
+        throw new Error("ZIP archive contains encrypted, unsupported or malformed entries.");
+      }
+      const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\\\/g, "/");
+      if (entryName.startsWith("/") || /^[A-Za-z]:/.test(entryName) ||
+          entryName.split("/").some(part => part === "..")) {
+        throw new Error("ZIP archive contains an unsafe file path.");
+      }
+      totalUncompressed += uncompressed;
+      if (totalUncompressed > 2 * 1024 * 1024 * 1024 ||
+          (uncompressed > 64 * 1024 * 1024 && compressed === 0) ||
+          (compressed > 0 && uncompressed / compressed > 1000)) {
+        throw new Error("ZIP archive expands beyond safe size limits.");
+      }
+      offset = end;
+    }
+    if (offset !== directory.length) throw new Error("ZIP archive directory has trailing or malformed data.");
+  } finally { await handle.close(); }
+}
+
 async function assertResourcePackZip(file: string) {
   const handle = await fs.open(file, "r");
   try {
