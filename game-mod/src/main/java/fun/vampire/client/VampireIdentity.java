@@ -10,6 +10,7 @@ import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Style;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 
 /**
  * Local identity styling preferences and gradient text utilities.
@@ -40,7 +41,7 @@ public final class VampireIdentity {
             showClientBadge = Boolean.parseBoolean(p.getProperty("badge.visible", "true"));
             gradientStart = normalizeHex(p.getProperty("gradient.start", "#FF526F"));
             gradientEnd = normalizeHex(p.getProperty("gradient.end", "#9B5CFF"));
-            fontPreset = p.getProperty("font.preset", "Minecraft Default");
+            fontPreset = normalizeFont(p.getProperty("font.preset", "Minecraft Default"));
         } catch (Exception ignored) {
             // Keep safe defaults if the local preferences file is malformed.
         }
@@ -53,7 +54,7 @@ public final class VampireIdentity {
         p.setProperty("badge.visible", Boolean.toString(showClientBadge));
         p.setProperty("gradient.start", normalizeHex(gradientStart));
         p.setProperty("gradient.end", normalizeHex(gradientEnd));
-        p.setProperty("font.preset", fontPreset);
+        p.setProperty("font.preset", normalizeFont(fontPreset));
         try {
             Files.createDirectories(CONFIG.getParent());
             try (OutputStream out = Files.newOutputStream(CONFIG)) {
@@ -73,10 +74,36 @@ public final class VampireIdentity {
         for (int i = 0; i < input.length(); i++) {
             float t = count == 1 ? 0f : (float) i / (count - 1);
             int color = interpolate(start, end, t);
-            result.append(Text.literal(String.valueOf(input.charAt(i)))
-                .setStyle(Style.EMPTY.withColor(color)));
+            Style style = Style.EMPTY.withColor(color);
+            Identifier font = selectedFont();
+            if (font != null) style = style.withFont(font);
+            result.append(Text.literal(String.valueOf(input.charAt(i))).setStyle(style));
         }
         return result;
+    }
+
+    public static String nextFontPreset() {
+        fontPreset = switch (normalizeFont(fontPreset)) {
+            case "Minecraft Uniform" -> "Minecraft Alt";
+            case "Minecraft Alt" -> "Minecraft Default";
+            default -> "Minecraft Uniform";
+        };
+        save();
+        return fontPreset;
+    }
+
+    private static Identifier selectedFont() {
+        return switch (normalizeFont(fontPreset)) {
+            case "Minecraft Uniform" -> Identifier.of("minecraft", "uniform");
+            case "Minecraft Alt" -> Identifier.of("minecraft", "alt");
+            default -> null;
+        };
+    }
+
+    private static String normalizeFont(String value) {
+        if ("Minecraft Uniform".equals(value)) return "Minecraft Uniform";
+        if ("Minecraft Alt".equals(value)) return "Minecraft Alt";
+        return "Minecraft Default";
     }
 
     public static String normalizeHex(String value) {
