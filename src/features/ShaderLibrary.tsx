@@ -42,7 +42,7 @@ export default function ShaderLibrary({ installed, onImport, onRemove, onDownloa
         <div className="mod-card-foot"><a href={"https://modrinth.com/shader/"+shader.slug} target="_blank" rel="noreferrer">Modrinth page ↗</a>{file?<button className="secondary-button tiny" onClick={()=>onRemove(file)}>Remove</button>:<button className="primary-button tiny" onClick={()=>onDownload(shader.slug)}>Install</button>}</div>
       </article>;
     })}</div>
-    <div className="info-banner">Install downloads the latest Modrinth release matching the selected Minecraft version directly into this instance’s shaderpacks folder. Enable shaders in Iris or compatible OptiFine settings after installation; this launcher does not toggle the in-game shader selection.</div>
+    <div className="info-banner">Install downloads the latest Modrinth release matching Minecraft {version} into this instance’s shaderpacks folder. {shaderReady ? "A shader loader appears to be installed." : "No supported shader loader was detected; install Iris for Fabric or OptiFine for a compatible profile before enabling shaders."} The launcher does not change the active in-game shader selection.</div>
     {installed.length>0&&<><div className="divider-line"/><h3>Installed in this instance</h3>{installed.map(file=><div className="setting-row" key={file}><div><b>{file}</b><small>Minecraft {version} · shaderpacks folder</small></div><button className="secondary-button tiny" onClick={()=>onRemove(file)}>Remove</button></div>)}</>}
   </section>;
 }
