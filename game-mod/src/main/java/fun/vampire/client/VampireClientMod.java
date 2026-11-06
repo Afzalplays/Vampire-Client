@@ -254,7 +254,8 @@ public final class VampireClientMod implements ClientModInitializer {
         protected IdentitySettingsScreen() { super(Text.literal("Vampire Identity")); }
         @Override protected void init() {
             int x = width / 2 - 125;
-            int y = height / 2 - 112;
+            // Keep controls below the panel title and inside the panel bounds.
+            int y = height / 2 - 87;
             addDrawableChild(ButtonWidget.builder(chatLabel(), button -> { VampireIdentity.chatGradientEnabled = !VampireIdentity.chatGradientEnabled; VampireIdentity.save(); button.setMessage(chatLabel()); }).dimensions(x, y, 250, 20).build());
             addDrawableChild(ButtonWidget.builder(nametagLabel(), button -> {}).dimensions(x, y + 25, 250, 20).build()).active = false;
             addDrawableChild(ButtonWidget.builder(badgeLabel(), button -> { VampireIdentity.showClientBadge = !VampireIdentity.showClientBadge; VampireIdentity.save(); button.setMessage(badgeLabel()); }).dimensions(x, y + 50, 250, 20).build());
@@ -287,8 +288,8 @@ public final class VampireClientMod implements ClientModInitializer {
         private static Text fontLabel(String preset) { return Text.literal("Font preset: " + preset); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta); drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
-            context.drawTextWithShadow(textRenderer, "START HEX", width / 2 - 125, height / 2 + 13, 0xFFD8C5CC);
-            context.drawTextWithShadow(textRenderer, "END HEX", width / 2 + 5, height / 2 + 13, 0xFFD8C5CC);
+            context.drawTextWithShadow(textRenderer, "START HEX", width / 2 - 125, height / 2 + 38, 0xFFD8C5CC);
+            context.drawTextWithShadow(textRenderer, "END HEX", width / 2 + 5, height / 2 + 38, 0xFFD8C5CC);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean shouldPause() { return false; }
