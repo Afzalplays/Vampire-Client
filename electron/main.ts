@@ -265,7 +265,8 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
     const timer = worldServerStopTimers.get(id);
     if (timer) clearTimeout(timer);
     worldServerStopTimers.delete(id);
-    worldServerLastExit.set(id, { code, error: null, at: new Date().toISOString() });
+    const previousExit = worldServerLastExit.get(id);
+    worldServerLastExit.set(id, { code, error: previousExit?.error ?? null, at: new Date().toISOString() });
     append("process", "Server stopped with exit code " + String(code));
     if (worldServerProcesses.get(id) === proc) worldServerProcesses.delete(id);
   });
@@ -300,8 +301,17 @@ ipcMain.handle("servers:stop", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const proc = worldServerProcesses.get(id);
   if (!proc || proc.exitCode !== null) { worldServerProcesses.delete(id); return { success: true, stopped: false }; }
-  if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\n");
-  else proc.kill("SIGTERM");
+  if (proc.stdin && !proc.stdin.destroyed) {
+    proc.stdin.write("stop\n");
+    const previousTimer = worldServerStopTimers.get(id);
+    if (previousTimer) clearTimeout(previousTimer);
+    const forceTimer = setTimeout(() => {
+      if (proc.exitCode === null) proc.kill("SIGTERM");
+      worldServerStopTimers.delete(id);
+    }, 15000);
+    forceTimer.unref();
+    worldServerStopTimers.set(id, forceTimer);
+  } else proc.kill("SIGTERM");
   return { success: true, stopped: true };
 });
 ipcMain.handle("servers:delete", async (_event, idValue: string) => {
