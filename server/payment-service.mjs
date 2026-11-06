@@ -1,7 +1,7 @@
 import { FamGatewayClient, validateSuccessfulPayment, verifyFamGatewaySignature } from "./famgateway.mjs";
 
-function requiredEnv(name) {
-  const value = process.env[name];
+function requiredEnv(name, env = process.env) {
+  const value = env[name];
   if (!value || value.length < 8) throw new Error(name + " is not configured on the private backend.");
   return value;
 }
@@ -11,10 +11,10 @@ export class VampireBillingService {
     this.fetchImpl = fetchImpl;
     this.env = env;
     this.base = requiredEnv("SUPABASE_URL").replace(/\/$/, "");
-    this.anonKey = requiredEnv("SUPABASE_ANON_KEY");
-    this.serviceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+    this.anonKey = requiredEnv("SUPABASE_ANON_KEY", env);
+    this.serviceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY", env);
     this.ownerId = env.VAMPIRE_OWNER_USER_ID || "";
-    this.gateway = gateway || new FamGatewayClient({ apiKey: requiredEnv("FAMGATEWAY_API_KEY"), fetchImpl });
+    this.gateway = gateway || new FamGatewayClient({ apiKey: requiredEnv("FAMGATEWAY_API_KEY", env), fetchImpl });
     this.publicBackendUrl = requiredEnv("VAMPIRE_BACKEND_PUBLIC_URL");
     const publicUrl = new URL(this.publicBackendUrl);
     if (publicUrl.protocol !== "https:" || publicUrl.username || publicUrl.password) throw new Error("VAMPIRE_BACKEND_PUBLIC_URL must be HTTPS.");
@@ -120,7 +120,7 @@ export class VampireBillingService {
   }
 
   async handleWebhook(rawBody, signature) {
-    const key = requiredEnv("FAMGATEWAY_API_KEY");
+    const key = requiredEnv("FAMGATEWAY_API_KEY", this.env);
     if (!verifyFamGatewaySignature(rawBody, signature, key)) throw new Error("Invalid webhook signature.");
     let payload;
     try { payload = JSON.parse(Buffer.isBuffer(rawBody) ? rawBody.toString("utf8") : rawBody); }
