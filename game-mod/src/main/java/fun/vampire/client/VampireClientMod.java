@@ -256,8 +256,8 @@ public final class VampireClientMod implements ClientModInitializer {
                 VampireIdentity.save();
                 button.setMessage(Text.literal("Gradient preset: " + VampireIdentity.gradientStart + " → " + VampireIdentity.gradientEnd));
             }).dimensions(x, y + 87, 250, 22).build());
-            addDrawableChild(ButtonWidget.builder(Text.literal("Font: " + VampireIdentity.fontPreset + " (presets planned)"), button ->
-                button.setMessage(Text.literal("Font presets are not wired yet")))
+            addDrawableChild(ButtonWidget.builder(fontLabel(), button ->
+                button.setMessage(fontLabel(VampireIdentity.nextFontPreset())))
                 .dimensions(x, y + 116, 250, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Back"), button ->
                 client.setScreen(new VampireQuickMenuScreen())).dimensions(x, y + 145, 250, 22).build());
@@ -265,6 +265,8 @@ public final class VampireClientMod implements ClientModInitializer {
         private static Text chatLabel() { return Text.literal("Chat name gradient: " + (VampireIdentity.chatGradientEnabled ? "ON" : "OFF")); }
         private static Text nametagLabel() { return Text.literal("Nametag gradient: " + (VampireIdentity.nametagGradientEnabled ? "ON" : "OFF")); }
         private static Text badgeLabel() { return Text.literal("Vampire badge: " + (VampireIdentity.showClientBadge ? "ON" : "OFF")); }
+        private static Text fontLabel() { return fontLabel(VampireIdentity.fontPreset); }
+        private static Text fontLabel(String preset) { return Text.literal("Font preset: " + preset); }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
