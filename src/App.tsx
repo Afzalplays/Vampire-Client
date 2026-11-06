@@ -271,7 +271,8 @@ export default function App() {
     try {
       const result = await window.vampire.detectJava(javaPath);
       setJavaCheck({ version: result.version, executable: result.executable, platform: result.platform, architecture: result.architecture });
-      notify("Java detected: " + result.version);
+      setJavaPath(result.executable);
+      notify("Java detected and selected: " + result.version + ". Save settings to keep this runtime.");
     } catch (e) {
       setJavaCheck(null);
       notify("Java detection failed: " + (e instanceof Error ? e.message : "Java was not found."));
