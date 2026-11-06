@@ -75,6 +75,7 @@ export class FamGatewayClient {
       checkoutUrl: checkout.toString(),
       amountPaise,
       payableAmount: typeof data.payable_amount === "string" ? data.payable_amount : amount,
+      payableAmountPaise: Math.round(Number(data.payable_amount ?? amount) * 100),
       expiresAt: typeof data.expires_at_ist === "string" ? data.expires_at_ist : null,
     };
   }
@@ -112,7 +113,8 @@ export function validateSuccessfulPayment(payload, expectedOrder) {
   if (orderId !== expectedOrder.orderId) throw new Error("Webhook order ID does not match the pending order.");
   const amountPaise = Math.round(Number(payload.amount) * 100);
   const payablePaise = Math.round(Number(payload.payable_amount ?? payload.amount) * 100);
-  if (!Number.isSafeInteger(amountPaise) || amountPaise !== expectedOrder.amountPaise || payablePaise !== expectedOrder.amountPaise) {
+  const expectedPayablePaise = expectedOrder.payableAmountPaise ?? expectedOrder.amountPaise;
+  if (!Number.isSafeInteger(amountPaise) || amountPaise !== expectedOrder.amountPaise || payablePaise !== expectedPayablePaise) {
     throw new Error("Webhook amount does not match the server-side order amount.");
   }
   const utr = String(payload.utr ?? "");

@@ -24,6 +24,7 @@ test("creates orders with integer paise and validates checkout origin", async ()
   const order = await client.createOrder({ amountPaise: 14900, customerName: "Vampire user" });
   assert.equal(order.orderId, "fg_ABC12345");
   assert.equal(order.amountPaise, 14900);
+  assert.equal(order.payableAmountPaise, 14900);
   assert.equal(JSON.parse(request.options.body).amount, "149.00");
   assert.equal(request.options.headers["X-Api-Key"], key);
   assert.equal(new URL(request.url).origin, "https://famgateway.in");
