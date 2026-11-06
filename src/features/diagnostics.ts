@@ -62,3 +62,18 @@ export function analyzeLauncherLog(log: string): DiagnosticFinding[] {
   }
   return findings;
 }
+
+
+/** Best-effort privacy filter for common credentials and machine/network identifiers. */
+export function redactDiagnosticLog(log: string): string {
+  return log
+    .replace(/(authorization\s*[:=]\s*bearer\s+)[^\s,;]+/gi, "$1[REDACTED]")
+    .replace(/((?:access[_-]?token|refresh[_-]?token|id[_-]?token|client[_-]?secret|api[_-]?key|password|passwd)\s*[=:]\s*["']?)[^\s"',;&}]+/gi, "$1[REDACTED]")
+    .replace(/([?&](?:access_token|refresh_token|id_token|client_secret|api_key|code)=)[^&\s]+/gi, "$1[REDACTED]")
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[EMAIL]")
+    .replace(/\b[A-F0-9]{8}-[A-F0-9]{4}-[1-8][A-F0-9]{3}-[89AB][A-F0-9]{3}-[A-F0-9]{12}\b/gi, "[UUID]")
+    .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, "[IP]")
+    .replace(/([A-Za-z]:\\Users\\)[^\\\r\n]+/g, "$1[USER]")
+    .replace(/(\/home\/)[^/\s]+/g, "$1[USER]")
+    .replace(/(\/Users\/)[^/\s]+/g, "$1[USER]");
+}
