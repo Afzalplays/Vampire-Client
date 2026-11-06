@@ -914,13 +914,14 @@ async function inspectResourcePackZip(file: string) {
           const decoded = method === 0 ? metadataBytes : inflateRawSync(metadataBytes, { maxOutputLength: 1024 * 1024 });
           if (decoded.length !== uncompressed) throw new Error("Metadata size mismatch.");
           const metadata = JSON.parse(decoded.toString("utf8")) as { pack?: { pack_format?: unknown; description?: unknown } };
-          const packFormat = metadata.pack?.pack_format;
-          if (typeof packFormat !== "number" || !Number.isInteger(packFormat) ||
+          const pack = metadata.pack;
+          const packFormat = pack?.pack_format;
+          if (!pack || typeof packFormat !== "number" || !Number.isInteger(packFormat) ||
               packFormat < 1 || packFormat > 10_000) {
             throw new Error("Missing or invalid pack_format.");
           }
           summary.packFormat = packFormat;
-          const description = metadata.pack.description;
+          const description = pack.description;
           summary.description = typeof description === "string" ? description.slice(0, 300) :
             description && typeof description === "object" ? JSON.stringify(description).slice(0, 300) : "";
         } catch {
