@@ -10,7 +10,7 @@ interface Window {
     createWorldServer(args: { name: string; version: string; ramGB?: number }): Promise<{ id: string; name: string; version: string; createdAt: string; ramGB: number; running: boolean; eulaAccepted: boolean }>;
     startWorldServer(args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }): Promise<{ success: boolean; pid?: number }>;
     stopWorldServer(id: string): Promise<{ success: boolean; stopped: boolean }>;
-    getWorldServerInfo(id: string): Promise<{ logs: string; running: boolean; lanAddresses: string[]; port: number }>;
+    getWorldServerInfo(id: string): Promise<{ logs: string; running: boolean; lanAddresses: string[]; port: number; lastExitCode: number | null; lastError: string | null; lastExitAt: string | null }>;
     sendWorldServerCommand(args: { id: string; command: string }): Promise<{ success: boolean }>;
     onWorldServerOutput(callback: (event: { id: string; text: string }) => void): () => void;
     deleteWorldServer(id: string): Promise<{ success: boolean }>;
