@@ -168,6 +168,8 @@ public final class VampireClientMod implements ClientModInitializer {
 
     private static final class ModsScreen extends Screen {
         private List<ModContainer> mods;
+        private int scrollOffset = 0;
+        private static final int VISIBLE_MODS = 9;
         protected ModsScreen() { super(Text.literal("Vampire Mods")); }
 
         @Override
@@ -185,19 +187,27 @@ public final class VampireClientMod implements ClientModInitializer {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "LOADED MODS  ·  " + mods.size());
             int y = height / 2 - 76;
-            int max = Math.min(mods.size(), 9);
-            for (int i = 0; i < max; i++) {
+            int end = Math.min(mods.size(), scrollOffset + VISIBLE_MODS);
+            for (int i = scrollOffset; i < end; i++) {
                 ModContainer mod = mods.get(i);
                 String name = mod.getMetadata().getName();
                 String version = mod.getMetadata().getVersion().getFriendlyString();
                 context.drawTextWithShadow(textRenderer, name, width / 2 - 150, y + i * 17, 0xFFF2E8EC);
-                context.drawTextWithShadow(textRenderer, version, width / 2 + 95, y + i * 17, 0xFFFF8190);
+                context.drawTextWithShadow(textRenderer, version, width / 2 + 95, y + (i - scrollOffset) * 17, 0xFFFF8190);
             }
-            if (mods.size() > max) {
+            if (mods.size() > VISIBLE_MODS) {
                 context.drawCenteredTextWithShadow(textRenderer,
-                    "Showing first " + max + " loaded mods", width / 2, height / 2 + 75, 0xFFAA9AA2);
+                    "Showing " + (scrollOffset + 1) + "–" + end + " of " + mods.size() + " · scroll to browse",
+                    width / 2, height / 2 + 75, 0xFFAA9AA2);
             }
             super.render(context, mouseX, mouseY, delta);
+        }
+        @Override
+        public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+            if (mods.size() <= VISIBLE_MODS) return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
+            int maxOffset = Math.max(0, mods.size() - VISIBLE_MODS);
+            scrollOffset = Math.max(0, Math.min(maxOffset, scrollOffset - (int) Math.signum(verticalAmount) * 3));
+            return true;
         }
         @Override public boolean shouldPause() { return false; }
     }
