@@ -14,6 +14,8 @@ const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", 
 let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
 const worldServerProcesses = new Map<string, ChildProcess>();
+const worldServerLastExit = new Map<string, { code: number | null; error: string | null; at: string }>();
+const worldServerStopTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
 const gameRoot = (version?: string, loader = "vanilla", instanceId = "default") => {
@@ -255,8 +257,15 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   };
   proc.stdout?.on("data", chunk => append("stdout", chunk));
   proc.stderr?.on("data", chunk => append("stderr", chunk));
-  proc.once("error", error => append("process-error", error.message));
+  proc.once("error", error => {
+    worldServerLastExit.set(id, { code: null, error: error.message, at: new Date().toISOString() });
+    append("process-error", error.message);
+  });
   proc.once("close", code => {
+    const timer = worldServerStopTimers.get(id);
+    if (timer) clearTimeout(timer);
+    worldServerStopTimers.delete(id);
+    worldServerLastExit.set(id, { code, error: null, at: new Date().toISOString() });
     append("process", "Server stopped with exit code " + String(code));
     if (worldServerProcesses.get(id) === proc) worldServerProcesses.delete(id);
   });
@@ -274,7 +283,8 @@ ipcMain.handle("servers:info", async (_event, idValue: string) => {
     .filter(item => item.family === "IPv4" && !item.internal)
     .map(item => item.address)).filter((value, index, all) => all.indexOf(value) === index);
   const proc = worldServerProcesses.get(id);
-  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port: 25565 };
+  const lastExit = worldServerLastExit.get(id) || null;
+  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port: 25565, lastExitCode: lastExit?.code ?? null, lastError: lastExit?.error ?? null, lastExitAt: lastExit?.at ?? null };
 });
 ipcMain.handle("servers:command", async (_event, args: { id: string; command: string }) => {
   const id = String(args?.id || "");
@@ -974,15 +984,19 @@ app.whenReady().then(() => {
   });
 });
 app.on("before-quit", () => {
-  for (const proc of worldServerProcesses.values()) {
+  for (const [id, proc] of worldServerProcesses) {
     if (proc.exitCode !== null) continue;
     try {
       if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\n");
       else proc.kill("SIGTERM");
+      const previousTimer = worldServerStopTimers.get(id);
+      if (previousTimer) clearTimeout(previousTimer);
       const forceTimer = setTimeout(() => {
         if (proc.exitCode === null) proc.kill("SIGTERM");
+        worldServerStopTimers.delete(id);
       }, 8000);
       forceTimer.unref();
+      worldServerStopTimers.set(id, forceTimer);
     } catch { /* best-effort graceful shutdown during app exit */ }
   }
 });
