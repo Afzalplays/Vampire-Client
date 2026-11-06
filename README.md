@@ -51,7 +51,7 @@ The following items are not yet complete or have not been verified on a physical
 ### Core feature development
 - Forge, NeoForge and Quilt loader installation/runtime support.
 - Broader mod dependency/conflict analysis, support for additional modpack formats and a larger curated catalogue with compatibility testing.
-- Draggable in-game HUD positioning with saved coordinates is implemented in the Fabric companion mod; FPS and memory HUD toggles are also persisted locally. **Needs real Minecraft testing.** HUD resizing and a full visual editor remain future work.
+- Draggable and resizable in-game HUD positioning with saved coordinates and width is implemented in the Fabric companion mod; FPS and memory HUD toggles are also persisted locally. **Needs real Minecraft testing.** A full visual editor and height/scale controls remain future work.
 - Cosmetics service: Vampire account authentication, secure cape upload/storage, cross-device sync and companion-mod cape rendering. Current cape designer is a local preview only.
 - Remote Vampire-client detection and overhead nametag/cosmetic rendering. Current companion mod styles only the local player's own chat-name prefix.
 - Replay Mod integration, schematic file tools and a production-ready world-hosting workflow. The local vanilla server manager is implemented but needs real desktop testing; enforced LAN/Internet modes, backups, crash recovery and network guidance remain incomplete.
