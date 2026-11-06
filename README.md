@@ -37,27 +37,42 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - World-hosting and cosmetics architecture documented with explicit security boundaries; actual server runtime and remote cosmetics service remain pending.
 - Companion Fabric client mod for Minecraft 1.21.1: in-game Right Shift menu, loaded-mod list, FPS/heap readout, FPS HUD toggle and Vampire Identity settings. The local player's own chat-name prefix now has a client-side gradient/badge renderer, with saved gradient presets and built-in Minecraft Default/Uniform/Alt font presets. This does not detect or style other Vampire Client users; overhead nametag rendering and remote cosmetics remain pending.
 
-## Not implemented / still in development
+## Remaining work
 
-- Microsoft token refresh and a complete multi-account profile manager.
-- Forge, NeoForge and Quilt loader installation.
-- Broader cross-mod conflict analysis and support for modpack formats beyond Vampire Client’s Modrinth-based JSON manifest.
-- Curated 100+ mod catalogue with categorized profiles, dependency/conflict resolution and full automated compatibility testing; the new low-end packs are an initial curated batch and may skip unavailable versions.
-- HD cape upload, rendering and account-backed cosmetics sync service; account sync is selected in the UI, but the authenticated cosmetics API/storage service and companion-mod rendering are not implemented.
-- Full live mod configuration and draggable HUD editor. Vampire Identity currently styles only the local player's own chat-name prefix; remote Vampire-client detection, overhead nametag rendering, cross-client cosmetics sync and arbitrary TTF/OTF font loading are not implemented. Shader Library currently links to creator downloads rather than silently installing third-party files.
-- Replay Mod integration, schematic file tools and local dedicated-world hosting runtime (LAN + Internet mode is selected in the UI; no server is launched or ports opened yet).
-- Forge, NeoForge and Quilt runtime support.
-- Android application.
-- Branded application icons, Windows code signing and macOS notarization.
-- macOS code signing/notarization and Linux ARM64 packages.
+The following items are not yet complete or have not been verified on a physical desktop:
+
+### Release blockers
+- Install and launch the Windows x64 NSIS installer and portable EXE on a real Windows PC; verify first-run setup, upgrade behavior, uninstall behavior and clean launch.
+- Test Microsoft sign-in, Java entitlement, token refresh, account switching and logout with a real Minecraft Java account. The code paths exist, but README claims must not be treated as end-to-end account test evidence.
+- Test the Minecraft 1.21.1 Fabric companion mod in a real game: Right Shift open/close, keyboard focus, multiplayer chat behavior, HUD toggle and crash-free shutdown.
+- Test vanilla/Fabric install, repair, launch, stop and per-instance isolation on a clean Windows installation.
+- Fix any issues found by the physical-device test pass before publishing a public release.
+
+### Core feature development
+- Forge, NeoForge and Quilt loader installation/runtime support.
+- Broader mod dependency/conflict analysis, support for additional modpack formats and a larger curated catalogue with compatibility testing.
+- Real draggable, resizable and persistent in-game HUD editor; the current Studio HUD control is a local preference/preview.
+- Cosmetics service: Vampire account authentication, secure cape upload/storage, cross-device sync and companion-mod cape rendering. Current cape designer is a local preview only.
+- Remote Vampire-client detection and overhead nametag/cosmetic rendering. Current companion mod styles only the local player's own chat-name prefix.
+- Replay Mod integration, schematic file tools and a production-ready world-hosting workflow. The local vanilla server manager is implemented but needs real desktop testing; enforced LAN/Internet modes, backups, crash recovery and network guidance remain incomplete.
+- Official Vampire billing entitlement synchronization. The launcher opens the existing billing portal; account linking and paid-entitlement checks require the billing panel's documented API contract. No payment credentials belong in the launcher.
+
+### Distribution and platform work
+- Branded app icons and installer polish.
+- Windows code signing; macOS signing and notarization.
+- Linux ARM64 packages and Android application (separate future platform effort).
 
 Offline profiles do not authenticate Minecraft ownership or grant access to online-mode/premium servers. Microsoft sign-in verifies Minecraft Java entitlement before official-account launch.
 
 ## Build verification
 
-The latest verified GitHub Actions run on `main` (commit `7f7277ac43a487e57fa9c82aaa27daa0955c3129`) passed all five build jobs: Windows x64, Windows x86, Linux x64, macOS universal, and the Fabric companion mod. Download the build artifacts from [the successful Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42190895953). These are CI build checks, not a substitute for installing and testing the Windows installer on a physical PC, signing/notarization, or testing Microsoft sign-in with a real Minecraft account.
+GitHub Actions run [#256](https://github.com/Afzalplays/Vampire-Client/actions/runs/42199425513) on commit `12ff6ea589a0ac5769e8f7c250c2cfcc3a3af9c7` completed successfully for Windows x64, Windows x86, Linux x64, macOS universal and the Fabric companion mod. The release-publish job was skipped because this was a branch build, not a version-tag release. CI success confirms automated build and test steps, not physical-device testing, code signing/notarization or real Microsoft account verification.
 
-## Billing\n\nVampire Client links to the existing [Vampire Nodes billing panel](https://billing.vampirenodes.in/). The panel remains the source of truth for products, prices, orders, FamGateway checkout, payment verification and entitlements. No Supabase billing database or second payment backend is used by the launcher. In-launcher entitlement synchronization is pending the panel's official API contract; see [payment security notes](docs/PAYMENTS_SECURITY.md).\n\n## Desktop platforms
+## Billing
+
+Vampire Client links to the existing [Vampire Nodes billing panel](https://billing.vampirenodes.in/). The panel remains the source of truth for products, prices, orders, FamGateway checkout, payment verification and entitlements. No Supabase billing database or second payment backend is used by the launcher. In-launcher entitlement synchronization is pending the panel's official API contract; see [payment security notes](docs/PAYMENTS_SECURITY.md).
+
+## Desktop platforms
 
 The GitHub Actions workflow builds:
 
