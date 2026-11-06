@@ -8,13 +8,34 @@ const MAX_FILE_BYTES = 2 * 1024 * 1024;
 async function readPng(file: File, kind: "skin" | "cape"): Promise<SavedImage> {
   if (file.type !== "image/png") throw new Error("Please choose a PNG image.");
   if (file.size > MAX_FILE_BYTES) throw new Error("PNG must be 2 MB or smaller.");
+
+  // Inspect the PNG header before decoding so a tiny, highly-compressed image
+  // cannot request an unexpectedly huge bitmap allocation.
+  if (file.size < 24) throw new Error("This file is not a valid PNG image.");
+  const header = new Uint8Array(await file.slice(0, 24).arrayBuffer());
+  const signature = [137, 80, 78, 71, 13, 10, 26, 10];
+  if (!signature.every((byte, index) => header[index] === byte)
+    || header[12] !== 73 || header[13] !== 72 || header[14] !== 68 || header[15] !== 82
+    || new DataView(header.buffer, header.byteOffset, header.byteLength).getUint32(8, false) !== 13) {
+    throw new Error("This file has an invalid PNG header.");
+  }
+  const dimensions = new DataView(header.buffer, header.byteOffset, header.byteLength);
+  const declaredWidth = dimensions.getUint32(16, false);
+  const declaredHeight = dimensions.getUint32(20, false);
+  const validDimensions = kind === "skin"
+    ? (declaredWidth === 64 && (declaredHeight === 64 || declaredHeight === 32))
+      || (declaredWidth === 128 && (declaredHeight === 128 || declaredHeight === 64))
+    : (declaredWidth === 64 && declaredHeight === 32)
+      || (declaredWidth === 128 && declaredHeight === 64);
+  if (!validDimensions) {
+    throw new Error(kind === "skin" ? "Skin must be 64×64, 64×32, 128×128 or 128×64." : "Cape must be 64×32 or 128×64 pixels.");
+  }
+
   const bitmap = await createImageBitmap(file);
-  const valid = kind === "skin"
-    ? (bitmap.width === 64 && (bitmap.height === 64 || bitmap.height === 32)) || (bitmap.width === 128 && (bitmap.height === 128 || bitmap.height === 64))
-    : (bitmap.width === 64 && bitmap.height === 32) || (bitmap.width === 128 && bitmap.height === 64);
   const { width, height } = bitmap;
   bitmap.close();
-  if (!valid) throw new Error(kind === "skin" ? "Skin must be 64×64, 64×32, 128×128 or 128×64." : "Cape must be 64×32 or 128×64 pixels.");
+  if (width !== declaredWidth || height !== declaredHeight) throw new Error("PNG dimensions do not match its image header.");
+
   const data = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => typeof reader.result === "string" ? resolve(reader.result) : reject(new Error("Could not read PNG."));
