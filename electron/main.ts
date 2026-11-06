@@ -422,10 +422,46 @@ ipcMain.handle("auth:get", async () => {
   const account = await readJson<{ type: string }>(accountFile(), { type: "offline" });
   return { authenticated: Boolean(session), accountType: account.type, profile: session?.profile || null };
 });
+ipcMain.handle("auth:accounts", async () => {
+  if (!safeStorage.isEncryptionAvailable()) return [];
+  const settings = await readJson<{ clientId?: string }>(settingsFile(), {});
+  const clientId = String(settings.clientId || "");
+  if (!/^[0-9a-fA-F-]{36}$/.test(clientId)) return [];
+  const msal = createMicrosoftClient(clientId);
+  const accounts = await msal.getTokenCache().getAllAccounts();
+  return accounts.map(item => ({ id: item.homeAccountId, username: item.username, name: item.name || item.username }));
+});
+ipcMain.handle("auth:switch", async (_event, accountId: string) => {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("OS secure storage is required to switch Microsoft accounts.");
+  const settings = await readJson<{ clientId?: string }>(settingsFile(), {});
+  const clientId = String(settings.clientId || "");
+  if (!/^[0-9a-fA-F-]{36}$/.test(clientId)) throw new Error("Enter and save your Microsoft app Client ID first.");
+  const msal = createMicrosoftClient(clientId);
+  const accounts = await msal.getTokenCache().getAllAccounts();
+  const account = accounts.find(item => item.homeAccountId === accountId);
+  if (!account) throw new Error("Microsoft account is no longer available. Sign in again.");
+  const tokenResult = await msal.acquireTokenSilent({ account, scopes: ["XboxLive.signin", "offline_access"] });
+  if (!tokenResult?.accessToken) throw new Error("Microsoft could not refresh this account. Sign in again.");
+  const session = await exchangeMicrosoftToken(tokenResult.accessToken);
+  session.microsoftAccountId = account.homeAccountId;
+  await saveMicrosoftSession(session);
+  await writeJson(accountFile(), { type: "microsoft", profile: session.profile });
+  await writeJson(profilesFile(), { active: session.profile.name, names: [session.profile.name] });
+  sendStatus("Switched to " + session.profile.name + ".");
+  return { success: true, profile: session.profile };
+});
 ipcMain.handle("auth:logout", async () => {
+  const active = memoryMicrosoftSession || (await getMicrosoftSession());
+  const settings = await readJson<{ clientId?: string }>(settingsFile(), {});
+  const clientId = String(settings.clientId || "");
+  if (active?.microsoftAccountId && /^[0-9a-fA-F-]{36}$/.test(clientId) && safeStorage.isEncryptionAvailable()) {
+    const msal = createMicrosoftClient(clientId);
+    const accounts = await msal.getTokenCache().getAllAccounts();
+    const account = accounts.find(item => item.homeAccountId === active.microsoftAccountId);
+    if (account) await msal.getTokenCache().removeAccount(account);
+  }
   memoryMicrosoftSession = null;
   await fs.unlink(microsoftSessionFile()).catch(() => undefined);
-  await fs.unlink(microsoftCacheFile()).catch(() => undefined);
   await writeJson(accountFile(), { type: "offline" });
   return { success: true };
 });

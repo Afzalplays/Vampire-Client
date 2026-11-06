@@ -18,6 +18,8 @@ interface Window {
     getMicrosoftAccount(): Promise<{ authenticated: boolean; accountType: string; profile: { id: string; name: string } | null }>;
     loginMicrosoft(clientId: string): Promise<{ success: boolean; profile: { id: string; name: string }; encryptedStorage: boolean }>;
     logoutMicrosoft(): Promise<{ success: boolean }>;
+    listMicrosoftAccounts(): Promise<Array<{ id: string; username: string; name: string }>>;
+    switchMicrosoftAccount(accountId: string): Promise<{ success: boolean; profile: { id: string; name: string } }>;
     saveProfile(username: string): Promise<{ active: string; names: string[] }>;
     getSettings(instanceId?: string): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
