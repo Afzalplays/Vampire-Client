@@ -50,6 +50,7 @@ contextBridge.exposeInMainWorld("vampire", {
   applyPerformancePreset: (args: { preset: string; version: string; loader: string; instanceId?: string }) => ipcRenderer.invoke("performance:applyPreset", args),
   listShaderPacks: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("shaders:list", args),
   importShaderPack: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("shaders:import", args),
+  downloadShaderPack: (args: { slug: string; version: string; loader: string; instanceId?: string }) => ipcRenderer.invoke("shaders:download", args),
   removeShaderPack: (args: { version: string; loader: string; fileName: string ; instanceId?: string }) => ipcRenderer.invoke("shaders:remove", args),
   onGameStatus: (callback: (message: string) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, message: string) => callback(message);
