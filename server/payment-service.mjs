@@ -10,12 +10,12 @@ export class VampireBillingService {
   constructor({ fetchImpl = fetch, gateway, env = process.env } = {}) {
     this.fetchImpl = fetchImpl;
     this.env = env;
-    this.base = requiredEnv("SUPABASE_URL").replace(/\/$/, "");
+    this.base = requiredEnv("SUPABASE_URL", env).replace(/\/$/, "");
     this.anonKey = requiredEnv("SUPABASE_ANON_KEY", env);
     this.serviceKey = requiredEnv("SUPABASE_SERVICE_ROLE_KEY", env);
     this.ownerId = env.VAMPIRE_OWNER_USER_ID || "";
     this.gateway = gateway || new FamGatewayClient({ apiKey: requiredEnv("FAMGATEWAY_API_KEY", env), fetchImpl });
-    this.publicBackendUrl = requiredEnv("VAMPIRE_BACKEND_PUBLIC_URL");
+    this.publicBackendUrl = requiredEnv("VAMPIRE_BACKEND_PUBLIC_URL", env);
     const publicUrl = new URL(this.publicBackendUrl);
     if (publicUrl.protocol !== "https:" || publicUrl.username || publicUrl.password) throw new Error("VAMPIRE_BACKEND_PUBLIC_URL must be HTTPS.");
   }
