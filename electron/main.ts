@@ -748,6 +748,14 @@ ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loa
   const entries = await fs.readdir(directory, { withFileTypes: true });
   return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip")).map(entry => entry.name).sort();
 });
+ipcMain.handle("resourcepacks:openFolder", async (_event, args: { version: string; loader: string; instanceId?: string }) => {
+  const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
+  const directory = path.join(root, "resourcepacks");
+  await fs.mkdir(directory, { recursive: true });
+  const error = await shell.openPath(directory);
+  if (error) throw new Error("Could not open the resource pack folder: " + error);
+  return { success: true };
+});
 async function assertZipSignature(file: string) {
   const handle = await fs.open(file, "r");
   try {
