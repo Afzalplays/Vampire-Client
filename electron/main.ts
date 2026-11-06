@@ -448,7 +448,7 @@ ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
       else resolve({ stdout: stdout || "", stderr: stderr || "" });
     });
   });
-  const output = (result.stderr + "\\n" + result.stdout).trim();
+  const output = (result.stderr + "\n" + result.stdout).trim();
   const match = output.match(/version "([^"]+)"/i);
   return { success: true, executable, version: match?.[1] || "Detected (version string unavailable)", output: output.slice(0, 1200), platform: process.platform, architecture: process.arch };
 });
