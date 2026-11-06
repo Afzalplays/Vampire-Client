@@ -90,6 +90,10 @@ npm run dist:linux
 npm run dist:mac
 ```
 
+## Diagnostics regression tests
+
+Run `npm test` to execute Node's built-in test runner against crash classification, log summaries/context, mod conflict warnings and best-effort diagnostic redaction. The tests use Node 22's built-in TypeScript stripping and require no extra test dependency.
+
 ## Resource pack import validation
 
 Resource pack ZIP imports are checked without extracting archive contents. The importer rejects unsafe paths, duplicate names, encrypted or unsupported entries, symbolic links, malformed local headers, ZIP64/multi-disk archives, excessive expansion ratios and oversized archives. The root `pack.mcmeta` must also be valid JSON with `pack.pack_format` represented as a JSON number (not a numeric string), and that number must be a positive integer from 1 through 10,000; this is structural validation, not a full Minecraft compatibility test.

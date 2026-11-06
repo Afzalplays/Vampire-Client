@@ -11,7 +11,8 @@
     "start": "electron .",
     "dist:win": "npm run build && electron-builder --win nsis",
     "dist:linux": "npm run build && electron-builder --linux AppImage deb",
-    "dist:mac": "npm run build && electron-builder --mac dmg zip --universal"
+    "dist:mac": "npm run build && electron-builder --mac dmg zip --universal",
+    "test": "node --experimental-strip-types --test"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
