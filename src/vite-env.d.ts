@@ -2,6 +2,7 @@
 interface Window {
   vampire?: {
     version: string;
+    openBillingPortal(): Promise<{ success: boolean }>;
     platform: string;
     listInstances(): Promise<Array<{ id: string; name: string; createdAt: string }>>;
     createInstance(name: string): Promise<{ id: string; name: string; createdAt: string }>;
