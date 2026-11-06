@@ -30,6 +30,7 @@ public final class VampireClientMod implements ClientModInitializer {
     private static boolean showMemoryHud = false;
     private static int hudX = 8;
     private static int hudY = 8;
+    private static int hudWidth = 220;
     private static final Path CONFIG_FILE = FabricLoader.getInstance().getConfigDir().resolve("vampire-client.properties");
 
     private static void loadHudSettings() {
@@ -40,6 +41,7 @@ public final class VampireClientMod implements ClientModInitializer {
             showMemoryHud = Boolean.parseBoolean(properties.getProperty("hud.memory", "false"));
             hudX = Math.max(0, Integer.parseInt(properties.getProperty("hud.x", "8")));
             hudY = Math.max(0, Integer.parseInt(properties.getProperty("hud.y", "8")));
+            hudWidth = Math.max(140, Math.min(420, Integer.parseInt(properties.getProperty("hud.width", "220"))));
         } catch (java.io.IOException ignored) {
             // First launch: use the documented defaults.
         }
@@ -51,6 +53,7 @@ public final class VampireClientMod implements ClientModInitializer {
         properties.setProperty("hud.memory", Boolean.toString(showMemoryHud));
         properties.setProperty("hud.x", Integer.toString(hudX));
         properties.setProperty("hud.y", Integer.toString(hudY));
+        properties.setProperty("hud.width", Integer.toString(hudWidth));
         try {
             Files.createDirectories(CONFIG_FILE.getParent());
             try (OutputStream output = Files.newOutputStream(CONFIG_FILE)) {
@@ -81,7 +84,7 @@ public final class VampireClientMod implements ClientModInitializer {
             MinecraftClient client = MinecraftClient.getInstance();
             int rows = (showFpsHud ? 1 : 0) + (showMemoryHud ? 1 : 0);
             int panelHeight = 8 + rows * 16 + 5;
-            int panelWidth = 220;
+            int panelWidth = hudWidth;
             hudX = Math.max(0, Math.min(hudX, Math.max(0, client.getWindow().getScaledWidth() - panelWidth)));
             hudY = Math.max(0, Math.min(hudY, Math.max(0, client.getWindow().getScaledHeight() - panelHeight)));
             drawContext.fill(hudX, hudY, hudX + panelWidth, hudY + panelHeight, 0xB8101018);
@@ -280,42 +283,50 @@ public final class VampireClientMod implements ClientModInitializer {
 
     private static final class HudPositionScreen extends Screen {
         private boolean dragging;
+        private boolean resizing;
         private double dragOffsetX;
         private double dragOffsetY;
-        private static final int PREVIEW_WIDTH = 220;
         private static final int PREVIEW_HEIGHT = 45;
         protected HudPositionScreen() { super(Text.literal("Position Vampire HUD")); }
 
         @Override protected void init() {
             clampPosition();
             addDrawableChild(ButtonWidget.builder(Text.literal("Reset position"), button -> {
-                hudX = 8; hudY = 8; saveHudSettings(); clampPosition();
+                hudX = 8; hudY = 8; hudWidth = 220; saveHudSettings(); clampPosition();
             }).dimensions(width / 2 - 105, height - 54, 130, 22).build());
             addDrawableChild(ButtonWidget.builder(Text.literal("Done"), button -> client.setScreen(new HudSettingsScreen()))
                 .dimensions(width / 2 + 35, height - 54, 70, 22).build());
         }
         private void clampPosition() {
-            hudX = Math.max(0, Math.min(hudX, Math.max(0, width - PREVIEW_WIDTH)));
+            hudWidth = Math.max(140, Math.min(420, hudWidth));
+            hudX = Math.max(0, Math.min(hudX, Math.max(0, width - hudWidth)));
             hudY = Math.max(0, Math.min(hudY, Math.max(0, height - PREVIEW_HEIGHT - 60)));
         }
         @Override public void render(net.minecraft.client.gui.DrawContext context, int mouseX, int mouseY, float delta) {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "DRAG TO POSITION HUD");
             clampPosition();
-            context.fill(hudX, hudY, hudX + PREVIEW_WIDTH, hudY + PREVIEW_HEIGHT, 0xD8101018);
+            context.fill(hudX, hudY, hudX + hudWidth, hudY + PREVIEW_HEIGHT, 0xD8101018);
             context.fill(hudX, hudY, hudX + 2, hudY + PREVIEW_HEIGHT, 0xFFFF596F);
+            context.fill(hudX + hudWidth - 8, hudY + PREVIEW_HEIGHT - 8, hudX + hudWidth, hudY + PREVIEW_HEIGHT, 0xFFFF8290);
             context.drawTextWithShadow(textRenderer, "VAMPIRE  |  120 FPS", hudX + 8, hudY + 7, 0xFFFF8290);
             context.drawTextWithShadow(textRenderer, "MEMORY  |  2048 / 4096 MB", hudX + 8, hudY + 24, 0xFFF2E8EC);
-            context.drawCenteredTextWithShadow(textRenderer, "Click and drag the preview. Position is saved automatically.", width / 2, height - 78, 0xFFD8C5CC);
+            context.drawCenteredTextWithShadow(textRenderer, "Drag to move · drag bottom-right corner to resize · changes save automatically.", width / 2, height - 78, 0xFFD8C5CC);
             super.render(context, mouseX, mouseY, delta);
         }
         @Override public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button == 0 && mouseX >= hudX && mouseX <= hudX + PREVIEW_WIDTH && mouseY >= hudY && mouseY <= hudY + PREVIEW_HEIGHT) {
-                dragging = true; dragOffsetX = mouseX - hudX; dragOffsetY = mouseY - hudY; return true;
+            if (button == 0 && mouseX >= hudX && mouseX <= hudX + hudWidth && mouseY >= hudY && mouseY <= hudY + PREVIEW_HEIGHT) {
+                if (mouseX >= hudX + hudWidth - 14 && mouseY >= hudY + PREVIEW_HEIGHT - 14) resizing = true;
+                else { dragging = true; dragOffsetX = mouseX - hudX; dragOffsetY = mouseY - hudY; }
+                return true;
             }
             return super.mouseClicked(mouseX, mouseY, button);
         }
         @Override public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+            if (resizing && button == 0) {
+                hudWidth = Math.max(140, Math.min(420, (int)Math.round(mouseX - hudX)));
+                clampPosition(); saveHudSettings(); return true;
+            }
             if (dragging && button == 0) {
                 hudX = (int)Math.round(mouseX - dragOffsetX); hudY = (int)Math.round(mouseY - dragOffsetY);
                 clampPosition(); saveHudSettings(); return true;
@@ -323,7 +334,7 @@ public final class VampireClientMod implements ClientModInitializer {
             return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
         }
         @Override public boolean mouseReleased(double mouseX, double mouseY, int button) {
-            if (button == 0 && dragging) { dragging = false; saveHudSettings(); return true; }
+            if (button == 0 && (dragging || resizing)) { dragging = false; resizing = false; saveHudSettings(); return true; }
             return super.mouseReleased(mouseX, mouseY, button);
         }
         @Override public boolean shouldPause() { return false; }
