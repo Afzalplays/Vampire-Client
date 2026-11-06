@@ -56,6 +56,7 @@ export default function TexturePackEditor() {
   const [grid, setGrid] = useState(true);
   const [zoom, setZoom] = useState(2);
   const [category, setCategory] = useState("block");
+  const [packFormat, setPackFormat] = useState(34);
   const undoStack = useRef<ImageData[]>([]);
   const redoStack = useRef<ImageData[]>([]);
   const [historyCount, setHistoryCount] = useState(0);
@@ -149,6 +150,7 @@ export default function TexturePackEditor() {
     if (file.size > 20 * 1024 * 1024) return setStatus("Image is too large. Choose a file smaller than 20 MB.");
     const image = new Image();
     image.onload = () => {
+      if (image.naturalWidth > 8192 || image.naturalHeight > 8192 || image.naturalWidth * image.naturalHeight > 40_000_000) { URL.revokeObjectURL(image.src); setStatus("Image dimensions exceed the 8,192 px / 40-megapixel safety limit."); return; }
       checkpoint();
       URL.revokeObjectURL(image.src);
       const ctx = canvasRef.current?.getContext("2d");
@@ -188,7 +190,7 @@ export default function TexturePackEditor() {
   }
   function saveProject() {
     const canvas = canvasRef.current; if (!canvas) return;
-    const project = { format: "vampire-texture-project", version: 1, width: size, height: size, packName, description, importName, category, image: canvas.toDataURL("image/png") };
+    const project = { format: "vampire-texture-project", version: 1, width: size, height: size, packName, description, importName, category, packFormat, image: canvas.toDataURL("image/png") };
     const url = URL.createObjectURL(new Blob([JSON.stringify(project)], {type:"application/json"}));
     const a = document.createElement("a"); a.href=url; a.download=(importName || "vampire-project")+".vtexture.json"; a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     setStatus("Editable Vampire texture project saved.");
@@ -209,6 +211,7 @@ export default function TexturePackEditor() {
         setDescription(String(project.description || "").slice(0,256));
         setImportName(String(project.importName || "vampire_custom").replace(/[^a-zA-Z0-9_]/g,"_").slice(0,48));
         if (["block","item","entity","environment","gui"].includes(project.category)) setCategory(project.category);
+        if (Number.isInteger(project.packFormat) && project.packFormat >= 1 && project.packFormat <= 1000) setPackFormat(project.packFormat);
         setStatus("Project restored from " + file.name);
       };
       image.onerror = () => setStatus("Project image could not be decoded.");
@@ -228,7 +231,8 @@ export default function TexturePackEditor() {
       if (!/^[a-zA-Z0-9_]{1,48}$/.test(textureName)) throw new Error("Texture filename may contain only letters, numbers and underscores.");
       const pixels = canvas.getContext("2d")!.getImageData(0, 0, size, size).data;
       if (!pixels.some((value, index) => index % 4 === 3 && value > 0)) throw new Error("Canvas is empty. Draw or import a texture first.");
-      const meta = new TextEncoder().encode(JSON.stringify({ pack: { pack_format: 34, description: description.slice(0, 256) } }, null, 2));
+      if (!Number.isInteger(packFormat) || packFormat < 1 || packFormat > 1000) throw new Error("Pack format must be a whole number from 1 to 1000.");
+      const meta = new TextEncoder().encode(JSON.stringify({ pack: { pack_format: packFormat, description: description.slice(0, 256) } }, null, 2));
       const zip = zipStore([
         { name: "pack.mcmeta", data: meta },
         { name: "pack.png", data: iconBytes },
@@ -236,7 +240,7 @@ export default function TexturePackEditor() {
       ]);
       const url = URL.createObjectURL(new Blob([zip], { type: "application/zip" }));
       const a = document.createElement("a"); a.href = url; a.download = (packName.trim() || "Vampire-Pack").replace(/[^a-zA-Z0-9-_ ]/g, "").replace(/\s+/g, "-") + ".zip";
-      a.click(); URL.revokeObjectURL(url);
+      a.click(); window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       setStatus("Resource pack ZIP exported. Add a block/model reference to use the custom texture in-game.");
     } catch (error) { setStatus(error instanceof Error ? error.message : "Export failed."); }
   }
@@ -248,6 +252,7 @@ export default function TexturePackEditor() {
       <div className="field-row"><label>Description</label><input value={description} maxLength={256} onChange={e=>setDescription(e.target.value)}/></div>
       <div className="field-row"><label>Texture file name</label><input value={importName} maxLength={48} onChange={e=>setImportName(e.target.value.replace(/[^a-zA-Z0-9_]/g,"_"))}/></div>
       <div className="field-row"><label>Texture category</label><select value={category} onChange={e=>setCategory(e.target.value)}><option value="block">Block</option><option value="item">Item</option><option value="entity">Entity</option><option value="environment">Environment</option><option value="gui">GUI</option></select></div>
+      <div className="field-row"><label>Target pack format</label><input type="number" min="1" max="1000" step="1" value={packFormat} onChange={e=>setPackFormat(Number(e.target.value))}/><small>Set this to the resource-pack format required by your Minecraft version. Vampire Client does not guess version compatibility.</small></div>
       <div style={{display:"grid",gridTemplateColumns:"minmax(0,1fr) minmax(220px,1fr)",gap:18,alignItems:"start"}}>
         <div>
           <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:10}}>
