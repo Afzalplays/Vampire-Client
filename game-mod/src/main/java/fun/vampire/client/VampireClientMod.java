@@ -269,7 +269,7 @@ public final class VampireClientMod implements ClientModInitializer {
             renderBackground(context, mouseX, mouseY, delta);
             drawPanel(width, height, textRenderer, context, "IDENTITY & CHAT STYLING");
             context.drawCenteredTextWithShadow(textRenderer,
-                VampireIdentity.gradientText("Vampire Client  ·  Afzal").getString(),
+                VampireIdentity.gradientText("Vampire Client  ·  Afzal"),
                 width / 2, height / 2 - 91, 0xFFFFFFFF);
             super.render(context, mouseX, mouseY, delta);
         }
