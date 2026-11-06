@@ -143,10 +143,18 @@ export default function SkinCapeStudio() {
           loadCosmeticImage("skin"),
           loadCosmeticImage("cape")
         ]);
+        let persistentStorage = false;
+        try {
+          if (navigator.storage?.persist) persistentStorage = await navigator.storage.persist();
+        } catch {
+          // IndexedDB remains usable even when persistent-storage permission is unavailable.
+        }
         if (active) {
           setSkin(savedSkin);
           setCape(savedCape);
-          setMessage("Textures are stored locally in IndexedDB on this device.");
+          setMessage(persistentStorage
+            ? "Textures are stored in IndexedDB with persistent browser storage enabled."
+            : "Textures are stored locally in IndexedDB. The operating system may still clear browser data when storage is low.");
         }
       } catch {
         if (active) setMessage("Could not load local cosmetics storage. Your existing files have not been uploaded anywhere.");
