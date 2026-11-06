@@ -824,6 +824,9 @@ async function assertResourcePackZip(file: string) {
       if (tail.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
     }
     if (eocd < 0) throw new Error("ZIP directory is missing or damaged.");
+    const commentLength = tail.readUInt16LE(eocd + 20);
+    if (eocd + 22 + commentLength !== tail.length) throw new Error("ZIP end record or archive comment is malformed.");
+    const absoluteEocd = stat.size - tailLength + eocd;
     const disk = tail.readUInt16LE(eocd + 4);
     const centralDisk = tail.readUInt16LE(eocd + 6);
     const diskEntries = tail.readUInt16LE(eocd + 8);
@@ -833,7 +836,7 @@ async function assertResourcePackZip(file: string) {
     if (disk || centralDisk || diskEntries !== entries || entries === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
       throw new Error("Multi-disk and ZIP64 resource packs are not supported.");
     }
-    if (!entries || entries > 50_000 || centralSize > 32 * 1024 * 1024 || centralOffset + centralSize > stat.size) {
+    if (!entries || entries > 50_000 || centralSize > 32 * 1024 * 1024 || centralOffset + centralSize !== absoluteEocd) {
       throw new Error("Resource pack ZIP directory exceeds safety limits.");
     }
     const directory = Buffer.alloc(centralSize);
@@ -841,6 +844,7 @@ async function assertResourcePackZip(file: string) {
     let offset = 0;
     let totalUncompressed = 0;
     let hasMetadata = false;
+    const entryNames = new Set<string>();
     for (let index = 0; index < entries; index++) {
       if (offset + 46 > directory.length || directory.readUInt32LE(offset) !== 0x02014b50) {
         throw new Error("Resource pack ZIP directory is invalid.");
@@ -851,17 +855,45 @@ async function assertResourcePackZip(file: string) {
       const uncompressed = directory.readUInt32LE(offset + 24);
       const nameLength = directory.readUInt16LE(offset + 28);
       const extraLength = directory.readUInt16LE(offset + 30);
-      const commentLength = directory.readUInt16LE(offset + 32);
-      const end = offset + 46 + nameLength + extraLength + commentLength;
-      if (end > directory.length || (flags & 1) !== 0 || ![0, 8].includes(method) ||
-          compressed === 0xffffffff || uncompressed === 0xffffffff) {
+      const entryCommentLength = directory.readUInt16LE(offset + 32);
+      const externalAttributes = directory.readUInt32LE(offset + 38);
+      const localOffset = directory.readUInt32LE(offset + 42);
+      const end = offset + 46 + nameLength + extraLength + entryCommentLength;
+      if (end > directory.length || (flags & 1) !== 0 || (flags & 0x40) !== 0 || ![0, 8].includes(method) ||
+          compressed === 0xffffffff || uncompressed === 0xffffffff || localOffset === 0xffffffff) {
         throw new Error("Resource pack contains encrypted, unsupported or malformed ZIP entries.");
       }
       const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\/g, "/");
-      if (entryName.startsWith("/") || entryName.split("/").some(part => part === "..")) {
-        throw new Error("Resource pack contains an unsafe file path.");
+      const parts = entryName.split("/");
+      if (!entryName || entryName.includes("\\0") || entryName.startsWith("/") || /^[A-Za-z]:/.test(entryName) ||
+          parts.some(part => part === ".." || part === ".") || entryNames.has(entryName)) {
+        throw new Error("Resource pack contains an unsafe or duplicate file path.");
       }
-      if (entryName === "pack.mcmeta") hasMetadata = true;
+      entryNames.add(entryName);
+      const unixMode = externalAttributes >>> 16;
+      if (((unixMode & 0xf000) === 0xa000) || ((unixMode & 0xf000) !== 0 && (unixMode & 0xf000) !== 0x8000 && (unixMode & 0xf000) !== 0x4000)) {
+        throw new Error("Resource pack contains a symbolic link or unsupported filesystem entry.");
+      }
+      if (localOffset + 30 > centralOffset) throw new Error("Resource pack local file header is out of bounds.");
+      const localHeader = Buffer.alloc(30);
+      await handle.read(localHeader, 0, 30, localOffset);
+      if (localHeader.readUInt32LE(0) !== 0x04034b50 ||
+          localHeader.readUInt16LE(6) !== flags || localHeader.readUInt16LE(8) !== method) {
+        throw new Error("Resource pack local file header does not match its directory entry.");
+      }
+      const localNameLength = localHeader.readUInt16LE(26);
+      const localExtraLength = localHeader.readUInt16LE(28);
+      const localName = Buffer.alloc(localNameLength);
+      await handle.read(localName, 0, localNameLength, localOffset + 30);
+      if (localName.toString("utf8") !== directory.toString("utf8", offset + 46, offset + 46 + nameLength)) {
+        throw new Error("Resource pack local filename does not match its directory entry.");
+      }
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      if (dataStart + compressed > centralOffset) throw new Error("Resource pack compressed data is out of bounds.");
+      if (entryName === "pack.mcmeta") {
+        if (hasMetadata || uncompressed > 1024 * 1024) throw new Error("Resource pack metadata is duplicated or too large.");
+        hasMetadata = true;
+      }
       totalUncompressed += uncompressed;
       if (totalUncompressed > 2 * 1024 * 1024 * 1024 || (uncompressed > 64 * 1024 * 1024 && compressed === 0) ||
           (compressed > 0 && uncompressed / compressed > 1000)) {
