@@ -910,8 +910,9 @@ async function assertResourcePackZip(file: string) {
           const decoded = method === 0 ? metadataBytes : inflateRawSync(metadataBytes, { maxOutputLength: 1024 * 1024 });
           if (decoded.length !== uncompressed) throw new Error("Metadata size mismatch.");
           const metadata = JSON.parse(decoded.toString("utf8")) as { pack?: { pack_format?: unknown; description?: unknown } };
-          if (!metadata.pack || !Number.isInteger(metadata.pack.pack_format) ||
-              Number(metadata.pack.pack_format) < 1 || metadata.pack.pack_format > 10_000) {
+          const packFormat = metadata.pack?.pack_format;
+          if (typeof packFormat !== "number" || !Number.isInteger(packFormat) ||
+              packFormat < 1 || packFormat > 10_000) {
             throw new Error("Missing or invalid pack_format.");
           }
         } catch {

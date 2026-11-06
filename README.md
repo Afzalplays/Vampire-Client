@@ -88,7 +88,7 @@ npm run dist:mac
 
 ## Resource pack import validation
 
-Resource pack ZIP imports are checked without extracting archive contents. The importer rejects unsafe paths, duplicate names, encrypted or unsupported entries, symbolic links, malformed local headers, ZIP64/multi-disk archives, excessive expansion ratios and oversized archives. The root `pack.mcmeta` must also be valid JSON with a positive integer `pack.pack_format`; this is structural validation, not a full Minecraft compatibility test.
+Resource pack ZIP imports are checked without extracting archive contents. The importer rejects unsafe paths, duplicate names, encrypted or unsupported entries, symbolic links, malformed local headers, ZIP64/multi-disk archives, excessive expansion ratios and oversized archives. The root `pack.mcmeta` must also be valid JSON with `pack.pack_format` represented as a JSON number (not a numeric string), and that number must be a positive integer from 1 through 10,000; this is structural validation, not a full Minecraft compatibility test.
 
 ## Java runtime detection
 
