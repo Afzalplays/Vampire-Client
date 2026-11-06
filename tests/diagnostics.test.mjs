@@ -19,8 +19,8 @@ test("redacts credentials, JWTs, emails, UUIDs, IPs and home paths", () => {
   for (const secret of ["secret-header-value-123456", "super-secret-value", "generic-secret-token-123456", "user@example.com", "123e4567-e89b-42d3-a456-426614174000", "192.168.1.25", "Afzal", "afzal"]) {
     assert.equal(output.includes(secret), false, "leaked: " + secret);
   }
-  assert.match(output, /\\[REDACTED\\]/);
-  assert.match(output, /\\[JWT\\]/);
+  assert.match(output, /\[REDACTED\]/);
+  assert.match(output, /\[JWT\]/);
 });
 
 test("keeps useful non-sensitive diagnostics readable", () => {
