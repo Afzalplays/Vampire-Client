@@ -977,7 +977,7 @@ app.on("before-quit", () => {
   for (const proc of worldServerProcesses.values()) {
     if (proc.exitCode !== null) continue;
     try {
-      if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\\n");
+      if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\n");
       else proc.kill("SIGTERM");
       const forceTimer = setTimeout(() => {
         if (proc.exitCode === null) proc.kill("SIGTERM");
