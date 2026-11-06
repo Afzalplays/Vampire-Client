@@ -157,7 +157,7 @@ async function validateBackupImage(value: unknown, kind: "skin" | "cape"): Promi
   }
   if (bytes.byteLength > MAX_FILE_BYTES) throw new Error("Backup " + kind + " exceeds the 2 MB texture limit.");
   const safeName = typeof image.name === "string" ? image.name.slice(0, 120) : "vampire-" + kind + ".png";
-  return readPng(new File([bytes], safeName, { type: "image/png" }), kind);
+  return readPng(new File([bytes.buffer as ArrayBuffer], safeName, { type: "image/png" }), kind);
 }
 
 export default function SkinCapeStudio() {
