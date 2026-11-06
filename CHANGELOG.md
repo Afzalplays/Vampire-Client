@@ -4,6 +4,9 @@ All notable Vampire Client changes are recorded here.
 
 ## Unreleased — Vampire Client Studio foundation
 
+- Added local Skin & Cape Studio with validated PNG uploads/previews, three Vampire cape themes, centered emblem/glitter/sparkle controls, local persistence and 64×32 cape texture export. Cloud upload, multiplayer rendering and purchases remain pending.
+- Latest CI run for commit `0cca75c3` passed all five build jobs ([Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42179876795)).
+
 - Added a Studio hub UI with HD cape design previews and selectable cape themes.
 - Added local gradient name/chat identity and nametag mark preference controls.
 - Added HUD, shader, Replay Mod, schematic and local world-hosting feature panels with explicit preview-state messaging.
