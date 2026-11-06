@@ -16,7 +16,7 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Fabric loader installation for supported Minecraft versions.
 - Minecraft process launch integration with configurable Java path and RAM allocation.
 - Offline local profiles for single-player and servers that explicitly allow offline-mode connections.
-- Microsoft device-code authentication flow, Xbox/Minecraft token exchange and Java entitlement check. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
+- Microsoft device-code authentication flow, Xbox/Minecraft token exchange, Java entitlement check, encrypted MSAL token cache, silent session refresh and saved multi-account switching. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
 - Modrinth project search and compatible Fabric JAR download, including automatic installation of required Modrinth dependencies and rejection of declared incompatible dependencies.
 - Named Minecraft instance manager: create, select and delete separate profiles with isolated game folders, mods, resource packs, shader packs and `options.txt`; active instance selection is persisted. The legacy Default instance keeps the previous version-based folder layout. RAM allocation and Java executable path are saved independently per instance.
 - Vampire modpack JSON manifest import/export for tracked Modrinth projects; import re-resolves compatible builds and required dependencies for the exact Minecraft/Fabric profile.
@@ -57,7 +57,7 @@ Offline profiles do not authenticate Minecraft ownership or grant access to onli
 
 The latest verified GitHub Actions run on `main` (commit `7f7277ac43a487e57fa9c82aaa27daa0955c3129`) passed all five build jobs: Windows x64, Windows x86, Linux x64, macOS universal, and the Fabric companion mod. Download the build artifacts from [the successful Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42190895953). These are CI build checks, not a substitute for installing and testing the Windows installer on a physical PC, signing/notarization, or testing Microsoft sign-in with a real Minecraft account.
 
-## Desktop platforms
+## Billing\n\nVampire Client links to the existing [Vampire Nodes billing panel](https://billing.vampirenodes.in/). The panel remains the source of truth for products, prices, orders, FamGateway checkout, payment verification and entitlements. No Supabase billing database or second payment backend is used by the launcher. In-launcher entitlement synchronization is pending the panel's official API contract; see [payment security notes](docs/PAYMENTS_SECURITY.md).\n\n## Desktop platforms
 
 The GitHub Actions workflow builds:
 
