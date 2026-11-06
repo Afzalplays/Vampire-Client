@@ -64,8 +64,14 @@ export default function SkinCapeStudio() {
   }, []);
   function persist(next: Partial<{skin: SavedImage | null; cape: SavedImage | null; style: string; logo: boolean; sparkles: boolean; glitter: boolean}>) {
     const current = { skin, cape, style, logo, sparkles, glitter, ...next };
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(current)); setMessage("Saved on this device."); }
-    catch { setMessage("Browser storage is full. Use a smaller PNG (under 2 MB) and try again."); }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(current));
+      setMessage("Saved on this device.");
+      return true;
+    } catch {
+      setMessage("Browser storage is full. This change is temporary until the app closes; remove another saved texture or clear site data to save it permanently.");
+      return false;
+    }
   }
   function downloadTexture(image: SavedImage | null, fallbackName: string, label: string) {
     if (!image) return;
@@ -93,9 +99,15 @@ export default function SkinCapeStudio() {
     if (!file) return;
     try {
       const image = await readPng(file, kind);
-      if (kind === "skin") { setSkin(image); persist({ skin: image }); }
-      else { setCape(image); persist({ cape: image }); }
-      setMessage(kind === "skin" ? "Skin saved locally. Uploading it to your Minecraft account is not connected yet." : "Cape artwork saved locally for preview. Multiplayer delivery is not connected yet.");
+      if (kind === "skin") {
+        setSkin(image);
+        const saved = persist({ skin: image });
+        if (saved) setMessage("Skin saved locally. Uploading it to your Minecraft account is not connected yet.");
+      } else {
+        setCape(image);
+        const saved = persist({ cape: image });
+        if (saved) setMessage("Cape artwork saved locally for preview. Multiplayer delivery is not connected yet.");
+      }
     } catch (error) { setMessage(error instanceof Error ? error.message : "Upload failed."); }
   }
   return <section className="cosmetics-page">
