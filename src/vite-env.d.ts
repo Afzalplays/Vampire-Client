@@ -35,6 +35,7 @@ interface Window {
     exportModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
     importModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; installed: number; failed: string[] }>;
     listResourcePacks(args: { version: string; loader: string ; instanceId?: string }): Promise<string[]>;
+    openResourcePackFolder(args: { version: string; loader: string; instanceId?: string }): Promise<{ success: boolean }>;
     importResourcePack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; fileName?: string }>;
     removeResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string }): Promise<{ success: boolean }>;
     checkModUpdates(args: { version: string; loader: string ; instanceId?: string }): Promise<Array<{ projectId: string; fileName: string; currentVersion: string; latestVersion: string; latestVersionName: string }>>;
