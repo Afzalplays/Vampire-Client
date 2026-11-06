@@ -192,7 +192,7 @@ public final class VampireClientMod implements ClientModInitializer {
                 ModContainer mod = mods.get(i);
                 String name = mod.getMetadata().getName();
                 String version = mod.getMetadata().getVersion().getFriendlyString();
-                context.drawTextWithShadow(textRenderer, name, width / 2 - 150, y + i * 17, 0xFFF2E8EC);
+                context.drawTextWithShadow(textRenderer, name, width / 2 - 150, y + (i - scrollOffset) * 17, 0xFFF2E8EC);
                 context.drawTextWithShadow(textRenderer, version, width / 2 + 95, y + (i - scrollOffset) * 17, 0xFFFF8190);
             }
             if (mods.size() > VISIBLE_MODS) {
