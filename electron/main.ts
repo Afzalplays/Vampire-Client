@@ -747,14 +747,65 @@ ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loa
   const entries = await fs.readdir(directory, { withFileTypes: true });
   return entries.filter(entry => entry.isFile() && entry.name.toLowerCase().endsWith(".zip")).map(entry => entry.name).sort();
 });
-async function assertZipSignature(file: string) {
+async function assertResourcePackZip(file: string) {
   const handle = await fs.open(file, "r");
   try {
-    const header = Buffer.alloc(4);
-    const { bytesRead } = await handle.read(header, 0, 4, 0);
-    const signature = header.subarray(0, bytesRead).toString("hex");
-    if (!["504b0304", "504b0506", "504b0708"].includes(signature)) {
-      throw new Error("This file does not have a valid ZIP signature. Choose a real .zip pack.");
+    const stat = await handle.stat();
+    const tailLength = Math.min(stat.size, 65_557);
+    const tail = Buffer.alloc(tailLength);
+    await handle.read(tail, 0, tailLength, stat.size - tailLength);
+    let eocd = -1;
+    for (let i = tail.length - 22; i >= 0; i--) {
+      if (tail.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) throw new Error("ZIP directory is missing or damaged.");
+    const disk = tail.readUInt16LE(eocd + 4);
+    const centralDisk = tail.readUInt16LE(eocd + 6);
+    const diskEntries = tail.readUInt16LE(eocd + 8);
+    const entries = tail.readUInt16LE(eocd + 10);
+    const centralSize = tail.readUInt32LE(eocd + 12);
+    const centralOffset = tail.readUInt32LE(eocd + 16);
+    if (disk || centralDisk || diskEntries !== entries || entries === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
+      throw new Error("Multi-disk and ZIP64 resource packs are not supported.");
+    }
+    if (!entries || entries > 50_000 || centralSize > 32 * 1024 * 1024 || centralOffset + centralSize > stat.size) {
+      throw new Error("Resource pack ZIP directory exceeds safety limits.");
+    }
+    const directory = Buffer.alloc(centralSize);
+    await handle.read(directory, 0, centralSize, centralOffset);
+    let offset = 0;
+    let totalUncompressed = 0;
+    let hasMetadata = false;
+    for (let index = 0; index < entries; index++) {
+      if (offset + 46 > directory.length || directory.readUInt32LE(offset) !== 0x02014b50) {
+        throw new Error("Resource pack ZIP directory is invalid.");
+      }
+      const flags = directory.readUInt16LE(offset + 8);
+      const method = directory.readUInt16LE(offset + 10);
+      const compressed = directory.readUInt32LE(offset + 20);
+      const uncompressed = directory.readUInt32LE(offset + 24);
+      const nameLength = directory.readUInt16LE(offset + 28);
+      const extraLength = directory.readUInt16LE(offset + 30);
+      const commentLength = directory.readUInt16LE(offset + 32);
+      const end = offset + 46 + nameLength + extraLength + commentLength;
+      if (end > directory.length || (flags & 1) !== 0 || ![0, 8].includes(method) ||
+          compressed === 0xffffffff || uncompressed === 0xffffffff) {
+        throw new Error("Resource pack contains encrypted, unsupported or malformed ZIP entries.");
+      }
+      const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\/g, "/");
+      if (entryName.startsWith("/") || entryName.split("/").some(part => part === "..")) {
+        throw new Error("Resource pack contains an unsafe file path.");
+      }
+      if (entryName === "pack.mcmeta") hasMetadata = true;
+      totalUncompressed += uncompressed;
+      if (totalUncompressed > 2 * 1024 * 1024 * 1024 || (uncompressed > 64 * 1024 * 1024 && compressed === 0) ||
+          (compressed > 0 && uncompressed / compressed > 1000)) {
+        throw new Error("Resource pack expands beyond safe size limits.");
+      }
+      offset = end;
+    }
+    if (offset !== directory.length || !hasMetadata) {
+      throw new Error("This ZIP is not a valid Minecraft resource pack: root pack.mcmeta was not found.");
     }
   } finally { await handle.close(); }
 }
@@ -766,11 +817,17 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
   const source = choice.filePaths[0];
   const stat = await fs.stat(source);
   if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 4 bytes and 512 MB.");
-  await assertZipSignature(source);
+  await assertResourcePackZip(source);
   const directory = path.join(root, "resourcepacks");
   await fs.mkdir(directory, { recursive: true });
-  const name = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
-  await fs.copyFile(source, path.join(directory, name));
+  const baseName = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
+  const extension = path.extname(baseName);
+  const stem = path.basename(baseName, extension);
+  let name = baseName;
+  for (let suffix = 2; await fs.access(path.join(directory, name)).then(() => true).catch(() => false); suffix++) {
+    name = stem.slice(0, 160) + " (" + suffix + ")" + extension;
+  }
+  await fs.copyFile(source, path.join(directory, name), fsConstants.COPYFILE_EXCL);
   return { canceled: false, fileName: name };
 });
 ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
