@@ -39,6 +39,7 @@ contextBridge.exposeInMainWorld("vampire", {
   exportModpack: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("mods:exportPack", args),
   importModpack: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("mods:importPack", args),
   listResourcePacks: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("resourcepacks:list", args),
+  inspectResourcePack: (args: { version: string; loader: string; fileName: string; instanceId?: string }) => ipcRenderer.invoke("resourcepacks:inspect", args),
   openResourcePackFolder: (args: { version: string; loader: string; instanceId?: string }) => ipcRenderer.invoke("resourcepacks:openFolder", args),
   importResourcePack: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("resourcepacks:import", args),
   removeResourcePack: (args: { version: string; loader: string; fileName: string; instanceId?: string }) => ipcRenderer.invoke("resourcepacks:remove", args),

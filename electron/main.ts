@@ -821,7 +821,8 @@ async function assertZipSignature(file: string) {
   } finally { await handle.close(); }
 }
 
-async function assertResourcePackZip(file: string) {
+async function inspectResourcePackZip(file: string) {
+  const summary = { fileCount: 0, textureCount: 0, totalUncompressedBytes: 0, packFormat: 0, description: "", hasPackIcon: false };
   const handle = await fs.open(file, "r");
   try {
     const stat = await handle.stat();
@@ -900,6 +901,9 @@ async function assertResourcePackZip(file: string) {
       }
       const dataStart = localOffset + 30 + localNameLength + localExtraLength;
       if (dataStart + compressed > centralOffset) throw new Error("Resource pack compressed data is out of bounds.");
+      summary.fileCount++;
+      if (/^assets\\/.+\\/textures\\//i.test(entryName)) summary.textureCount++;
+      if (entryName.toLowerCase() === "pack.png") summary.hasPackIcon = true;
       if (entryName === "pack.mcmeta") {
         if (hasMetadata || uncompressed < 2 || uncompressed > 1024 * 1024 || compressed > 1024 * 1024) {
           throw new Error("Resource pack metadata is duplicated or outside the 1 MB safety limit.");
@@ -915,12 +919,17 @@ async function assertResourcePackZip(file: string) {
               packFormat < 1 || packFormat > 10_000) {
             throw new Error("Missing or invalid pack_format.");
           }
+          summary.packFormat = packFormat;
+          const description = metadata.pack.description;
+          summary.description = typeof description === "string" ? description.slice(0, 300) :
+            description && typeof description === "object" ? JSON.stringify(description).slice(0, 300) : "";
         } catch {
           throw new Error("Resource pack root pack.mcmeta must contain valid JSON and a positive pack.pack_format.");
         }
         hasMetadata = true;
       }
       totalUncompressed += uncompressed;
+      summary.totalUncompressedBytes = totalUncompressed;
       if (totalUncompressed > 2 * 1024 * 1024 * 1024 || (uncompressed > 64 * 1024 * 1024 && compressed === 0) ||
           (compressed > 0 && uncompressed / compressed > 1000)) {
         throw new Error("Resource pack expands beyond safe size limits.");
@@ -931,6 +940,7 @@ async function assertResourcePackZip(file: string) {
       throw new Error("This ZIP is not a valid Minecraft resource pack: root pack.mcmeta was not found.");
     }
   } finally { await handle.close(); }
+  return summary;
 }
 
 ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
@@ -940,7 +950,7 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
   const source = choice.filePaths[0];
   const stat = await fs.stat(source);
   if (path.extname(source).toLowerCase() !== ".zip" || !stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack must be a ZIP file between 4 bytes and 512 MB.");
-  await assertResourcePackZip(source);
+  await inspectResourcePackZip(source);
   const directory = path.join(root, "resourcepacks");
   await fs.mkdir(directory, { recursive: true });
   const baseName = path.basename(source).replace(/[^A-Za-z0-9._ -]/g, "_");
@@ -953,6 +963,18 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
   await fs.copyFile(source, path.join(directory, name), fsConstants.COPYFILE_EXCL);
   return { canceled: false, fileName: name };
 });
+
+ipcMain.handle("resourcepacks:inspect", async (_event, args: { version: string; loader: string; fileName: string; instanceId?: string }) => {
+  const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
+  const name = String(args.fileName || "");
+  if (!/^[A-Za-z0-9._ -]{1,180}\\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid resource pack filename.");
+  const file = path.join(root, "resourcepacks", name);
+  const stat = await fs.stat(file);
+  if (!stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack file is missing or outside the 512 MB safety limit.");
+  const summary = await inspectResourcePackZip(file);
+  return { fileName: name, fileSizeBytes: stat.size, ...summary };
+});
+
 ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
   const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const name = String(args.fileName || "");

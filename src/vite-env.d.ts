@@ -35,6 +35,7 @@ interface Window {
     exportModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
     importModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; installed: number; failed: string[] }>;
     listResourcePacks(args: { version: string; loader: string ; instanceId?: string }): Promise<string[]>;
+    inspectResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string }): Promise<{ fileName: string; fileSizeBytes: number; fileCount: number; textureCount: number; totalUncompressedBytes: number; packFormat: number; description: string; hasPackIcon: boolean }>;
     openResourcePackFolder(args: { version: string; loader: string; instanceId?: string }): Promise<{ success: boolean }>;
     importResourcePack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; fileName?: string }>;
     removeResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string }): Promise<{ success: boolean }>;
