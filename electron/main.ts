@@ -180,7 +180,7 @@ async function detectJavaMajor(executable: string): Promise<number> {
   if (!executable || executable.length > 1024) throw new Error("Select a valid Java executable path.");
   const output = await new Promise<string>((resolve, reject) => {
     execFile(executable, ["-version"], { timeout: 7000, windowsHide: true }, (error, stdout, stderr) => {
-      const combined = String(stderr || "") + "\\n" + String(stdout || "");
+      const combined = String(stderr || "") + "\n" + String(stdout || "");
       if (error) reject(new Error("Could not run the selected Java executable: " + combined.trim().slice(0, 500)));
       else resolve(combined);
     });
