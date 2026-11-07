@@ -1387,36 +1387,60 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
-app.on("before-quit", () => {
-  // Do not leave a Minecraft child process running after the launcher exits.
-  const activeGame = gameProcess;
-  if (activeGame && activeGame.exitCode === null) {
-    try {
-      activeGame.kill("SIGTERM");
-      if (gameStopTimer) clearTimeout(gameStopTimer);
-      gameStopTimer = setTimeout(() => {
-        if (gameProcess === activeGame && activeGame.exitCode === null) {
-          try { activeGame.kill("SIGKILL"); } catch { /* process may have exited */ }
-        }
-        gameStopTimer = null;
-      }, 8000);
-    } catch { /* best-effort shutdown during app exit */ }
-  }
-  for (const [id, proc] of worldServerProcesses) {
-    if (proc.exitCode !== null) continue;
-    try {
-      if (proc.stdin && !proc.stdin.destroyed) proc.stdin.write("stop\n");
-      else proc.kill("SIGTERM");
+let shutdownInProgress = false;
+function waitForChildExit(proc: ChildProcess, timeoutMs: number): Promise<void> {
+  if (proc.exitCode !== null || proc.signalCode !== null) return Promise.resolve();
+  return new Promise(resolve => {
+    const timer = setTimeout(() => {
+      proc.removeListener("close", onClose);
+      resolve();
+    }, timeoutMs);
+    const onClose = () => {
+      clearTimeout(timer);
+      resolve();
+    };
+    proc.once("close", onClose);
+  });
+}
+
+app.on("before-quit", event => {
+  if (shutdownInProgress) return;
+  event.preventDefault();
+  shutdownInProgress = true;
+
+  void (async () => {
+    const children: ChildProcess[] = [];
+    const activeGame = gameProcess;
+    if (activeGame && activeGame.exitCode === null) {
+      children.push(activeGame);
+      try { activeGame.kill("SIGTERM"); } catch { /* process may have exited */ }
+    }
+
+    for (const [id, proc] of worldServerProcesses) {
+      if (proc.exitCode !== null) continue;
+      children.push(proc);
+      try {
+        if (proc.stdin && !proc.stdin.destroyed && proc.stdin.writable) proc.stdin.write("stop\\n");
+        else proc.kill("SIGTERM");
+      } catch {
+        try { proc.kill("SIGTERM"); } catch { /* process may have exited */ }
+      }
       const previousTimer = worldServerStopTimers.get(id);
       if (previousTimer) clearTimeout(previousTimer);
-      const forceTimer = setTimeout(() => {
-        if (proc.exitCode === null) proc.kill("SIGTERM");
-        worldServerStopTimers.delete(id);
-      }, 8000);
-      forceTimer.unref();
-      worldServerStopTimers.set(id, forceTimer);
-    } catch { /* best-effort graceful shutdown during app exit */ }
-  }
+      worldServerStopTimers.delete(id);
+    }
+
+    await Promise.all(children.map(proc => waitForChildExit(proc, 8000)));
+    for (const proc of children) {
+      if (proc.exitCode === null && proc.signalCode === null) {
+        try { proc.kill("SIGKILL"); } catch { /* process may have exited */ }
+      }
+    }
+    await Promise.all(children.map(proc => waitForChildExit(proc, 1500)));
+    if (gameStopTimer) clearTimeout(gameStopTimer);
+    gameStopTimer = null;
+    app.quit();
+  })();
 });
 app.on("window-all-closed", () => {
   if (process.platform !== "darwin") app.quit();
