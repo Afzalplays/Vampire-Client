@@ -1388,6 +1388,20 @@ app.whenReady().then(() => {
   });
 });
 app.on("before-quit", () => {
+  // Do not leave a Minecraft child process running after the launcher exits.
+  const activeGame = gameProcess;
+  if (activeGame && activeGame.exitCode === null) {
+    try {
+      activeGame.kill("SIGTERM");
+      if (gameStopTimer) clearTimeout(gameStopTimer);
+      gameStopTimer = setTimeout(() => {
+        if (gameProcess === activeGame && activeGame.exitCode === null) {
+          try { activeGame.kill("SIGKILL"); } catch { /* process may have exited */ }
+        }
+        gameStopTimer = null;
+      }, 8000);
+    } catch { /* best-effort shutdown during app exit */ }
+  }
   for (const [id, proc] of worldServerProcesses) {
     if (proc.exitCode !== null) continue;
     try {
