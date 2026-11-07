@@ -5,7 +5,7 @@ import { constants as fsConstants } from "node:fs";
 import { createHash, randomUUID } from "node:crypto";
 import { inflateRawSync } from "node:zlib";
 import { pathToFileURL } from "node:url";
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { totalmem, freemem, networkInterfaces } from "node:os";
 import { launch, Version } from "@xmcl/core";
 import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
@@ -174,6 +174,23 @@ async function safeInstanceAsync(version: string, loader: string, instanceId = "
     if (!instances.some(item => item.id === instanceId)) throw new Error("Minecraft instance not found. Select or create a valid instance first.");
   }
   return paths;
+}
+
+async function detectJavaMajor(executable: string): Promise<number> {
+  if (!executable || executable.length > 1024) throw new Error("Select a valid Java executable path.");
+  const output = await new Promise<string>((resolve, reject) => {
+    execFile(executable, ["-version"], { timeout: 7000, windowsHide: true }, (error, stdout, stderr) => {
+      const combined = String(stderr || "") + "\\n" + String(stdout || "");
+      if (error) reject(new Error("Could not run the selected Java executable: " + combined.trim().slice(0, 500)));
+      else resolve(combined);
+    });
+  });
+  const version = output.match(/version\\s+"([^"]+)"/i)?.[1] || "";
+  const legacy = version.match(/^1\\.(\\d+)/);
+  const current = version.match(/^(\\d+)/);
+  const major = Number(legacy?.[1] || current?.[1] || 0);
+  if (!Number.isInteger(major) || major < 1) throw new Error("Could not determine the selected Java version. Check the Java executable in Settings.");
+  return major;
 }
 
 function safeName(value: string) {
@@ -636,14 +653,20 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
     throw new Error("Minecraft " + args.version + " (" + activeLoader + ") is not installed yet. Open Versions and install it before launching.");
   }
   const root = (await safeInstanceAsync(args.version, activeLoader, activeInstanceId)).root;
+  let parsedVersion: any;
   try {
     await fs.access(root);
-    await Version.parse(root, launchVersion);
+    parsedVersion = await Version.parse(root, launchVersion);
   } catch {
     throw new Error("The installed Minecraft files are missing or damaged. Reinstall this version from the Versions page.");
   }
   const scopedSettings = settings.instanceSettings?.[activeInstanceId] || {};
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : (scopedSettings.javaPath || settings.javaPath);
+  const requiredJava = Number(parsedVersion?.javaVersion?.majorVersion || 0);
+  const detectedJava = await detectJavaMajor(javaPath);
+  if (requiredJava > 0 && detectedJava < requiredJava) {
+    throw new Error("Minecraft " + args.version + " requires Java " + requiredJava + " or newer, but the selected runtime is Java " + detectedJava + ". Install or select a compatible Java runtime in Settings.");
+  }
   const memory = Math.max(1, Math.min(16, Number(args.ram) || Number(scopedSettings.ram) || settings.ram));
   const accountState = await readJson<{ type: string }>(accountFile(), { type: "offline" });
   const microsoft = await getMicrosoftSession();
