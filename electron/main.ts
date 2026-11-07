@@ -1420,7 +1420,7 @@ app.on("before-quit", event => {
       if (proc.exitCode !== null) continue;
       children.push(proc);
       try {
-        if (proc.stdin && !proc.stdin.destroyed && proc.stdin.writable) proc.stdin.write("stop\\n");
+        if (proc.stdin && !proc.stdin.destroyed && proc.stdin.writable) proc.stdin.write("stop\n");
         else proc.kill("SIGTERM");
       } catch {
         try { proc.kill("SIGTERM"); } catch { /* process may have exited */ }
