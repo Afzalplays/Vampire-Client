@@ -1388,14 +1388,21 @@ function createWindow() {
     }
   });
   mainWindow.webContents.on("will-attach-webview", (event) => { event.preventDefault(); });
-  mainWindow.webContents.on("will-navigate", (event, url) => {
+  const isTrustedAppNavigation = (url: string) => {
     try {
       const parsed = new URL(url);
       const expectedAppUrl = pathToFileURL(path.resolve(__dirname, "../dist/index.html")).href;
-      const isAppPage = url === expectedAppUrl;
-      const isDevServer = !app.isPackaged && parsed.origin === "http://127.0.0.1:5173" && parsed.pathname === "/";
-      if (!isAppPage && !isDevServer) event.preventDefault();
-    } catch { event.preventDefault(); }
+      return url === expectedAppUrl ||
+        (!app.isPackaged && parsed.origin === "http://127.0.0.1:5173" && parsed.pathname === "/");
+    } catch {
+      return false;
+    }
+  };
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!isTrustedAppNavigation(url)) event.preventDefault();
+  });
+  mainWindow.webContents.on("will-redirect", (event, url) => {
+    if (!isTrustedAppNavigation(url)) event.preventDefault();
   });
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     try {
