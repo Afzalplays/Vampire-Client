@@ -415,7 +415,7 @@ ipcMain.handle("servers:stop", async (_event, idValue: string) => {
   let gracefulRequested = false;
   if (proc.stdin && !proc.stdin.destroyed && proc.stdin.writable) {
     try {
-      proc.stdin.write("stop\\n");
+      proc.stdin.write("stop\n");
       gracefulRequested = true;
     } catch {
       gracefulRequested = false;
