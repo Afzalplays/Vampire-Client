@@ -95,18 +95,19 @@ function targetFor(os:string,arch:string){
 }
 
 export function parseJavaMajorVersion(output: string): number {
-  const version = output.match(/version\\s+["']([^"']+)["']/i)?.[1]
-    || output.match(/\\bopenjdk\\s+(\\d+(?:\\.\\d+){0,2})/i)?.[1]
+  const version = output.match(/version\s+["']([^"']+)["']/i)?.[1]
+    || output.match(/\bopenjdk\s+(\d+(?:\.\d+){0,2})/i)?.[1]
     || "";
-  const legacy = version.match(/^1\\.(\\d+)/);
-  const current = version.match(/^(\\d+)/);
+  const legacy = version.match(/^1\.(\d+)/);
+  const current = version.match(/^(\d+)/);
   const major = Number(legacy?.[1] || current?.[1] || 0);
   if (!Number.isInteger(major) || major < 1) {
     throw new Error("Could not determine the selected Java version. Check the Java executable in Settings.");
   }
   return major;
 }
-\nexport async function installJava21Runtime(root:string,os:string,arch:string,onProgress?:(message:string)=>void){
+
+export async function installJava21Runtime(root:string,os:string,arch:string,onProgress?:(message:string)=>void){
   const target=targetFor(os,arch);
   const api=new URL("https://api.adoptium.net/v3/assets/latest/21/hotspot");
   api.search=new URLSearchParams({architecture:target.architecture,heap_size:"normal",image_type:"jre",jvm_impl:"hotspot",os:target.platform,vendor:"eclipse",page_size:"1"}).toString();
