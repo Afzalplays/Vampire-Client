@@ -4,12 +4,14 @@ import fun.vampire.client.VampireIdentity;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.hud.ChatHud;
 import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
 import net.minecraft.text.Style;
+import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+
+import java.util.Optional;
 
 @Mixin(ChatHud.class)
 abstract class ChatHudMixin {
@@ -39,15 +41,15 @@ abstract class ChatHudMixin {
         String plain = message.getString();
         String bracketPrefix = "<" + username + "> ";
         String colonPrefix = username + ": ";
+        String prefix;
         String delimiter;
-        String body;
 
         if (plain.startsWith(bracketPrefix)) {
+            prefix = bracketPrefix;
             delimiter = "<";
-            body = plain.substring(bracketPrefix.length());
         } else if (plain.startsWith(colonPrefix)) {
+            prefix = colonPrefix;
             delimiter = "";
-            body = plain.substring(colonPrefix.length());
         } else {
             return message;
         }
@@ -59,12 +61,30 @@ abstract class ChatHudMixin {
 
         MutableText styled = Text.empty();
         if (VampireIdentity.showClientBadge) {
-            styled.append(Text.literal("\uE000 ").setStyle(Style.EMPTY.withFont(Identifier.of("vampireclient", "badge"))));
+            styled.append(Text.literal("\uE000 ").setStyle(
+                Style.EMPTY.withFont(Identifier.of("vampireclient", "badge"))
+            ));
         }
         if (!delimiter.isEmpty()) styled.append(Text.literal(delimiter));
         styled.append(VampireIdentity.styledName(username));
         styled.append(Text.literal(delimiter.isEmpty() ? ": " : "> "));
-        styled.append(Text.literal(body));
+
+        // Visit the original Text tree and remove only the visible username prefix.
+        // Re-appending each remaining segment with its effective Style retains
+        // formatting, click/hover events, insertion text and custom fonts.
+        int[] remainingPrefix = {prefix.length()};
+        MutableText body = Text.empty();
+        message.visit((style, segment) -> {
+            int skip = Math.min(remainingPrefix[0], segment.length());
+            remainingPrefix[0] -= skip;
+            if (skip < segment.length()) {
+                body.append(Text.literal(segment.substring(skip)).setStyle(style));
+            }
+            return Optional.empty();
+        }, Style.EMPTY);
+
+        if (remainingPrefix[0] != 0) return message;
+        styled.append(body);
         return styled;
     }
 }
