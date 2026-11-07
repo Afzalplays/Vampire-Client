@@ -143,8 +143,12 @@ async function getMicrosoftSession(): Promise<MicrosoftSession | null> {
   return refreshMicrosoftSession();
 }
 async function saveMicrosoftSession(session: MicrosoftSession) {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("OS secure storage is unavailable. Microsoft account tokens cannot be saved safely.");
+  }
+  // Persist successfully before exposing the new session to the running app.
+  await writeEncryptedFile(microsoftSessionFile(), JSON.stringify(session));
   memoryMicrosoftSession = session;
-  if (safeStorage.isEncryptionAvailable()) await writeEncryptedFile(microsoftSessionFile(), JSON.stringify(session));
 }
 
 async function verifyModrinthDownload(response: Response, file: any) {
