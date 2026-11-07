@@ -73,3 +73,16 @@ test("redacts MAC, complete IPv6 addresses and OAuth query credentials", () => {
   assert.ok(output.includes("[IPV6]"));
   assert.ok(output.includes("device_code=[REDACTED]"));
 });
+
+import { parseJavaMajorVersion } from "../electron/java-runtime.ts";
+
+test("parses common Java runtime version output", () => {
+  assert.equal(parseJavaMajorVersion('openjdk version "21.0.2" 2024-01-16'), 21);
+  assert.equal(parseJavaMajorVersion('java version "1.8.0_402"'), 8);
+  assert.equal(parseJavaMajorVersion('openjdk version "17.0.10" 2024-01-16'), 17);
+  assert.equal(parseJavaMajorVersion('openjdk 21.0.2 2024-01-16'), 21);
+});
+
+test("rejects Java version output that cannot be identified", () => {
+  assert.throws(() => parseJavaMajorVersion("not a Java runtime"), /Could not determine/);
+});
