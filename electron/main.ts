@@ -180,14 +180,14 @@ async function detectJavaMajor(executable: string): Promise<number> {
   if (!executable || executable.length > 1024) throw new Error("Select a valid Java executable path.");
   const output = await new Promise<string>((resolve, reject) => {
     execFile(executable, ["-version"], { timeout: 7000, windowsHide: true }, (error, stdout, stderr) => {
-      const combined = String(stderr || "") + "\\n" + String(stdout || "");
+      const combined = String(stderr || "") + "\n" + String(stdout || "");
       if (error) reject(new Error("Could not run the selected Java executable: " + combined.trim().slice(0, 500)));
       else resolve(combined);
     });
   });
-  const version = output.match(/version\\s+"([^"]+)"/i)?.[1] || "";
-  const legacy = version.match(/^1\\.(\\d+)/);
-  const current = version.match(/^(\\d+)/);
+  const version = output.match(/version\s+"([^"]+)"/i)?.[1] || "";
+  const legacy = version.match(/^1\.(\d+)/);
+  const current = version.match(/^(\d+)/);
   const major = Number(legacy?.[1] || current?.[1] || 0);
   if (!Number.isInteger(major) || major < 1) throw new Error("Could not determine the selected Java version. Check the Java executable in Settings.");
   return major;
