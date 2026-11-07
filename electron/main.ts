@@ -16,6 +16,7 @@ import { installJava21Runtime, parseJavaMajorVersion } from "./java-runtime";
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
+let gameStopTimer: ReturnType<typeof setTimeout> | null = null;
 const worldServerProcesses = new Map<string, ChildProcess>();
 const worldServerLastExit = new Map<string, { code: number | null; error: string | null; at: string }>();
 const worldServerStopTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -681,6 +682,8 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   sendStatus("Minecraft launched (PID " + proc.pid + ").");
   proc.once("error", error => sendStatus("Minecraft process error: " + error.message));
   proc.once("close", code => {
+    if (gameStopTimer) clearTimeout(gameStopTimer);
+    gameStopTimer = null;
     sendStatus("Minecraft closed with exit code " + String(code));
     gameProcess = null;
   });
@@ -688,13 +691,27 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
 });
 
 ipcMain.handle("game:stop", async () => {
-  if (!gameProcess || gameProcess.exitCode !== null || gameProcess.killed) {
+  const proc = gameProcess;
+  if (!proc || proc.exitCode !== null) {
     gameProcess = null;
+    if (gameStopTimer) clearTimeout(gameStopTimer);
+    gameStopTimer = null;
     return { success: true, stopped: false };
   }
-  const pid = gameProcess.pid;
-  const stopped = gameProcess.kill("SIGTERM");
-  if (stopped) sendStatus("Stop signal sent to Minecraft (PID " + String(pid) + ").");
+  const pid = proc.pid;
+  const stopped = proc.kill("SIGTERM");
+  if (stopped) {
+    sendStatus("Graceful stop requested for Minecraft (PID " + String(pid) + ").");
+    if (gameStopTimer) clearTimeout(gameStopTimer);
+    gameStopTimer = setTimeout(() => {
+      if (gameProcess === proc && proc.exitCode === null) {
+        sendStatus("Minecraft did not stop gracefully; forcing process termination.");
+        try { proc.kill("SIGKILL"); } catch { /* process may have exited */ }
+      }
+      gameStopTimer = null;
+    }, 8000);
+    gameStopTimer.unref();
+  }
   return { success: stopped, stopped, pid };
 });
 
