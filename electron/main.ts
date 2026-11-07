@@ -397,18 +397,48 @@ ipcMain.handle("servers:stop", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const proc = worldServerProcesses.get(id);
   if (!proc || proc.exitCode !== null) { worldServerProcesses.delete(id); return { success: true, stopped: false }; }
-  if (proc.stdin && !proc.stdin.destroyed) {
-    proc.stdin.write("stop\n");
-    const previousTimer = worldServerStopTimers.get(id);
-    if (previousTimer) clearTimeout(previousTimer);
-    const forceTimer = setTimeout(() => {
-      if (proc.exitCode === null) proc.kill("SIGTERM");
+
+  const previousTimer = worldServerStopTimers.get(id);
+  if (previousTimer) clearTimeout(previousTimer);
+
+  const scheduleForceKill = () => {
+    const timer = setTimeout(() => {
+      if (proc.exitCode === null && proc.signalCode === null) {
+        try { proc.kill("SIGKILL"); } catch { /* process may have exited */ }
+      }
       worldServerStopTimers.delete(id);
+    }, 5000);
+    timer.unref();
+    worldServerStopTimers.set(id, timer);
+  };
+
+  let gracefulRequested = false;
+  if (proc.stdin && !proc.stdin.destroyed && proc.stdin.writable) {
+    try {
+      proc.stdin.write("stop\\n");
+      gracefulRequested = true;
+    } catch {
+      gracefulRequested = false;
+    }
+  }
+
+  if (gracefulRequested) {
+    const timer = setTimeout(() => {
+      if (proc.exitCode === null && proc.signalCode === null) {
+        try { proc.kill("SIGTERM"); } catch { /* process may have exited */ }
+        scheduleForceKill();
+      } else {
+        worldServerStopTimers.delete(id);
+      }
     }, 15000);
-    forceTimer.unref();
-    worldServerStopTimers.set(id, forceTimer);
-  } else proc.kill("SIGTERM");
-  return { success: true, stopped: true };
+    timer.unref();
+    worldServerStopTimers.set(id, timer);
+  } else {
+    try { proc.kill("SIGTERM"); } catch { /* process may have exited */ }
+    scheduleForceKill();
+  }
+
+  return { success: true, stopped: true, graceful: gracefulRequested };
 });
 ipcMain.handle("servers:delete", async (_event, idValue: string) => {
   const id = String(idValue || "");
