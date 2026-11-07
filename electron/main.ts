@@ -567,17 +567,8 @@ ipcMain.handle("java:install", async () => {
 
 ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
   const executable = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
-  if (executable.length > 1024) throw new Error("Java path is too long.");
-  const result = await new Promise<{ stdout: string; stderr: string }>((resolve, reject) => {
-    const { execFile } = require("node:child_process") as typeof import("node:child_process");
-    execFile(executable, ["-version"], { timeout: 7000, windowsHide: true }, (error, stdout, stderr) => {
-      if (error) reject(new Error((stderr || stdout || error.message).trim().slice(0, 1200)));
-      else resolve({ stdout: stdout || "", stderr: stderr || "" });
-    });
-  });
-  const output = (result.stderr + "\n" + result.stdout).trim();
-  const match = output.match(/version "([^"]+)"/i);
-  return { success: true, executable, version: match?.[1] || "Detected (version string unavailable)", output: output.slice(0, 1200), platform: process.platform, architecture: process.arch };
+  const major = await detectJavaMajor(executable);
+  return { success: true, executable, version: String(major), majorVersion: major, platform: process.platform, architecture: process.arch };
 });
 
 ipcMain.handle("system:memory", async () => ({ totalBytes: totalmem(), freeBytes: freemem(), totalGB: Math.round((totalmem() / 1024 ** 3) * 10) / 10, freeGB: Math.round((freemem() / 1024 ** 3) * 10) / 10 }));
