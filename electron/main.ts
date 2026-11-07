@@ -510,6 +510,7 @@ ipcMain.handle("auth:logout", async () => {
   return { success: true };
 });
 ipcMain.handle("auth:login", async (_event, clientId: string) => {
+  if (!safeStorage.isEncryptionAvailable()) throw new Error("OS secure storage is unavailable. Microsoft sign-in is disabled because account tokens cannot be saved securely on this device.");
   if (!/^[0-9a-fA-F-]{36}$/.test(String(clientId || ""))) throw new Error("Enter a valid Microsoft app Client ID first.");
   sendStatus("Starting Microsoft device-code sign-in…");
   const msal = createMicrosoftClient(clientId);
