@@ -961,7 +961,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const forgeArtifactVersion = versionId + "-" + forgeVersion;
     const installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/" + forgeArtifactVersion + "/forge-" + forgeArtifactVersion + "-installer.jar";
     const checksum = await fetchOfficialHttpsArtifact(installerUrl + ".sha1", ["maven.minecraftforge.net"], 4096, "Forge installer checksum");
-    const installerSha1 = checksum.toString("utf8").trim().split(/\\s+/)[0];
+    const installerSha1 = checksum.toString("utf8").trim().split(/\s+/)[0];
     if (!/^[a-f0-9]{40}$/i.test(installerSha1)) throw new Error("Forge installer checksum metadata is invalid.");
     const savedSettings = await readJson<{ javaPath?: string; instanceSettings?: Record<string, { javaPath?: string }> }>(settingsFile(), { javaPath: "java" });
     const installerJava = savedSettings.instanceSettings?.[args.instanceId || "default"]?.javaPath || savedSettings.javaPath || "java";
