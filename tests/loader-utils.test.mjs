@@ -36,3 +36,17 @@ test("selects NeoForge builds using the Minecraft major/minor mapping", () => {
 test("rejects unsupported legacy NeoForge versions", () => {
   assert.throws(() => selectNeoForgeVersion("<metadata><versioning><versions><version>20.1.1</version></versions></versioning></metadata>", "1.20.1"), /1.20.2 or newer/);
 });
+
+test("compares Forge and NeoForge version components numerically, not lexicographically", () => {
+  const forge = "<metadata><versioning><versions>" +
+    "<version>1.20.1-47.9.0</version>" +
+    "<version>1.20.1-47.10.0</version>" +
+    "<version>1.20.1-47.10.2</version>" +
+    "</versions></versioning></metadata>";
+  assert.equal(selectForgeVersion(forge, "1.20.1"), "47.10.2");
+
+  const neo = "<metadata><versioning><versions>" +
+    "<version>21.1.99</version><version>21.1.100</version><version>21.1.9</version>" +
+    "</versions></versioning></metadata>";
+  assert.equal(selectNeoForgeVersion(neo, "1.21.1"), "21.1.100");
+});

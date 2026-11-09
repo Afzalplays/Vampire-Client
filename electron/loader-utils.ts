@@ -7,6 +7,20 @@ export function selectQuiltLoaderVersion(payload: unknown): string {
   throw new Error("No usable Quilt loader version is available for this Minecraft release.");
 }
 
+function compareNumericVersion(left: string, right: string): number {
+  const a = left.split(/[.+_-]/).map(part => /^\\d+$/.test(part) ? Number(part) : part.toLowerCase());
+  const b = right.split(/[.+_-]/).map(part => /^\\d+$/.test(part) ? Number(part) : part.toLowerCase());
+  for (let i = 0; i < Math.max(a.length, b.length); i++) {
+    const x = a[i] ?? 0, y = b[i] ?? 0;
+    if (x === y) continue;
+    if (typeof x === "number" && typeof y === "number") return x - y;
+    if (typeof x === "number") return 1;
+    if (typeof y === "number") return -1;
+    return String(x).localeCompare(String(y), undefined, { numeric: true });
+  }
+  return 0;
+}
+
 function readMavenVersions(xml: unknown): string[] {
   if (typeof xml !== "string" || xml.length > 5_000_000) throw new Error("Maven metadata is missing or too large.");
   const block = /<versions>([\s\S]*?)<\/versions>/i.exec(xml)?.[1];
@@ -20,7 +34,8 @@ export function selectForgeVersion(xml: unknown, minecraftVersion: string): stri
   const prefix = minecraftVersion + "-";
   const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix))
     .map(version => version.slice(prefix.length))
-    .filter(version => version.length > 0 && !/(?:alpha|beta|rc)/i.test(version));
+    .filter(version => version.length > 0 && !/(?:alpha|beta|rc)/i.test(version))
+    .sort(compareNumericVersion);
   if (!candidates.length) throw new Error("No stable Forge build is available for Minecraft " + minecraftVersion + ".");
   return candidates[candidates.length - 1];
 }
@@ -33,7 +48,8 @@ export function selectNeoForgeVersion(xml: unknown, minecraftVersion: string): s
     throw new Error("NeoForge automatic installation requires Minecraft 1.20.2 or newer.");
   }
   const prefix = minecraftMinor + "." + minecraftPatch + ".";
-  const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix) && !/(?:alpha|beta|rc)/i.test(version));
+  const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix) && !/(?:alpha|beta|rc)/i.test(version))
+    .sort(compareNumericVersion);
   if (!candidates.length) throw new Error("No stable NeoForge build is available for Minecraft " + minecraftVersion + ".");
   return candidates[candidates.length - 1];
 }
