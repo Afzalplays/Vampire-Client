@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — CI packaging retry hardening
+
+- Increased electron-builder transient-download retries from five to eight attempts.
+- Added a progressive 30–210 second backoff so temporary upstream gateway failures have more time to recover while retaining downloaded tools in the job cache.
+
 ## Unreleased — Manual release update checker
 
 - Added an official GitHub Releases check in Settings, semantic version comparison, and allowlisted release/download URLs. The launcher opens the selected official release page; it does not silently install or execute updates.
@@ -20,31 +25,24 @@ All notable Vampire Client changes are recorded here.
 
 - Added malformed PAX record, link metadata, global path override and dangling-header rejection tests for Java runtime TAR.GZ extraction.
 
-## Unreleased — CI packaging reliability
-
-- Cache electron-builder downloads between CI runs and extend packaging retries to five attempts with a 45-second delay to tolerate transient upstream HTTP 5xx/504 failures.
-
 ## Unreleased — Resource pack management
 
-- Fixed resource-pack inspection filename validation so ordinary `.zip` files can be inspected; shared the strict filename check between inspect and remove handlers.
+- Fixed resource-pack inspection filename validation so ordinary .zip files can be inspected; shared the strict filename check between inspect and remove handlers.
 - Added filename traversal regression tests and documented resource-pack ZIP validation limits.
 
 ## Unreleased — Java runtime reliability
 
 - Hardened the Temurin Java 21 download path with manual HTTPS redirect validation, a five-redirect ceiling, streamed package-size enforcement and strict Adoptium metadata validation.
-- Verify the extracted runtime by launching `java -version` and requiring Java 21 before activation.
+- Verify the extracted runtime by launching java -version and requiring Java 21 before activation.
 - Stage runtime updates separately and preserve/restore the previous runtime if activation fails.
-- Added regression tests for runtime replacement, rollback and Java version parsing. See [Java runtime installation](docs/JAVA_RUNTIME_INSTALLATION.md).
+- Added regression tests for runtime replacement, rollback and Java version parsing. See Java runtime installation docs.
 - Added safe POSIX PAX extended-path support for TAR.GZ runtimes and tests for long paths, directory entries and traversal rejection.
 - Corrected PAX record-length parsing and TAR directory path normalization after CI exposed escaped-regex syntax errors.
 
 ## Unreleased — Vampire Client Studio foundation
 
 - Added automatic Eclipse Temurin Java 21 JRE installation for supported Windows, Linux and macOS architectures. Downloads are SHA-256 verified and archives are safely extracted with traversal/link/size checks; installed Java is selected and saved for the active instance.
-
 - Added local Skin & Cape Studio with validated PNG uploads/previews, three Vampire cape themes, centered emblem/glitter/sparkle controls, local persistence and 64×32 cape texture export. Cloud upload, multiplayer rendering and purchases remain pending.
-- Latest CI run for commit `0cca75c3` passed all five build jobs ([Actions run](https://github.com/Afzalplays/Vampire-Client/actions/runs/42179876795)).
-
 - Added a Studio hub UI with HD cape design previews and selectable cape themes.
 - Added local gradient name/chat identity and nametag mark preference controls.
 - Added HUD, shader, Replay Mod, schematic and local world-hosting feature panels with explicit preview-state messaging.
