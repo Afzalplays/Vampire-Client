@@ -167,6 +167,9 @@ export default function App() {
     if (!window.vampire) return;
     return window.vampire.onWorldServerOutput(event => {
       if (event.id === activeWorldServerId) setWorldServerLogs(previous => (previous + event.text + "\\n").slice(-80000));
+      if (event.text.includes("[launcher] Starting ")) {
+        void window.vampire?.listWorldServers().then(setWorldServers);
+      }
       if (event.text.includes("Server stopped with exit code")) {
         void window.vampire?.listWorldServers().then(setWorldServers);
         if (event.id === activeWorldServerId) {

@@ -456,7 +456,7 @@ async function listWorldServers() {
 ipcMain.handle("servers:list", async () => listWorldServers());
 ipcMain.handle("servers:setAutoRestart", async (_event, args: { id: string; enabled: boolean }) => {
   const id = String(args?.id || ""); worldServerRoot(id);
-  if (typeof args.enabled !== "boolean") throw new Error("Auto-restart setting must be enabled or disabled.");
+  if (!args || typeof args.enabled !== "boolean") throw new Error("Auto-restart setting must be enabled or disabled.");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   const index = records.findIndex(record => record.id === id);
   if (index < 0) throw new Error("World server not found.");
