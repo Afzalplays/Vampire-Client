@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Modrinth API reliability
+
+- Moved mod search into the Electron main process and added an explicit Vampire Client User-Agent to Modrinth API and CDN requests.
+- Kept renderer search results typed and normalized nullable project icons before display.
+
 ## Unreleased — Studio mod setup shortcuts
 
 - Added one-click Modrinth installation for Replay Mod on Fabric/Forge profiles and Litematica on Fabric profiles from the Studio replay and schematic libraries.

@@ -1644,7 +1644,7 @@ ipcMain.handle("mods:update", async (_event, args: { version: string; loader: st
   const file = selected.files.find((item: any) => item.primary) || selected.files[0];
   const url = new URL(String(file?.url || ""));
   if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
-  const response = await fetch(url);
+  const response = await fetch(url, { headers: MODRINTH_HEADERS });
   if (!response.ok) throw new Error("Mod update download failed (" + response.status + ").");
   const bytes = await verifyModrinthDownload(response, file);
   const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
