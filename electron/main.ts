@@ -13,7 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
-import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, validateWorldServerArtifactUrl } from "./world-server-utils";
+import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, validateWorldServerArtifactUrl, analyzeWorldServerLog } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -661,7 +661,7 @@ ipcMain.handle("servers:info", async (_event, idValue: string) => {
   } catch {}
   const proc = worldServerProcesses.get(id);
   const lastExit = worldServerLastExit.get(id) || null;
-  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port, lastExitCode: lastExit?.code ?? null, lastError: lastExit?.error ?? null, lastExitAt: lastExit?.at ?? null };
+  return { logs, diagnostics: analyzeWorldServerLog(logs), running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port, lastExitCode: lastExit?.code ?? null, lastError: lastExit?.error ?? null, lastExitAt: lastExit?.at ?? null };
 });
 ipcMain.handle("servers:command", async (_event, args: { id: string; command: string }) => {
   const id = String(args?.id || "");

@@ -35,3 +35,20 @@ export function validateWorldServerArtifactUrl(value: string, allowedHosts: stri
   }
   return url;
 }
+
+export type WorldServerDiagnostic = { title: string; detail: string; severity: "error" | "warning" | "info" };
+export function analyzeWorldServerLog(log: string): WorldServerDiagnostic[] {
+  if (!String(log || "").trim()) return [];
+  const checks: Array<{ pattern: RegExp; finding: WorldServerDiagnostic }> = [
+    { pattern: /Address already in use|Failed to bind to port|Perhaps a server is already running/i, finding: { title: "Server port is already in use", detail: "Stop the other Minecraft server or application using this TCP port, then change this server's port in Vampire Client.", severity: "error" } },
+    { pattern: /OutOfMemoryError|Could not reserve enough space for object heap|Java heap space/i, finding: { title: "Server ran out of memory", detail: "Lower the server heap allocation and close other applications. Keep memory available for the operating system and Minecraft server overhead.", severity: "error" } },
+    { pattern: /UnsupportedClassVersionError|class file version .* newer/i, finding: { title: "Server requires a newer Java version", detail: "Install or select a Java runtime compatible with this Minecraft server version, then try starting it again.", severity: "error" } },
+    { pattern: /You need to agree to the EULA|eula\.txt/i, finding: { title: "Minecraft EULA has not been accepted", detail: "Read the official Minecraft EULA and tick the EULA acceptance checkbox in Vampire Client before starting the server.", severity: "warning" } },
+    { pattern: /Exception in server tick loop|Encountered an unexpected exception|Failed to start the minecraft server/i, finding: { title: "Minecraft server startup/runtime exception", detail: "Inspect the first exception and its deepest 'Caused by' section in the server console. Remove recently added server files or change the server version if needed.", severity: "warning" } }
+  ];
+  const findings = checks.filter(check => check.pattern.test(log)).map(check => check.finding);
+  if (/\b(exception|fatal|error)\b/i.test(log) && findings.length === 0) {
+    findings.push({ title: "Unclassified server error", detail: "The server log contains an error marker without a known signature. Review the surrounding console output and the full server.log file.", severity: "info" });
+  }
+  return findings;
+}

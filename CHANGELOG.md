@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — World server diagnostics
+
+- Added local log analysis for common server failures, including occupied ports, insufficient heap, incompatible Java versions and EULA rejection.
+- The world-hosting console now displays actionable findings based on the server's saved output.
+
 ## Unreleased — Replay and schematic file management
 
 - Added isolated per-instance Replay Mod recording (`.mcpr`) and schematic (`.litematic`, `.schem`, `.schematic`, `.nbt`) libraries with import, list, remove and folder-open actions.

@@ -44,3 +44,12 @@ test("accepts only HTTPS Mojang artifact hosts without embedded credentials", ()
     "file:///etc/passwd"
   ]) assert.throws(() => validateWorldServerArtifactUrl(url, ["piston-meta.mojang.com"]));
 });
+
+import { analyzeWorldServerLog } from "../electron/world-server-utils.ts";
+test("classifies common vanilla server startup failures with actionable guidance", () => {
+  assert.equal(analyzeWorldServerLog("java.net.BindException: Address already in use")[0]?.title, "Server port is already in use");
+  assert.equal(analyzeWorldServerLog("java.lang.OutOfMemoryError: Java heap space")[0]?.severity, "error");
+  assert.match(analyzeWorldServerLog("You need to agree to the EULA")[0]?.detail || "", /EULA acceptance checkbox/);
+  assert.equal(analyzeWorldServerLog("Unusual error happened")[0]?.title, "Unclassified server error");
+  assert.deepEqual(analyzeWorldServerLog("Server started successfully"), []);
+});

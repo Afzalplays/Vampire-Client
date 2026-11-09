@@ -15,7 +15,7 @@ interface Window {
     setWorldServerPort(args: { id: string; port: number }): Promise<{ success: boolean; port: number }>;
     startWorldServer(args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }): Promise<{ success: boolean; pid?: number }>;
     stopWorldServer(id: string): Promise<{ success: boolean; stopped: boolean }>;
-    getWorldServerInfo(id: string): Promise<{ logs: string; running: boolean; lanAddresses: string[]; port: number; lastExitCode: number | null; lastError: string | null; lastExitAt: string | null }>;
+    getWorldServerInfo(id: string): Promise<{ logs: string; diagnostics: Array<{title:string;detail:string;severity:"error"|"warning"|"info"}>; running: boolean; lanAddresses: string[]; port: number; lastExitCode: number | null; lastError: string | null; lastExitAt: string | null }>;
     listWorldServerBackups(id: string): Promise<Array<{ id: string; serverId: string; serverName: string; version: string; createdAt: string; bytes: number }>>;
     createWorldServerBackup(id: string): Promise<{ id: string; serverId: string; serverName: string; version: string; createdAt: string; bytes: number }>;
     restoreWorldServerBackup(args: { id: string; backupId: string }): Promise<{ success: boolean; restoredBackupId: string }>;
