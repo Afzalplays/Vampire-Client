@@ -13,6 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
+import { validateWorldServerPort, parseWorldServerPort } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -379,6 +380,8 @@ const worldServerBackupRoot = (id: string) => {
   return path.join(dataRoot(), "world-server-backups", id);
 };
 async function measureWorldServerDirectory(root: string): Promise<number> {
+  const rootStat = await fs.lstat(root);
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) throw new Error("World server backup source must be a real directory, not a symbolic link.");
   let total = 0;
   const pending = [root];
   while (pending.length) {
@@ -423,8 +426,7 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   if (records.length >= 10) throw new Error("You can create up to 10 local world servers.");
   if (records.some(record => record.name.toLowerCase() === name.toLowerCase())) throw new Error("A world server with this name already exists.");
   const ramGB = Math.max(1, Math.min(16, Math.round(Number(args.ramGB || 2))));
-  const port = Number(args.port ?? 25565);
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Server port must be a whole number from 1024 to 65535.");
+  const port = validateWorldServerPort(args.port ?? 25565);
   if (records.some(record => Number(record.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
   sendStatus("Fetching official Minecraft " + version + " server metadata…");
   const manifestResponse = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
@@ -540,13 +542,18 @@ ipcMain.handle("servers:backup", async (_event, idValue: string) => {
   const backupId = randomUUID();
   const destination = path.join(worldServerBackupRoot(id), backupId);
   await fs.mkdir(path.dirname(destination), { recursive: true });
-  await fs.cp(source, destination, { recursive: true, errorOnExist: true });
-  const backup: WorldServerBackupRecord = {
-    id: backupId, serverId: id, serverName: record.name, version: record.version,
-    createdAt: new Date().toISOString(), bytes
-  };
-  await writeJson(path.join(destination, ".vampire-backup.json"), backup);
-  return backup;
+  try {
+    await fs.cp(source, destination, { recursive: true, errorOnExist: true });
+    const backup: WorldServerBackupRecord = {
+      id: backupId, serverId: id, serverName: record.name, version: record.version,
+      createdAt: new Date().toISOString(), bytes
+    };
+    await writeJson(path.join(destination, ".vampire-backup.json"), backup);
+    return backup;
+  } catch (error) {
+    await fs.rm(destination, { recursive: true, force: true });
+    throw error;
+  }
 });
 ipcMain.handle("servers:restoreBackup", async (_event, args: { id: string; backupId: string }) => {
   const id = String(args?.id || "");
@@ -560,14 +567,15 @@ ipcMain.handle("servers:restoreBackup", async (_event, args: { id: string; backu
   const manifest = await readJson<WorldServerBackupRecord | null>(path.join(backupDirectory, ".vampire-backup.json"), null);
   if (!manifest || manifest.id !== backupId || manifest.serverId !== id) throw new Error("The selected backup is missing or does not belong to this server.");
   const root = worldServerRoot(id);
+  await measureWorldServerDirectory(backupDirectory);
   const temporary = root + ".restore-" + randomUUID();
   const previous = root + ".previous-" + randomUUID();
-  await fs.cp(backupDirectory, temporary, {
-    recursive: true,
-    filter: source => path.basename(source) !== ".vampire-backup.json"
-  });
   let movedPrevious = false;
   try {
+    await fs.cp(backupDirectory, temporary, {
+      recursive: true,
+      filter: source => path.basename(source) !== ".vampire-backup.json"
+    });
     try { await fs.access(root); await fs.rename(root, previous); movedPrevious = true; } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
@@ -596,8 +604,7 @@ ipcMain.handle("servers:deleteBackup", async (_event, args: { id: string; backup
 });
 ipcMain.handle("servers:setPort", async (_event, args: { id: string; port: number }) => {
   const id = String(args?.id || "");
-  const port = Number(args?.port);
-  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Server port must be a whole number from 1024 to 65535.");
+  const port = validateWorldServerPort(args?.port);
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   const record = records.find(item => item.id === id);
   if (!record) throw new Error("World server not found.");
@@ -627,7 +634,7 @@ ipcMain.handle("servers:info", async (_event, idValue: string) => {
   try {
     const properties = await fs.readFile(path.join(root, "server.properties"), "utf8");
     const match = /^server-port=(\\d+)$/m.exec(properties);
-    if (match) port = Number(match[1]);
+    if (match) port = parseWorldServerPort(properties, port);
   } catch {}
   const proc = worldServerProcesses.get(id);
   const lastExit = worldServerLastExit.get(id) || null;
@@ -902,8 +909,8 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     if (!checksumResponse.ok) throw new Error("Forge installer checksum request failed (" + checksumResponse.status + ").");
     const installerSha1 = (await checksumResponse.text()).trim().split(/\\s+/)[0];
     if (!/^[a-f0-9]{40}$/i.test(installerSha1)) throw new Error("Forge installer checksum metadata is invalid.");
-    const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
-    const installerJava = savedSettings.javaPath || "java";
+    const savedSettings = await readJson<{ javaPath?: string; instanceSettings?: Record<string, { javaPath?: string }> }>(settingsFile(), { javaPath: "java" });
+    const installerJava = savedSettings.instanceSettings?.[args.instanceId || "default"]?.javaPath || savedSettings.javaPath || "java";
     const requiredInstallerJava = requiredJavaMajorForMinecraft(versionId);
     const detectedInstallerJava = await detectJavaMajor(installerJava);
     if (detectedInstallerJava !== requiredInstallerJava) {
@@ -922,8 +929,8 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const response = await fetch("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
     if (!response.ok) throw new Error("NeoForge version metadata request failed (" + response.status + ").");
     const neoForgeVersion = selectNeoForgeVersion(await response.text(), versionId);
-    const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
-    const installerJava = savedSettings.javaPath || "java";
+    const savedSettings = await readJson<{ javaPath?: string; instanceSettings?: Record<string, { javaPath?: string }> }>(settingsFile(), { javaPath: "java" });
+    const installerJava = savedSettings.instanceSettings?.[args.instanceId || "default"]?.javaPath || savedSettings.javaPath || "java";
     const requiredInstallerJava = requiredJavaMajorForMinecraft(versionId);
     const detectedInstallerJava = await detectJavaMajor(installerJava);
     if (detectedInstallerJava !== requiredInstallerJava) {
