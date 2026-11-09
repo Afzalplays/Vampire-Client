@@ -264,7 +264,7 @@ export default function App() {
     } catch (e) { notify(e instanceof Error ? e.message : "Could not stop world server."); }
   }
   async function deleteWorldServer(id: string) {
-    if (!window.vampire || !window.confirm("Delete this world server and its entire local world folder? This cannot be undone.")) return;
+    if (!window.vampire || !window.confirm("Delete this world server, its complete local world folder and all its backups? This cannot be undone.")) return;
     try {
       await window.vampire.deleteWorldServer(id);
       setWorldServers(await window.vampire.listWorldServers());
