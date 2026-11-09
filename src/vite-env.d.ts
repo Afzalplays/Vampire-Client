@@ -33,7 +33,7 @@ interface Window {
     getSettings(instanceId?: string): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     saveSettings(settings: { ram?: number; javaPath?: string; version?: string; loader?: string; clientId?: string; instanceId?: string }): Promise<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string }>;
     listVersions(): Promise<Array<{ id: string; type: string; releaseTime: string }>>;
-    getSystemMemory(): Promise<{ totalBytes: number; freeBytes: number; totalGB: number; freeGB: number }>;
+    getSystemMemory(): Promise<{ totalBytes: number; freeBytes: number; totalGB: number; freeGB: number; maxWorldServerRamGB: number }>;
     detectJava(javaPath?: string): Promise<{ success: boolean; executable: string; version: string; output: string; platform: string; architecture: string }>;
     installJava(major: number): Promise<{ success: boolean; executable: string; version: string; platform: string; architecture: string }>;
     readLogs(): Promise<string>;

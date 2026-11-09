@@ -13,7 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
-import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, validateWorldServerArtifactUrl, analyzeWorldServerLog } from "./world-server-utils";
+import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, maxSafeWorldServerRamGB, validateWorldServerArtifactUrl, analyzeWorldServerLog } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -887,7 +887,7 @@ ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {
   return { success: true, executable, version: String(major), majorVersion: major, platform: process.platform, architecture: process.arch };
 });
 
-ipcMain.handle("system:memory", async () => ({ totalBytes: totalmem(), freeBytes: freemem(), totalGB: Math.round((totalmem() / 1024 ** 3) * 10) / 10, freeGB: Math.round((freemem() / 1024 ** 3) * 10) / 10 }));
+ipcMain.handle("system:memory", async () => ({ totalBytes: totalmem(), freeBytes: freemem(), totalGB: Math.round((totalmem() / 1024 ** 3) * 10) / 10, freeGB: Math.round((freemem() / 1024 ** 3) * 10) / 10, maxWorldServerRamGB: maxSafeWorldServerRamGB(totalmem(), freemem()) }));
 
 ipcMain.handle("versions:list", async () => listVersions());
 

@@ -55,7 +55,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [profile, setProfile] = useState("Player");
   const [ram, setRam] = useState(2);
-  const [systemMemory, setSystemMemory] = useState<{ totalGB: number; freeGB: number } | null>(null);
+  const [systemMemory, setSystemMemory] = useState<{ totalGB: number; freeGB: number; maxWorldServerRamGB: number } | null>(null);
   const [version, setVersion] = useState("1.21.1");
   const [instanceId, setInstanceId] = useState("default");
   const [instances, setInstances] = useState<Array<{id:string;name:string;createdAt:string}>>([{id:"default",name:"Default",createdAt:""}]);
@@ -104,7 +104,7 @@ export default function App() {
   const [worldServerDiagnostics, setWorldServerDiagnostics] = useState<Array<{title:string;detail:string;severity:"error"|"warning"|"info"}>>([]);
   const [worldServerCommand, setWorldServerCommand] = useState("");
   const [hostingMode, setHostingMode] = useState<"both" | "lan" | "internet">("both");
-  const worldServerRamLimit = systemMemory ? Math.max(0, Math.min(16, Math.floor(systemMemory.totalGB - 2), Math.floor(systemMemory.freeGB - 0.5))) : 0;
+  const worldServerRamLimit = systemMemory?.maxWorldServerRamGB ?? 0;
   const [capeVisibility, setCapeVisibility] = useState<"account" | "client-only">("account");
   const [shaderPacks, setShaderPacks] = useState<string[]>([]);
   useEffect(() => {
@@ -150,7 +150,7 @@ export default function App() {
     Promise.all([window.vampire.getProfile(), window.vampire.getSettings(), window.vampire.listVersions(), window.vampire.getMicrosoftAccount(), window.vampire.getSystemMemory(), window.vampire.listInstances()])
       .then(([savedProfile, settings, catalog, microsoftAccount, memory, savedInstances]) => {
         if (!active) return;
-        setProfile(microsoftAccount.authenticated && microsoftAccount.profile ? microsoftAccount.profile.name : savedProfile.active); setAccountType(microsoftAccount.accountType === "microsoft" ? "Microsoft" : "Offline"); void window.vampire?.listMicrosoftAccounts().then(setMicrosoftAccounts).catch(() => undefined); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setMicrosoftClientId(settings.clientId || ""); setVersions(catalog); setInstances(savedInstances); setInstanceId(savedInstances.some(item => item.id === settings.instanceId) ? (settings.instanceId || "default") : "default"); setSystemMemory({ totalGB: memory.totalGB, freeGB: memory.freeGB });
+        setProfile(microsoftAccount.authenticated && microsoftAccount.profile ? microsoftAccount.profile.name : savedProfile.active); setAccountType(microsoftAccount.accountType === "microsoft" ? "Microsoft" : "Offline"); void window.vampire?.listMicrosoftAccounts().then(setMicrosoftAccounts).catch(() => undefined); setRam(settings.ram); setVersion(settings.version); setJavaPath(settings.javaPath); setLoader(settings.loader); setMicrosoftClientId(settings.clientId || ""); setVersions(catalog); setInstances(savedInstances); setInstanceId(savedInstances.some(item => item.id === settings.instanceId) ? (settings.instanceId || "default") : "default"); setSystemMemory({ totalGB: memory.totalGB, freeGB: memory.freeGB, maxWorldServerRamGB: memory.maxWorldServerRamGB });
       }).catch(error => { if (active) setGameStatus(error instanceof Error ? error.message : "Could not load launcher data."); });
     return () => { active = false; unsubscribe(); };
   }, []);
