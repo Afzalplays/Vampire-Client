@@ -1,6 +1,6 @@
 # Vampire Client: Hosting and Cosmetics Architecture
 
-This document records implemented behavior and remaining work. The Studio page stores a network-access preference for guidance only; the Minecraft server currently binds using its default network behavior. The app never changes firewall/router rules or creates UPnP mappings.
+This document records implemented behavior and remaining work. The Studio page stores a network-access preference for guidance only; the local vanilla server manager currently binds using Minecraft default network behavior. The app never changes firewall/router rules or creates UPnP mappings.
 
 ## World hosting: LAN + Internet
 
