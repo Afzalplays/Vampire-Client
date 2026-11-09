@@ -877,7 +877,7 @@ ipcMain.handle("logs:export", async () => {
 ipcMain.handle("java:install", async (_event, args: { major?: number }) => {
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Stop Minecraft before installing Java.");
   const major = Number(args?.major);
-  if (![8, 17, 21].includes(major)) throw new Error("Select a supported Java version: 8, 17 or 21.");
+  if (![8, 17, 21, 25].includes(major)) throw new Error("Select a supported Java version: 8, 17, 21 or 25.");
   return installJavaRuntime(dataRoot(), process.platform, process.arch, major, message => sendStatus(message));
 });
 
