@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Java 25 support
+
+- Added automatic Eclipse Temurin Java 25 installation for Minecraft 26.1+ and expanded Minecraft version parsing to the new year-based release format.
+- Added Java 25 mapping regression tests and updated runtime documentation.
+
 ## Unreleased — World server diagnostics
 
 - Added local log analysis for common server failures, including occupied ports, insufficient heap, incompatible Java versions and EULA rejection.

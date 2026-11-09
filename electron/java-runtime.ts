@@ -232,7 +232,7 @@ export function requiredJavaMajorForMinecraft(version: string): number {
 }
 
 export async function installJavaRuntime(root:string,os:string,arch:string,major:number,onProgress?:(message:string)=>void){
-  if (![8,17,21].includes(major)) throw new Error("Supported automatic Java runtimes are Java 8, 17 and 21.");
+  if (![8,17,21,25].includes(major)) throw new Error("Supported automatic Java runtimes are Java 8, 17, 21 and 25.");
   const target=targetFor(os,arch);
   const api=new URL("https://api.adoptium.net/v3/assets/latest/"+major+"/hotspot");
   api.search=new URLSearchParams({architecture:target.architecture,heap_size:"normal",image_type:"jre",jvm_impl:"hotspot",os:target.platform,vendor:"eclipse",page_size:"1"}).toString();

@@ -170,5 +170,7 @@ test("selects a compatible Temurin runtime for Minecraft version families", () =
   assert.equal(requiredJavaMajorForMinecraft("1.20.4"), 17);
   assert.equal(requiredJavaMajorForMinecraft("1.20.5"), 21);
   assert.equal(requiredJavaMajorForMinecraft("1.21.1"), 21);
+  assert.equal(requiredJavaMajorForMinecraft("26.1"), 25);
+  assert.equal(requiredJavaMajorForMinecraft("26.2"), 25);
   assert.equal(requiredJavaMajorForMinecraft("invalid-version"), 21);
 });

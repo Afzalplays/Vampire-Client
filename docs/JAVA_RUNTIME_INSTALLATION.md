@@ -1,6 +1,6 @@
 # Java runtime installation
 
-Vampire Client can install Eclipse Temurin Java 8, 17 or 21 JREs into separate application-data directories. Settings selects the recommended major for the chosen Minecraft version: Java 8 before 1.17, Java 17 for 1.17–1.20.4, and Java 21 for 1.20.5 and newer. The launch path independently checks the installed Minecraft metadata and refuses a runtime below its declared Java requirement.
+Vampire Client can install Eclipse Temurin Java 8, 17, 21 or 25 JREs into separate application-data directories. Settings selects the recommended major for the chosen Minecraft version: Java 8 before 1.17, Java 17 for 1.17–1.20.4, Java 21 for 1.20.5–1.21.x, and Java 25 for Minecraft 26.1 and newer. The launch path independently checks the installed Minecraft metadata and refuses a runtime below its declared Java requirement.
 
 ## Download and verification
 
@@ -18,7 +18,7 @@ A verified installation is staged beside the active runtime. Activation first mo
 
 ## Verification limits
 
-Automated tests cover Java version parsing, Minecraft-to-Java major selection, runtime-directory replacement/rollback, PAX long-path extraction and PAX path-traversal rejection. The actual Adoptium downloads, archive extraction and Java process startup still require platform-specific CI or desktop execution. The current automatic choices are Java 8, 17 and 21; other Java majors can still be selected manually through the Java executable path.
+Automated tests cover Java version parsing, Minecraft-to-Java major selection, runtime-directory replacement/rollback, PAX long-path extraction and PAX path-traversal rejection. The actual Adoptium downloads, archive extraction and Java process startup still require platform-specific CI or desktop execution. The current automatic choices are Java 8, 17, 21 and 25; other Java majors can still be selected manually through the Java executable path.
 
 
 ## POSIX PAX TAR metadata
