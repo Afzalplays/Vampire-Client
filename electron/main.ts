@@ -26,6 +26,10 @@ let gameStopTimer: ReturnType<typeof setTimeout> | null = null;
 const worldServerProcesses = new Map<string, ChildProcess>();
 const worldServerLastExit = new Map<string, { code: number | null; error: string | null; at: string }>();
 const worldServerStopTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const worldServerRestartTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const worldServerRestartAttempts = new Map<string, number[]>();
+const worldServerManualStops = new Set<string>();
+const worldServerLaunchConfigs = new Map<string, { javaPath: string; ramGB: number }>();
 let downloadedUpdatePath: string | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
@@ -400,7 +404,7 @@ ipcMain.handle("instances:delete", async (_event, idValue: string) => {
   return { success: true };
 });
 
-type WorldServerRecord = { id: string; name: string; version: string; createdAt: string; ramGB: number; port?: number; };
+type WorldServerRecord = { id: string; name: string; version: string; createdAt: string; ramGB: number; port?: number; autoRestart?: boolean; };
 const worldServersFile = () => path.join(dataRoot(), "world-servers.json");
 const worldServerRoot = (id: string) => {
   if (!/^[a-f0-9-]{36}$/.test(String(id || ""))) throw new Error("Invalid world server ID.");
@@ -447,9 +451,19 @@ async function listWorldServerBackups(serverId: string): Promise<WorldServerBack
 }
 async function listWorldServers() {
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
-  return records.map(record => ({ ...record, port: Number(record.port) || 25565, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
+  return records.map(record => ({ ...record, port: Number(record.port) || 25565, autoRestart: record.autoRestart === true, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
 }
 ipcMain.handle("servers:list", async () => listWorldServers());
+ipcMain.handle("servers:setAutoRestart", async (_event, args: { id: string; enabled: boolean }) => {
+  const id = String(args?.id || ""); worldServerRoot(id);
+  if (typeof args.enabled !== "boolean") throw new Error("Auto-restart setting must be enabled or disabled.");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  const index = records.findIndex(record => record.id === id);
+  if (index < 0) throw new Error("World server not found.");
+  records[index] = { ...records[index], autoRestart: args.enabled }; await writeJson(worldServersFile(), records);
+  if (!args.enabled) { const timer = worldServerRestartTimers.get(id); if (timer) clearTimeout(timer); worldServerRestartTimers.delete(id); worldServerRestartAttempts.delete(id); }
+  return { success: true, autoRestart: args.enabled };
+});
 ipcMain.handle("servers:create", async (_event, args: { name: string; version: string; ramGB?: number; port?: number }) => {
   const name = String(args.name || "").trim();
   const version = String(args.version || "");
@@ -491,6 +505,52 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   sendStatus("World server " + name + " downloaded and verified. EULA acceptance is required before first start.");
   return { ...record, running: false, eulaAccepted: false };
 });
+function spawnWorldServer(id: string, record: WorldServerRecord, javaPath: string, ramGB: number) {
+  const root = worldServerRoot(id);
+  const proc = spawn(javaPath, ["-Xms512M", "-Xmx" + Math.round(ramGB) + "G", "-jar", "server.jar", "nogui"], { cwd: root, windowsHide: true, stdio: ["pipe", "pipe", "pipe"] });
+  worldServerProcesses.set(id, proc);
+  worldServerLaunchConfigs.set(id, { javaPath, ramGB });
+  const append = (label: string, chunk: unknown) => {
+    const line = "[" + new Date().toISOString() + "] [" + label + "] " + String(chunk).replace(/[\r]+/g, "").slice(0, 8000);
+    void fs.appendFile(path.join(root, "server.log"), line.endsWith("\n") ? line : line + "\n", "utf8").catch(() => undefined);
+    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("server:output", { id, text: line });
+  };
+  proc.stdout?.on("data", chunk => append("stdout", chunk));
+  proc.stderr?.on("data", chunk => append("stderr", chunk));
+  proc.once("error", error => { worldServerLastExit.set(id, { code: null, error: error.message, at: new Date().toISOString() }); append("process-error", error.message); });
+  proc.once("close", code => {
+    const timer = worldServerStopTimers.get(id); if (timer) clearTimeout(timer); worldServerStopTimers.delete(id);
+    const previous = worldServerLastExit.get(id);
+    worldServerLastExit.set(id, { code, error: previous?.error ?? null, at: new Date().toISOString() });
+    append("process", "Server stopped with exit code " + String(code));
+    if (worldServerProcesses.get(id) === proc) worldServerProcesses.delete(id);
+    if (worldServerManualStops.delete(id) || shutdownInProgress || code === 0) return;
+    void (async () => {
+      const current = (await readJson<WorldServerRecord[]>(worldServersFile(), [])).find(item => item.id === id);
+      if (!current?.autoRestart) return;
+      const now = Date.now();
+      const attempts = (worldServerRestartAttempts.get(id) || []).filter(at => now - at < 600000);
+      if (attempts.length >= 3) { append("auto-restart", "Restart limit reached: 3 attempts within 10 minutes."); return; }
+      attempts.push(now); worldServerRestartAttempts.set(id, attempts);
+      append("auto-restart", "Unexpected exit. Restarting in 5 seconds (attempt " + attempts.length + " of 3).");
+      const pending = worldServerRestartTimers.get(id); if (pending) clearTimeout(pending);
+      const restart = setTimeout(() => {
+        worldServerRestartTimers.delete(id);
+        if (shutdownInProgress || worldServerManualStops.has(id)) return;
+        const active = worldServerProcesses.get(id); if (active && active.exitCode === null) return;
+        void (async () => {
+          const latest = (await readJson<WorldServerRecord[]>(worldServersFile(), [])).find(item => item.id === id);
+          const config = worldServerLaunchConfigs.get(id);
+          if (latest?.autoRestart && config) spawnWorldServer(id, latest, config.javaPath, config.ramGB);
+        })().catch(error => append("auto-restart", error instanceof Error ? error.message : String(error)));
+      }, 5000);
+      restart.unref(); worldServerRestartTimers.set(id, restart);
+    })().catch(error => append("auto-restart", error instanceof Error ? error.message : String(error)));
+  });
+  append("launcher", "Starting " + record.name + " with " + Math.round(ramGB) + " GB RAM.");
+  return proc;
+}
+
 ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }) => {
   const id = String(args.id || "");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
@@ -499,52 +559,17 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   const existing = worldServerProcesses.get(id);
   if (existing && existing.exitCode === null) throw new Error("This world server is already running.");
   if (args.acceptEula !== true) throw new Error("You must explicitly accept the Minecraft EULA before starting this server.");
-  const root = worldServerRoot(id);
-  await fs.access(path.join(root, "server.jar"));
+  const root = worldServerRoot(id); await fs.access(path.join(root, "server.jar"));
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
   if (javaPath.length > 1024) throw new Error("Java executable path is too long.");
   const requestedRam = validateWorldServerRam(args.ramGB ?? record.ramGB, totalmem(), freemem());
   await fs.writeFile(path.join(root, "eula.txt"), "eula=true\n", "utf8");
-  const proc = spawn(javaPath, ["-Xms512M", "-Xmx" + Math.round(requestedRam) + "G", "-jar", "server.jar", "nogui"], {
-    cwd: root, windowsHide: true, stdio: ["pipe", "pipe", "pipe"]
-  });
-  worldServerProcesses.set(id, proc);
-  const logPath = path.join(root, "server.log");
-  const append = (label: string, chunk: unknown) => {
-    const line = "[" + new Date().toISOString() + "] [" + label + "] " + String(chunk).replace(/[\r]+/g, "").slice(0, 8000);
-    void (async () => {
-      try {
-        await fs.mkdir(root, { recursive: true });
-        try {
-          const stat = await fs.stat(logPath);
-          if (stat.size > 2 * 1024 * 1024) {
-            const previous = await fs.readFile(logPath, "utf8");
-            await fs.writeFile(logPath, previous.slice(-1024 * 1024), "utf8");
-          }
-        } catch {}
-        await fs.appendFile(logPath, line.endsWith("\n") ? line : line + "\n", "utf8");
-      } catch {}
-    })();
-    if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("server:output", { id, text: line });
-  };
-  proc.stdout?.on("data", chunk => append("stdout", chunk));
-  proc.stderr?.on("data", chunk => append("stderr", chunk));
-  proc.once("error", error => {
-    worldServerLastExit.set(id, { code: null, error: error.message, at: new Date().toISOString() });
-    append("process-error", error.message);
-  });
-  proc.once("close", code => {
-    const timer = worldServerStopTimers.get(id);
-    if (timer) clearTimeout(timer);
-    worldServerStopTimers.delete(id);
-    const previousExit = worldServerLastExit.get(id);
-    worldServerLastExit.set(id, { code, error: previousExit?.error ?? null, at: new Date().toISOString() });
-    append("process", "Server stopped with exit code " + String(code));
-    if (worldServerProcesses.get(id) === proc) worldServerProcesses.delete(id);
-  });
-  append("launcher", "Starting " + record.name + " with " + Math.round(requestedRam) + " GB RAM.");
+  worldServerManualStops.delete(id);
+  const pending = worldServerRestartTimers.get(id); if (pending) clearTimeout(pending); worldServerRestartTimers.delete(id);
+  const proc = spawnWorldServer(id, record, javaPath, requestedRam);
   return { success: true, pid: proc.pid };
 });
+
 ipcMain.handle("servers:backups", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
@@ -677,6 +702,8 @@ ipcMain.handle("servers:stop", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const proc = worldServerProcesses.get(id);
   if (!proc || proc.exitCode !== null) { worldServerProcesses.delete(id); return { success: true, stopped: false }; }
+  worldServerManualStops.add(id);
+  const pendingRestart = worldServerRestartTimers.get(id); if (pendingRestart) clearTimeout(pendingRestart); worldServerRestartTimers.delete(id);
 
   const previousTimer = worldServerStopTimers.get(id);
   if (previousTimer) clearTimeout(previousTimer);
@@ -1857,6 +1884,8 @@ app.on("before-quit", event => {
       try { activeGame.kill("SIGTERM"); } catch { /* process may have exited */ }
     }
 
+    for (const timer of worldServerRestartTimers.values()) clearTimeout(timer);
+    worldServerRestartTimers.clear();
     for (const [id, proc] of worldServerProcesses) {
       if (proc.exitCode !== null) continue;
       children.push(proc);
