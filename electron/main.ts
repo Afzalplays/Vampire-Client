@@ -12,7 +12,7 @@ import { getVersionList, install, getLoaderArtifactListFor, installFabric, insta
 import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } from "./loader-utils";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
-import { installJavaRuntime, parseJavaMajorVersion } from "./java-runtime";
+import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -682,12 +682,18 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const installerSha1 = (await checksumResponse.text()).trim().split(/\\s+/)[0];
     if (!/^[a-f0-9]{40}$/i.test(installerSha1)) throw new Error("Forge installer checksum metadata is invalid.");
     const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
+    const installerJava = savedSettings.javaPath || "java";
+    const requiredInstallerJava = requiredJavaMajorForMinecraft(versionId);
+    const detectedInstallerJava = await detectJavaMajor(installerJava);
+    if (detectedInstallerJava !== requiredInstallerJava) {
+      throw new Error("Forge installation for Minecraft " + versionId + " requires the recommended Java " + requiredInstallerJava + " runtime; the selected executable is Java " + detectedInstallerJava + ". Install and select Java " + requiredInstallerJava + " in Settings, then retry.");
+    }
     sendStatus("Installing Forge " + forgeVersion + " for Minecraft " + versionId + "…");
     launchVersion = await installForge({
       version: forgeVersion,
       mcversion: versionId,
       installer: { path: installerUrl, sha1: installerSha1 }
-    }, root, { java: savedSettings.javaPath || "java", side: "client" });
+    }, root, { java: installerJava, side: "client" });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   } else if (loader === "neoforge") {
@@ -696,9 +702,15 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     if (!response.ok) throw new Error("NeoForge version metadata request failed (" + response.status + ").");
     const neoForgeVersion = selectNeoForgeVersion(await response.text(), versionId);
     const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
+    const installerJava = savedSettings.javaPath || "java";
+    const requiredInstallerJava = requiredJavaMajorForMinecraft(versionId);
+    const detectedInstallerJava = await detectJavaMajor(installerJava);
+    if (detectedInstallerJava !== requiredInstallerJava) {
+      throw new Error("NeoForge installation for Minecraft " + versionId + " requires the recommended Java " + requiredInstallerJava + " runtime; the selected executable is Java " + detectedInstallerJava + ". Install and select Java " + requiredInstallerJava + " in Settings, then retry.");
+    }
     const installerVersion = versionId + "-" + neoForgeVersion;
     sendStatus("Installing NeoForge " + neoForgeVersion + " for Minecraft " + versionId + "…");
-    launchVersion = await installNeoForged("neoforge", installerVersion, root, { java: savedSettings.javaPath || "java", side: "client" });
+    launchVersion = await installNeoForged("neoforge", installerVersion, root, { java: installerJava, side: "client" });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   }
