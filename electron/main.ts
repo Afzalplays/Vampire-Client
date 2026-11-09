@@ -20,6 +20,7 @@ import { redactDiagnosticLog } from "./log-redaction";
 import { getStudioFilePolicy, isSafeStudioFileName, sanitizeStudioImportName, validateStudioFileSize } from "./studio-files-utils";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
+const MODRINTH_HEADERS = { "User-Agent": "VampireClient/0.3.0 (https://github.com/Afzalplays/Vampire-Client)" };
 let mainWindow: BrowserWindow | null = null;
 let gameProcess: import("node:child_process").ChildProcess | null = null;
 let gameStopTimer: ReturnType<typeof setTimeout> | null = null;
@@ -1123,6 +1124,21 @@ ipcMain.handle("game:stop", async () => {
   return { success: stopped, stopped, pid };
 });
 
+ipcMain.handle("mods:search", async (_event, args: { query: string; version: string; loader: string }) => {
+  const query = String(args?.query || "").trim().slice(0, 100);
+  const version = String(args?.version || "");
+  const loader = String(args?.loader || "fabric");
+  if (!/^[A-Za-z0-9._-]{1,32}$/.test(version)) throw new Error("Invalid Minecraft version.");
+  if (!["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(loader)) throw new Error("Invalid mod loader.");
+  const facets = loader === "vanilla" ? [["versions:" + version]] : [["versions:" + version], ["categories:" + loader]];
+  const url = new URL("https://api.modrinth.com/v2/search");
+  url.search = new URLSearchParams({ query: query || "performance", limit: "24", facets: JSON.stringify(facets) }).toString();
+  const response = await fetch(url, { headers: MODRINTH_HEADERS, signal: AbortSignal.timeout(20000) });
+  if (!response.ok) throw new Error("Modrinth search failed (" + response.status + ").");
+  const payload = await response.json() as { hits?: unknown[] };
+  return Array.isArray(payload.hits) ? payload.hits.slice(0, 24) : [];
+});
+
 ipcMain.handle("mods:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
   const directory = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).mods;
   await fs.mkdir(directory, { recursive: true });
@@ -1134,7 +1150,7 @@ async function fetchModrinthVersion(projectId: string, mcVersion: string, loader
   const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(projectId) +
     "/version?game_versions=" + encodeURIComponent(JSON.stringify([mcVersion])) +
     "&loaders=" + encodeURIComponent(JSON.stringify([loader]));
-  const response = await fetch(endpoint);
+  const response = await fetch(endpoint, { headers: MODRINTH_HEADERS });
   if (!response.ok) throw new Error("Modrinth version lookup failed for " + projectId + " (" + response.status + ").");
   const versions = await response.json() as any[];
   const selected = versions[0];
@@ -1157,7 +1173,7 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
     visited.add(id);
     let selected: any;
     if (pinnedVersionId) {
-      const pinned = await fetch("https://api.modrinth.com/v2/version/" + encodeURIComponent(pinnedVersionId));
+      const pinned = await fetch("https://api.modrinth.com/v2/version/" + encodeURIComponent(pinnedVersionId), { headers: MODRINTH_HEADERS });
       if (!pinned.ok) throw new Error("Could not resolve required Modrinth dependency " + id + ".");
       selected = await pinned.json();
       if (!Array.isArray(selected.game_versions) || !selected.game_versions.includes(mcVersion) ||
@@ -1709,7 +1725,7 @@ ipcMain.handle("shaders:download", async (_event, args: { slug: string; version:
   const instance = await safeInstanceAsync(args.version, args.loader, args.instanceId || "default");
   const endpoint = "https://api.modrinth.com/v2/project/" + encodeURIComponent(slug) +
     "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version]));
-  const response = await fetch(endpoint, { headers: { "User-Agent": "VampireClient/0.3.0 (shader-installer)" } });
+  const response = await fetch(endpoint, { headers: MODRINTH_HEADERS });
   if (!response.ok) throw new Error("Modrinth shader lookup failed (" + response.status + ").");
   const versions = await response.json() as any[];
   const release = versions.find((entry: any) => Array.isArray(entry.files) && entry.files.some((file: any) => String(file.filename || "").toLowerCase().endsWith(".zip")));

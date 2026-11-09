@@ -311,11 +311,9 @@ export default function App() {
   async function searchMods() {
     setLoading(true); setError("");
     try {
-      const params = new URLSearchParams({ query: query.trim() || "performance", limit: "24", facets: JSON.stringify(loader !== "vanilla" ? [[ "versions:" + version ], [ "categories:" + loader ]] : [[ "versions:" + version ]]) });
-      const response = await fetch("https://api.modrinth.com/v2/search?" + params.toString());
-      if (!response.ok) throw new Error("Modrinth returned " + response.status);
-      const data = await response.json();
-      setMods(data.hits ?? []);
+      if (!window.vampire) throw new Error("Modrinth search is available in the desktop app.");
+      const hits = await window.vampire.searchMods({ query, version, loader });
+      setMods(hits);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not reach Modrinth."); }
     finally { setLoading(false); }
   }
