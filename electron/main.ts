@@ -679,9 +679,6 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   } else if (loader === "neoforge") {
-    if (!/^1\\.(20\\.(?:2|3|4|5|6)|21\\.|22\\.|23\\.|24\\.|25\\.|26\\.)/.test(versionId)) {
-      throw new Error("NeoForge automatic installation currently supports Minecraft 1.20.2 and newer. Use Forge for older versions.");
-    }
     sendStatus("Finding the latest compatible NeoForge build for Minecraft " + versionId + "…");
     const response = await fetch("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
     if (!response.ok) throw new Error("NeoForge version metadata request failed (" + response.status + ").");

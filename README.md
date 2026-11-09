@@ -49,7 +49,7 @@ The following items are not yet complete or have not been verified on a physical
 - Fix any issues found by the physical-device test pass before publishing a public release.
 
 ### Core feature development
-- Forge and NeoForge loader installation/runtime support.
+- Broader Forge/NeoForge compatibility and installation testing across legacy and current Minecraft releases.
 - Broader mod dependency/conflict analysis, support for additional modpack formats and a larger curated catalogue with compatibility testing.
 - Draggable and resizable in-game HUD positioning with saved coordinates and width is implemented in the Fabric companion mod; FPS and memory HUD toggles, 75–150% HUD scale (25% steps), and 4–12 px vertical padding (2 px steps) are persisted locally. The position editor preview follows the selected scale and spacing. **Needs real Minecraft testing.** A full visual editor and independent height controls remain future work.
 - Cosmetics service: Vampire account authentication, secure cape upload/storage, cross-device sync and companion-mod cape rendering. Current cape designer is a local preview only.
