@@ -569,7 +569,7 @@ ipcMain.handle("servers:restoreBackup", async (_event, args: { id: string; backu
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
     }
     await fs.rename(temporary, root);
-    if (movedPrevious) await fs.rm(previous, { recursive: true, force: true });
+    if (movedPrevious) { try { await fs.rm(previous, { recursive: true, force: true }); } catch { /* keep the previous snapshot if cleanup is blocked */ } }
   } catch (error) {
     await fs.rm(temporary, { recursive: true, force: true });
     if (movedPrevious) {
@@ -578,6 +578,18 @@ ipcMain.handle("servers:restoreBackup", async (_event, args: { id: string; backu
     throw error;
   }
   return { success: true, restoredBackupId: backupId };
+});
+ipcMain.handle("servers:deleteBackup", async (_event, args: { id: string; backupId: string }) => {
+  const id = String(args?.id || "");
+  const backupId = String(args?.backupId || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (!records.some(item => item.id === id)) throw new Error("World server not found.");
+  if (!/^[a-f0-9-]{36}$/.test(backupId)) throw new Error("Invalid world server backup ID.");
+  const directory = path.join(worldServerBackupRoot(id), backupId);
+  const manifest = await readJson<WorldServerBackupRecord | null>(path.join(directory, ".vampire-backup.json"), null);
+  if (!manifest || manifest.id !== backupId || manifest.serverId !== id) throw new Error("The selected backup was not found.");
+  await fs.rm(directory, { recursive: true, force: true });
+  return { success: true };
 });
 ipcMain.handle("servers:info", async (_event, idValue: string) => {
   const id = String(idValue || "");

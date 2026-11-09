@@ -15,6 +15,10 @@ interface Window {
     startWorldServer(args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }): Promise<{ success: boolean; pid?: number }>;
     stopWorldServer(id: string): Promise<{ success: boolean; stopped: boolean }>;
     getWorldServerInfo(id: string): Promise<{ logs: string; running: boolean; lanAddresses: string[]; port: number; lastExitCode: number | null; lastError: string | null; lastExitAt: string | null }>;
+    listWorldServerBackups(id: string): Promise<Array<{ id: string; serverId: string; serverName: string; version: string; createdAt: string; bytes: number }>>;
+    createWorldServerBackup(id: string): Promise<{ id: string; serverId: string; serverName: string; version: string; createdAt: string; bytes: number }>;
+    restoreWorldServerBackup(args: { id: string; backupId: string }): Promise<{ success: boolean; restoredBackupId: string }>;
+    deleteWorldServerBackup(args: { id: string; backupId: string }): Promise<{ success: boolean }>;
     sendWorldServerCommand(args: { id: string; command: string }): Promise<{ success: boolean }>;
     onWorldServerOutput(callback: (event: { id: string; text: string }) => void): () => void;
     deleteWorldServer(id: string): Promise<{ success: boolean }>;

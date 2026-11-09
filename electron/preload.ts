@@ -15,6 +15,10 @@ contextBridge.exposeInMainWorld("vampire", {
   startWorldServer: (args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }) => ipcRenderer.invoke("servers:start", args),
   stopWorldServer: (id: string) => ipcRenderer.invoke("servers:stop", id),
   getWorldServerInfo: (id: string) => ipcRenderer.invoke("servers:info", id),
+  listWorldServerBackups: (id: string) => ipcRenderer.invoke("servers:backups", id),
+  createWorldServerBackup: (id: string) => ipcRenderer.invoke("servers:backup", id),
+  restoreWorldServerBackup: (args: { id: string; backupId: string }) => ipcRenderer.invoke("servers:restoreBackup", args),
+  deleteWorldServerBackup: (args: { id: string; backupId: string }) => ipcRenderer.invoke("servers:deleteBackup", args),
   sendWorldServerCommand: (args: { id: string; command: string }) => ipcRenderer.invoke("servers:command", args),
   onWorldServerOutput: (callback: (event: { id: string; text: string }) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: { id: string; text: string }) => callback(payload);
