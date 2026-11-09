@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Quilt loader support
+
+- Added official Quilt loader installation for supported Minecraft versions, per-instance install/launch status, Modrinth Quilt mod discovery and install/update, and Fabric/Quilt modpack import/export. Fabric-only renderer tooling remains restricted to Fabric profiles.
+- Added validation tests for Quilt loader metadata selection.
+
 ## Unreleased — Java archive regression coverage
 
 - Added malformed PAX record, link metadata, global path override and dangling-header rejection tests for Java runtime TAR.GZ extraction.

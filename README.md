@@ -12,8 +12,8 @@ Vampire Client is being built with a red-and-black glassmorphism interface, acco
 - Glass UI, Vampire Studios splash screen, Home, Versions, Mods, Accounts and Settings pages.
 - Official Minecraft version manifest and vanilla game installation through XMCL.
 - Official Minecraft version browser for stable releases, snapshots, old beta and old alpha metadata; fresh installs default to the latest official stable release, with a one-click latest-release selector.
-- Vanilla installation is available for versions in the official manifest; Fabric installation depends on a compatible Fabric loader build being published for that Minecraft version.
-- Fabric loader installation for supported Minecraft versions.
+- Vanilla installation is available for versions in the official manifest; Fabric and Quilt installations depend on compatible loader builds being published for that Minecraft version.
+- Fabric and Quilt loader installation for supported Minecraft versions.
 - Minecraft process launch integration with configurable Java path and RAM allocation.
 - Offline local profiles for single-player and servers that explicitly allow offline-mode connections.
 - Microsoft device-code authentication flow, Xbox/Minecraft token exchange, Java entitlement check, encrypted MSAL token cache, silent session refresh and saved multi-account switching. Requires your own public Microsoft app Client ID; see [Microsoft login setup](docs/MICROSOFT_LOGIN_SETUP.md). End-to-end account sign-in still needs a real account test.
@@ -149,3 +149,8 @@ Vampire Client is distributed under the [MIT License](LICENSE). Third-party libr
 Minecraft is a trademark of Mojang Studios. Vampire Client is an independent community project and is not affiliated with, endorsed by, or sponsored by Mojang Studios or Microsoft.
 
 **Vampire Studios** ❤️
+
+
+## Quilt loader
+
+Quilt profiles are installed from the official Quilt metadata service and the selected loader version is resolved per Minecraft version. Modrinth search, compatible mod installation, updates and Vampire modpack import/export support both Fabric and Quilt profiles. Renderer-specific controls such as Sodium/VulkanMod switching remain Fabric-only until their Quilt compatibility is independently verified.

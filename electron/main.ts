@@ -8,7 +8,8 @@ import { pathToFileURL } from "node:url";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { totalmem, freemem, networkInterfaces } from "node:os";
 import { launch, Version } from "@xmcl/core";
-import { getVersionList, install, getLoaderArtifactListFor, installFabric, installDependencies } from "@xmcl/installer";
+import { getVersionList, install, getLoaderArtifactListFor, installFabric, installQuiltVersion, installDependencies } from "@xmcl/installer";
+import { selectQuiltLoaderVersion } from "./loader-utils";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJava21Runtime, parseJavaMajorVersion } from "./java-runtime";
@@ -168,7 +169,7 @@ async function verifyModrinthDownload(response: Response, file: any) {
 
 function safeInstance(version: string, loader: string, instanceId = "default") {
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(version || ""))) throw new Error("Invalid Minecraft instance version.");
-  if (!["vanilla", "fabric"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
+  if (!["vanilla", "fabric", "quilt"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
   if (instanceId !== "default" && !/^[a-f0-9-]{36}$/.test(String(instanceId))) throw new Error("Invalid Minecraft instance ID.");
   return { root: gameRoot(version, loader, instanceId), mods: modsRoot(version, loader, instanceId) };
 }
@@ -575,7 +576,7 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
     javaPath: requestedInstanceId === "default" ? javaPath : current.javaPath,
     instanceSettings,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
-    loader: ["vanilla", "fabric"].includes(String(settings.loader)) ? settings.loader : current.loader,
+    loader: ["vanilla", "fabric", "quilt"].includes(String(settings.loader)) ? settings.loader : current.loader,
     clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId,
     instanceId: requestedInstanceId
   };
@@ -616,7 +617,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const versionId = String(args.version || "");
   const loader = String(args.loader || "vanilla");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId)) throw new Error("Invalid Minecraft version ID.");
-  if (!["vanilla", "fabric"].includes(loader)) throw new Error("This build supports Vanilla and Fabric profiles.");
+  if (!["vanilla", "fabric", "quilt"].includes(loader)) throw new Error("This build supports Vanilla, Fabric and Quilt profiles.");
   sendStatus("Preparing Minecraft " + versionId + " installation…");
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
@@ -634,19 +635,27 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     launchVersion = await installFabric(selected, root, { side: "client" });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
+  } else if (loader === "quilt") {
+    sendStatus("Installing Quilt loader for Minecraft " + versionId + "…");
+    const response = await fetch("https://meta.quiltmc.org/v3/versions/loader/" + encodeURIComponent(versionId));
+    if (!response.ok) throw new Error("Quilt metadata request failed (" + response.status + ").");
+    const quiltVersion = selectQuiltLoaderVersion(await response.json());
+    launchVersion = await installQuiltVersion({ minecraftVersion: versionId, version: quiltVersion, minecraft: root });
+    const resolved = await Version.parse(root, launchVersion);
+    await installDependencies(resolved, {});
   }
 
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
   installed[instanceKey(versionId, loader, args.instanceId || "default")] = launchVersion;
   await writeJson(installedVersionsFile(), installed);
-  sendStatus("Minecraft " + versionId + (loader === "fabric" ? " + Fabric" : "") + " is installed.");
+  sendStatus("Minecraft " + versionId + (loader === "fabric" ? " + Fabric" : loader === "quilt" ? " + Quilt" : "") + " is installed.");
   return { success: true, version: versionId, launchVersion };
 });
 
 ipcMain.handle("game:installStatus", async (_event, args: { version: string; loader: string; instanceId?: string }) => {
   const versionId = String(args.version || "");
   const loader = String(args.loader || "");
-  if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric"].includes(loader)) {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric", "quilt"].includes(loader)) {
     throw new Error("Invalid Minecraft version or loader.");
   }
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
@@ -668,7 +677,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
   const settings = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string; instanceSettings?: Record<string, { ram?: number; javaPath?: string }> }>(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default", instanceSettings: {} });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
-  const activeLoader = ["vanilla", "fabric"].includes(settings.loader) ? settings.loader : "vanilla";
+  const activeLoader = ["vanilla", "fabric", "quilt"].includes(settings.loader) ? settings.loader : "vanilla";
   const activeInstanceId = args.instanceId || settings.instanceId || "default";
   const installKey = instanceKey(args.version, activeLoader, activeInstanceId);
   const launchVersion = installed[installKey] || (activeInstanceId === "default" ? installed[args.version + ":" + activeLoader] : undefined);
@@ -859,7 +868,7 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   const projectId = String(args.projectId || "");
   if (!/^[A-Za-z0-9_-]{3,64}$/.test(projectId)) throw new Error("Invalid Modrinth project ID.");
   const loader = String(args.loader || "fabric");
-  if (loader !== "fabric") throw new Error("Mod downloads in this preview are configured for Fabric profiles only.");
+  if (!["fabric", "quilt"].includes(loader)) throw new Error("Select a Fabric or Quilt profile before installing mods.");
   const mcVersion = String(args.minecraftVersion || "");
   if (!/^[0-9A-Za-z._-]{1,32}$/.test(mcVersion)) throw new Error("Invalid Minecraft version.");
   const result = await installModrinthTree(projectId, mcVersion, loader, args.instanceId || "default");
@@ -906,7 +915,7 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
   const manifest = JSON.parse(await fs.readFile(choice.filePaths[0], "utf8"));
   if (manifest?.format !== "vampire-modpack" || manifest?.formatVersion !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length > 200) throw new Error("Invalid or unsupported Vampire modpack manifest.");
   if (manifest.minecraftVersion !== args.version || manifest.loader !== args.loader) throw new Error("This modpack targets Minecraft " + manifest.minecraftVersion + " / " + manifest.loader + ". Select that exact profile before importing.");
-  if (args.loader !== "fabric") throw new Error("Modpack imports currently support Fabric only.");
+  if (!["fabric", "quilt"].includes(args.loader)) throw new Error("Modpack imports require a Fabric or Quilt profile.");
   const projectIds: string[] = manifest.projects.map((item: unknown) => { const value = (item as { projectId?: unknown } | null)?.projectId; return typeof value === "string" ? value : ""; }).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id));
   const projects: string[] = Array.from(new Set<string>(projectIds));
   const failed: string[] = [];
@@ -1183,7 +1192,7 @@ ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: s
 
 ipcMain.handle("mods:update", async (_event, args: { version: string; loader: string; projectId: string ; instanceId?: string}) => {
   const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
-  if (args.loader !== "fabric") throw new Error("Mod updates are available for Fabric instances only.");
+  if (!["fabric", "quilt"].includes(args.loader)) throw new Error("Mod updates require a Fabric or Quilt instance.");
   const directory = instance.mods;
   const registryFile = path.join(directory, ".vampire-mods.json");
   const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
@@ -1319,7 +1328,7 @@ ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string;
   const preset = presets[String(args.preset || "")];
   if (!preset) throw new Error("Unknown performance preset.");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(args.version || ""))) throw new Error("Invalid Minecraft version.");
-  if (!["vanilla", "fabric"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
+  if (!["vanilla", "fabric", "quilt"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
   const optionsFile = path.join((await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root, "options.txt");
   await fs.mkdir(path.dirname(optionsFile), { recursive: true });
   let existing = "";
