@@ -13,7 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
-import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, maxSafeWorldServerRamGB, validateWorldServerArtifactUrl, analyzeWorldServerLog } from "./world-server-utils";
+import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, maxSafeWorldServerRamGB, validateWorldServerArtifactUrl, analyzeWorldServerLog, shouldAutoRestartWorldServer } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -512,7 +512,11 @@ function spawnWorldServer(id: string, record: WorldServerRecord, javaPath: strin
   worldServerLaunchConfigs.set(id, { javaPath, ramGB });
   const append = (label: string, chunk: unknown) => {
     const line = "[" + new Date().toISOString() + "] [" + label + "] " + String(chunk).replace(/[\r]+/g, "").slice(0, 8000);
-    void fs.appendFile(path.join(root, "server.log"), line.endsWith("\n") ? line : line + "\n", "utf8").catch(() => undefined);
+    void (async () => {
+      const logPath = path.join(root, "server.log");
+      try { const stat = await fs.stat(logPath); if (stat.size > 2 * 1024 * 1024) { const previous = await fs.readFile(logPath, "utf8"); await fs.writeFile(logPath, previous.slice(-1024 * 1024), "utf8"); } } catch {}
+      await fs.appendFile(logPath, line.endsWith("\n") ? line : line + "\n", "utf8").catch(() => undefined);
+    })();
     if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("server:output", { id, text: line });
   };
   proc.stdout?.on("data", chunk => append("stdout", chunk));
@@ -530,7 +534,7 @@ function spawnWorldServer(id: string, record: WorldServerRecord, javaPath: strin
       if (!current?.autoRestart) return;
       const now = Date.now();
       const attempts = (worldServerRestartAttempts.get(id) || []).filter(at => now - at < 600000);
-      if (attempts.length >= 3) { append("auto-restart", "Restart limit reached: 3 attempts within 10 minutes."); return; }
+      if (!shouldAutoRestartWorldServer(code, false, attempts, now)) { append("auto-restart", "Restart limit reached: 3 attempts within 10 minutes."); return; }
       attempts.push(now); worldServerRestartAttempts.set(id, attempts);
       append("auto-restart", "Unexpected exit. Restarting in 5 seconds (attempt " + attempts.length + " of 3).");
       const pending = worldServerRestartTimers.get(id); if (pending) clearTimeout(pending);
