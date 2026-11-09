@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — Launcher reliability and loader safety
+
+- Added opt-in per-server world crash recovery with a three-restart/ten-minute limit; manual stops, clean exits and launcher shutdown never trigger it, and memory is revalidated before restart.
+- Hardened Quilt, Forge and NeoForge metadata retrieval with HTTPS host allowlists, redirect validation and strict response-size limits.
+- Corrected numeric Maven version ordering so Forge/NeoForge versions such as `47.10` sort newer than `47.9`, and fixed Forge SHA-1 sidecar whitespace parsing.
+- Expanded mod conflict heuristics for shader loaders, lighting engines and cross-loader files.
+
 ## Unreleased — World server crash recovery
 
 - Added an opt-in per-server automatic restart setting for unexpected non-zero exits, capped at three attempts within ten minutes.
