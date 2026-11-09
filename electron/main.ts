@@ -224,6 +224,15 @@ function sendStatus(message: string) {
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send("game:status", message);
 }
 
+// Observe fatal exceptions without swallowing them: Node/Electron keeps its normal
+// crash behavior, while the launcher log retains the diagnostic stack for support.
+process.on("uncaughtExceptionMonitor", (error, origin) => {
+  void writeLauncherLog("[fatal process exception] origin=" + origin + " " + (error?.stack || error?.message || String(error)));
+});
+process.on("warning", warning => {
+  void writeLauncherLog("[node warning] " + (warning?.stack || warning?.message || String(warning)));
+});
+
 async function listVersions() {
   const manifest = await getVersionList();
   return manifest.versions
@@ -740,10 +749,15 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   proc.stderr?.on("data", chunk => void writeLauncherLog("[game stderr] " + String(chunk).slice(0, 3500)));
   sendStatus("Minecraft launched (PID " + proc.pid + ").");
   proc.once("error", error => sendStatus("Minecraft process error: " + error.message));
-  proc.once("close", code => {
+  proc.once("close", (code, signal) => {
     if (gameStopTimer) clearTimeout(gameStopTimer);
     gameStopTimer = null;
-    sendStatus("Minecraft closed with exit code " + String(code));
+    if (code !== 0 || signal) {
+      void writeLauncherLog("[game crash candidate] version=" + launchVersion + "; exitCode=" + String(code) + "; signal=" + String(signal || "none") + "; inspect the preceding game stdout/stderr for the root cause.");
+      sendStatus("Minecraft exited unexpectedly (code " + String(code) + (signal ? ", signal " + signal : "") + "). Check Settings → Launcher Logs for diagnostics.");
+    } else {
+      sendStatus("Minecraft closed normally (exit code 0).");
+    }
     gameProcess = null;
   });
   return { success: true, pid: proc.pid };

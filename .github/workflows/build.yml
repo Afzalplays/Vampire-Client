@@ -85,21 +85,17 @@ jobs:
         env:
           ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
         run: |
-          # Upstream GitHub/CDN gateways occasionally return 502/503/504 while
-          # electron-builder fetches platform tools. Keep retrying with backoff;
-          # successful downloads remain in the job cache for subsequent attempts.
-          for attempt in 1 2 3 4 5 6 7 8; do
-            echo "electron-builder attempt $attempt/8"
+          for attempt in 1 2 3 4 5; do
+            echo "electron-builder attempt $attempt/5"
             if npx electron-builder ${{ matrix.args }}; then
               exit 0
             fi
-            if [ "$attempt" -lt 8 ]; then
-              delay=$((attempt * 30))
-              echo "Packaging failed; waiting ${delay}s before retry."
-              sleep "$delay"
+            if [ "$attempt" -lt 5 ]; then
+              echo "Packaging failed; waiting 45 seconds before retry."
+              sleep 45
             fi
           done
-          echo "Packaging failed after 8 attempts."
+          echo "Packaging failed after 5 attempts."
           exit 1
       - uses: actions/upload-artifact@v4
         with:

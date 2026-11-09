@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Crash diagnostics
+
+- Record fatal Electron/Node exception stacks and runtime warnings without suppressing the normal crash behavior.
+- Mark non-zero or signal-terminated Minecraft sessions as crash candidates and direct users to the launcher log viewer for preceding game stdout/stderr context.
+
 ## Unreleased — CI packaging retry hardening
 
 - Increased electron-builder transient-download retries from five to eight attempts.
