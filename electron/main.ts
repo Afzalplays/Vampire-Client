@@ -34,7 +34,7 @@ let downloadedUpdatePath: string | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
 
-async function fetchWorldServerArtifact(urlValue: string, allowedHosts: string[], maxBytes: number, label: string): Promise<Buffer> {
+async function fetchOfficialHttpsArtifact(urlValue: string, allowedHosts: string[], maxBytes: number, label: string): Promise<Buffer> {
   const url = validateWorldServerArtifactUrl(urlValue, allowedHosts);
   const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
   // Fetch follows redirects by default; validate the final URL as well as the original.
@@ -476,17 +476,17 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   const port = validateWorldServerPort(args.port ?? 25565);
   if (records.some(record => Number(record.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
   sendStatus("Fetching official Minecraft " + version + " server metadata…");
-  const manifestBytes = await fetchWorldServerArtifact("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", ["piston-meta.mojang.com"], 8 * 1024 * 1024, "Official Minecraft version manifest");
+  const manifestBytes = await fetchOfficialHttpsArtifact("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", ["piston-meta.mojang.com"], 8 * 1024 * 1024, "Official Minecraft version manifest");
   const manifest = JSON.parse(manifestBytes.toString("utf8")) as any;
   const entry = Array.isArray(manifest.versions) ? manifest.versions.find((item: any) => item.id === version) : null;
   if (!entry?.url) throw new Error("Minecraft version was not found in Mojang's official manifest.");
   const metadataUrl = validateWorldServerArtifactUrl(String(entry.url), ["piston-meta.mojang.com", "launchermeta.mojang.com"]);
-  const metadataBytes = await fetchWorldServerArtifact(metadataUrl.toString(), ["piston-meta.mojang.com", "launchermeta.mojang.com"], 16 * 1024 * 1024, "Official Minecraft version metadata");
+  const metadataBytes = await fetchOfficialHttpsArtifact(metadataUrl.toString(), ["piston-meta.mojang.com", "launchermeta.mojang.com"], 16 * 1024 * 1024, "Official Minecraft version metadata");
   const metadata = JSON.parse(metadataBytes.toString("utf8")) as any;
   const serverArtifact = metadata?.downloads?.server;
   if (!serverArtifact?.url || !/^[a-f0-9]{40}$/i.test(String(serverArtifact.sha1 || ""))) throw new Error("This Minecraft version does not publish a verifiable official server JAR.");
   const jarUrl = validateWorldServerArtifactUrl(String(serverArtifact.url), ["piston-data.mojang.com", "launcher.mojang.com"]);
-  const bytes = await fetchWorldServerArtifact(jarUrl.toString(), ["piston-data.mojang.com", "launcher.mojang.com"], 200 * 1024 * 1024, "Official Minecraft server download");
+  const bytes = await fetchOfficialHttpsArtifact(jarUrl.toString(), ["piston-data.mojang.com", "launcher.mojang.com"], 200 * 1024 * 1024, "Official Minecraft server download");
   const actualSha1 = createHash("sha1").update(bytes).digest("hex");
   if (actualSha1.toLowerCase() !== String(serverArtifact.sha1).toLowerCase()) throw new Error("Official server JAR checksum verification failed.");
   const id = randomUUID();
@@ -949,22 +949,19 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     await installDependencies(resolved, {});
   } else if (loader === "quilt") {
     sendStatus("Installing Quilt loader for Minecraft " + versionId + "…");
-    const response = await fetch("https://meta.quiltmc.org/v3/versions/loader/" + encodeURIComponent(versionId));
-    if (!response.ok) throw new Error("Quilt metadata request failed (" + response.status + ").");
-    const quiltVersion = selectQuiltLoaderVersion(await response.json());
+    const metadata = await fetchOfficialHttpsArtifact("https://meta.quiltmc.org/v3/versions/loader/" + encodeURIComponent(versionId), ["meta.quiltmc.org"], 5 * 1024 * 1024, "Quilt loader metadata");
+    const quiltVersion = selectQuiltLoaderVersion(JSON.parse(metadata.toString("utf8")));
     launchVersion = await installQuiltVersion({ minecraftVersion: versionId, version: quiltVersion, minecraft: root });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   } else if (loader === "forge") {
     sendStatus("Finding the latest compatible Forge build for Minecraft " + versionId + "…");
-    const response = await fetch("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml");
-    if (!response.ok) throw new Error("Forge version metadata request failed (" + response.status + ").");
-    const forgeVersion = selectForgeVersion(await response.text(), versionId);
+    const metadata = await fetchOfficialHttpsArtifact("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml", ["maven.minecraftforge.net"], 5 * 1024 * 1024, "Forge version metadata");
+    const forgeVersion = selectForgeVersion(metadata.toString("utf8"), versionId);
     const forgeArtifactVersion = versionId + "-" + forgeVersion;
     const installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/" + forgeArtifactVersion + "/forge-" + forgeArtifactVersion + "-installer.jar";
-    const checksumResponse = await fetch(installerUrl + ".sha1");
-    if (!checksumResponse.ok) throw new Error("Forge installer checksum request failed (" + checksumResponse.status + ").");
-    const installerSha1 = (await checksumResponse.text()).trim().split(/\\s+/)[0];
+    const checksum = await fetchOfficialHttpsArtifact(installerUrl + ".sha1", ["maven.minecraftforge.net"], 4096, "Forge installer checksum");
+    const installerSha1 = checksum.toString("utf8").trim().split(/\\s+/)[0];
     if (!/^[a-f0-9]{40}$/i.test(installerSha1)) throw new Error("Forge installer checksum metadata is invalid.");
     const savedSettings = await readJson<{ javaPath?: string; instanceSettings?: Record<string, { javaPath?: string }> }>(settingsFile(), { javaPath: "java" });
     const installerJava = savedSettings.instanceSettings?.[args.instanceId || "default"]?.javaPath || savedSettings.javaPath || "java";
@@ -983,9 +980,8 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     await installDependencies(resolved, {});
   } else if (loader === "neoforge") {
     sendStatus("Finding the latest compatible NeoForge build for Minecraft " + versionId + "…");
-    const response = await fetch("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
-    if (!response.ok) throw new Error("NeoForge version metadata request failed (" + response.status + ").");
-    const neoForgeVersion = selectNeoForgeVersion(await response.text(), versionId);
+    const metadata = await fetchOfficialHttpsArtifact("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml", ["maven.neoforged.net"], 5 * 1024 * 1024, "NeoForge version metadata");
+    const neoForgeVersion = selectNeoForgeVersion(metadata.toString("utf8"), versionId);
     const savedSettings = await readJson<{ javaPath?: string; instanceSettings?: Record<string, { javaPath?: string }> }>(settingsFile(), { javaPath: "java" });
     const installerJava = savedSettings.instanceSettings?.[args.instanceId || "default"]?.javaPath || savedSettings.javaPath || "java";
     const requiredInstallerJava = requiredJavaMajorForMinecraft(versionId);
