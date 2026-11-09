@@ -688,7 +688,7 @@ ipcMain.handle("servers:info", async (_event, idValue: string) => {
   let port = Number(records.find(record => record.id === id)?.port) || 25565;
   try {
     const properties = await fs.readFile(path.join(root, "server.properties"), "utf8");
-    const match = /^server-port=(\\d+)$/m.exec(properties);
+    const match = /^server-port=(\d+)$/m.exec(properties);
     if (match) port = parseWorldServerPort(properties, port);
   } catch {}
   const proc = worldServerProcesses.get(id);
@@ -1408,7 +1408,7 @@ async function assertZipSignature(file: string) {
           compressed === 0xffffffff || uncompressed === 0xffffffff) {
         throw new Error("ZIP archive contains encrypted, unsupported or malformed entries.");
       }
-      const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\\\/g, "/");
+      const entryName = directory.toString("utf8", offset + 46, offset + 46 + nameLength).replace(/\\/g, "/");
       if (entryName.startsWith("/") || /^[A-Za-z]:/.test(entryName) ||
           entryName.split("/").some(part => part === "..")) {
         throw new Error("ZIP archive contains an unsafe file path.");
