@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Resource pack management
+
+- Fixed resource-pack inspection filename validation so ordinary `.zip` files can be inspected; shared the strict filename check between inspect and remove handlers.
+- Added filename traversal regression tests and documented resource-pack ZIP validation limits.
+
 ## Unreleased — Java runtime reliability
 
 - Hardened the Temurin Java 21 download path with manual HTTPS redirect validation, a five-redirect ceiling, streamed package-size enforcement and strict Adoptium metadata validation.

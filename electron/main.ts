@@ -12,6 +12,7 @@ import { getVersionList, install, getLoaderArtifactListFor, installFabric, insta
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJava21Runtime, parseJavaMajorVersion } from "./java-runtime";
+import { isSafeResourcePackFilename } from "./resource-pack-utils";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
@@ -1143,7 +1144,7 @@ ipcMain.handle("resourcepacks:import", async (_event, args: { version: string; l
 ipcMain.handle("resourcepacks:inspect", async (_event, args: { version: string; loader: string; fileName: string; instanceId?: string }) => {
   const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const name = String(args.fileName || "");
-  if (!/^[A-Za-z0-9._ -]{1,180}\\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid resource pack filename.");
+  if (!isSafeResourcePackFilename(name)) throw new Error("Invalid resource pack filename.");
   const file = path.join(root, "resourcepacks", name);
   const stat = await fs.stat(file);
   if (!stat.isFile() || stat.size < 4 || stat.size > 512 * 1024 * 1024) throw new Error("Resource pack file is missing or outside the 512 MB safety limit.");
@@ -1154,7 +1155,7 @@ ipcMain.handle("resourcepacks:inspect", async (_event, args: { version: string; 
 ipcMain.handle("resourcepacks:remove", async (_event, args: { version: string; loader: string; fileName: string ; instanceId?: string}) => {
   const root = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root;
   const name = String(args.fileName || "");
-  if (!/^[A-Za-z0-9._ -]{1,180}\.zip$/i.test(name) || path.basename(name) !== name) throw new Error("Invalid resource pack filename.");
+  if (!isSafeResourcePackFilename(name)) throw new Error("Invalid resource pack filename.");
   await fs.unlink(path.join(root, "resourcepacks", name));
   return { success: true };
 });
