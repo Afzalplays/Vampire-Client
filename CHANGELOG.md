@@ -2,6 +2,12 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Replay and schematic file management
+
+- Added isolated per-instance Replay Mod recording (`.mcpr`) and schematic (`.litematic`, `.schem`, `.schematic`, `.nbt`) libraries with import, list, remove and folder-open actions.
+- Added strict extension, filename, symbolic-link and file-size checks; files are copied as-is and never extracted or executed.
+- Documented that recording/playback and schematic placement still require compatible Minecraft mods.
+
 ## Unreleased — world server download hardening
 
 - Stream official Minecraft server metadata and JAR downloads with strict size limits and 30-second timeouts.

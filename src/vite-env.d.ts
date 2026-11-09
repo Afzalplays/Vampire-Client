@@ -46,6 +46,10 @@ interface Window {
     bulkToggleMods(args: { version: string; loader: string; enabled: boolean; instanceId?: string }): Promise<{ success: boolean; changed: number }>;
     exportModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;
     importModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; installed: number; failed: string[] }>;
+    listStudioFiles(args: { kind: "schematics" | "replays"; version: string; loader: string; instanceId?: string }): Promise<Array<{ fileName: string; bytes: number; modifiedAt: string }>>;
+    importStudioFile(args: { kind: "schematics" | "replays"; version: string; loader: string; instanceId?: string }): Promise<{ canceled?: boolean; fileName?: string }>;
+    removeStudioFile(args: { kind: "schematics" | "replays"; version: string; loader: string; instanceId?: string; fileName: string }): Promise<{ success: boolean }>;
+    openStudioFolder(args: { kind: "schematics" | "replays"; version: string; loader: string; instanceId?: string }): Promise<{ success: boolean }>;
     listResourcePacks(args: { version: string; loader: string ; instanceId?: string }): Promise<string[]>;
     inspectResourcePack(args: { version: string; loader: string; fileName: string; instanceId?: string }): Promise<{ fileName: string; fileSizeBytes: number; fileCount: number; textureCount: number; totalUncompressedBytes: number; packFormat: number; description: string; hasPackIcon: boolean }>;
     openResourcePackFolder(args: { version: string; loader: string; instanceId?: string }): Promise<{ success: boolean }>;

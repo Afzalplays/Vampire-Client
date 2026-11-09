@@ -17,6 +17,7 @@ import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, 
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
+import { getStudioFilePolicy, isSafeStudioFileName, sanitizeStudioImportName, validateStudioFileSize } from "./studio-files-utils";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
@@ -1250,6 +1251,69 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
     catch (error) { failed.push(projectId + ": " + (error instanceof Error ? error.message : "install failed")); }
   }
   return { canceled: false, installed, failed };
+});
+
+
+type StudioFilesArgs = { kind: "schematics" | "replays"; version: string; loader: string; instanceId?: string };
+async function studioFilesDirectory(args: StudioFilesArgs) {
+  const instance = await safeInstanceAsync(args.version, args.loader, args.instanceId || "default");
+  const policy = getStudioFilePolicy(args.kind);
+  const directory = path.join(instance.root, policy.folder);
+  await fs.mkdir(directory, { recursive: true });
+  return { directory, policy };
+}
+ipcMain.handle("studioFiles:list", async (_event, args: StudioFilesArgs) => {
+  const { directory, policy } = await studioFilesDirectory(args);
+  const entries = await fs.readdir(directory, { withFileTypes: true });
+  const files = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !isSafeStudioFileName(args.kind, entry.name)) continue;
+    const filePath = path.join(directory, entry.name);
+    const stat = await fs.lstat(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size > policy.maxBytes) continue;
+    files.push({ fileName: entry.name, bytes: stat.size, modifiedAt: stat.mtime.toISOString() });
+  }
+  return files.sort((a, b) => a.fileName.localeCompare(b.fileName));
+});
+ipcMain.handle("studioFiles:import", async (_event, args: StudioFilesArgs) => {
+  const { directory } = await studioFilesDirectory(args);
+  const policy = getStudioFilePolicy(args.kind);
+  const extensions = policy.extensions.map(value => value.slice(1));
+  const choice = await dialog.showOpenDialog(mainWindow!, {
+    title: args.kind === "replays" ? "Import Replay Mod recording" : "Import Minecraft schematic",
+    properties: ["openFile"],
+    filters: [{ name: args.kind === "replays" ? "Replay Mod recording" : "Minecraft schematic", extensions }]
+  });
+  if (choice.canceled || !choice.filePaths[0]) return { canceled: true };
+  const source = choice.filePaths[0];
+  const stat = await fs.lstat(source);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Select a regular local file, not a symbolic link.");
+  validateStudioFileSize(args.kind, stat.size);
+  const baseName = sanitizeStudioImportName(args.kind, path.basename(source));
+  const extension = path.extname(baseName);
+  const stem = path.basename(baseName, extension);
+  let fileName = baseName;
+  for (let suffix = 2; await fs.access(path.join(directory, fileName)).then(() => true).catch(() => false); suffix++) {
+    fileName = stem.slice(0, 140) + " (" + suffix + ")" + extension;
+  }
+  await fs.copyFile(source, path.join(directory, fileName), fsConstants.COPYFILE_EXCL);
+  return { canceled: false, fileName };
+});
+ipcMain.handle("studioFiles:remove", async (_event, args: StudioFilesArgs & { fileName: string }) => {
+  const { directory } = await studioFilesDirectory(args);
+  const fileName = String(args.fileName || "");
+  if (!isSafeStudioFileName(args.kind, fileName)) throw new Error("Invalid Studio file name.");
+  const filePath = path.join(directory, fileName);
+  const stat = await fs.lstat(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink()) throw new Error("Only regular files can be removed.");
+  await fs.unlink(filePath);
+  return { success: true };
+});
+ipcMain.handle("studioFiles:openFolder", async (_event, args: StudioFilesArgs) => {
+  const { directory } = await studioFilesDirectory(args);
+  const error = await shell.openPath(directory);
+  if (error) throw new Error("Could not open the Studio folder: " + error);
+  return { success: true };
 });
 
 ipcMain.handle("resourcepacks:list", async (_event, args: { version: string; loader: string ; instanceId?: string}) => {
