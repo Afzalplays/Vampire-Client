@@ -313,7 +313,7 @@ export default function App() {
     try {
       if (!window.vampire) throw new Error("Modrinth search is available in the desktop app.");
       const hits = await window.vampire.searchMods({ query, version, loader });
-      setMods(hits);
+      setMods(hits.map(hit => ({ ...hit, icon_url: hit.icon_url ?? undefined })));
     } catch (e) { setError(e instanceof Error ? e.message : "Could not reach Modrinth."); }
     finally { setLoading(false); }
   }

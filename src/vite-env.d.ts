@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-type ModrinthSearchHit = { project_id: string; slug: string; title: string; description: string; downloads: number; icon_url?: string };
+type ModrinthSearchHit = { project_id: string; slug: string; title: string; description: string; downloads: number; icon_url?: string | null };
 
 interface Window {
   vampire?: {
