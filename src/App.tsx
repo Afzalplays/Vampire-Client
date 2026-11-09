@@ -101,7 +101,7 @@ export default function App() {
   const [worldServerExitStatus, setWorldServerExitStatus] = useState("");
   const [worldServerCommand, setWorldServerCommand] = useState("");
   const [hostingMode, setHostingMode] = useState<"both" | "lan" | "internet">("both");
-  const worldServerRamLimit = systemMemory ? Math.max(0, Math.min(16, Math.floor(systemMemory.totalGB - 2), Math.floor(systemMemory.freeGB - 1))) : 0;
+  const worldServerRamLimit = systemMemory ? Math.max(0, Math.min(16, Math.floor(systemMemory.totalGB - 2), Math.floor(systemMemory.freeGB - 0.5))) : 0;
   const [capeVisibility, setCapeVisibility] = useState<"account" | "client-only">("account");
   const [shaderPacks, setShaderPacks] = useState<string[]>([]);
   useEffect(() => {

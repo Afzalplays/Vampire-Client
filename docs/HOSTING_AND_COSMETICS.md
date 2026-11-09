@@ -8,7 +8,7 @@ This document records implemented behavior and remaining work. The Studio page s
 - Default mode: **Both LAN and Internet**.
 - Also offer LAN-only and Internet-only modes.
 - The user must explicitly accept the Minecraft server EULA before the first server start.
-- The user chooses a server version and memory limit. The launcher reserves at least 2 GiB for the OS/apps and 1 GiB of currently free memory; the backend enforces the calculated cap again immediately before server start.
+- The user chooses a server version and memory limit. The launcher reserves at least 2 GiB for the OS/apps and 512 MiB of currently free memory; the backend enforces the calculated cap again immediately before server start.
 - Provide Start, Stop, live console output, process exit status, and a clear server directory.
 - Persist the selected mode and server settings, but never persist a public IP address or router credentials.
 
