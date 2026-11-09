@@ -53,3 +53,13 @@ test("classifies common vanilla server startup failures with actionable guidance
   assert.equal(analyzeWorldServerLog("Unusual error happened")[0]?.title, "Unclassified server error");
   assert.deepEqual(analyzeWorldServerLog("Server started successfully"), []);
 });
+
+import { shouldAutoRestartWorldServer } from "../electron/world-server-utils.ts";
+test("limits automatic world-server recovery to three unexpected exits per ten minutes", () => {
+  const now = 1_000_000;
+  assert.equal(shouldAutoRestartWorldServer(1, false, [], now), true);
+  assert.equal(shouldAutoRestartWorldServer(0, false, [], now), false);
+  assert.equal(shouldAutoRestartWorldServer(1, true, [], now), false);
+  assert.equal(shouldAutoRestartWorldServer(1, false, [now - 1000, now - 2000, now - 3000], now), false);
+  assert.equal(shouldAutoRestartWorldServer(1, false, [now - 700_000, now - 1000, now - 2000], now), true);
+});

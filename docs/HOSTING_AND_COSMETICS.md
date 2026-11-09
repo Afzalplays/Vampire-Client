@@ -29,6 +29,7 @@ This document records implemented behavior and remaining work. The Studio page s
 5. Display local IPv4 addresses and the configured TCP port for LAN connection instructions.
 6. Provide manual Internet port-forward/tunnel guidance; network preference is not enforced by the server process and no router/firewall changes are automated.
 7. Support graceful stop with timed termination fallback, server logs, up to 10 stopped-server backups, rollback-safe restore, backup deletion and per-server ports.
+8. Optional per-server crash recovery: restart after an unexpected non-zero exit, with a maximum of three attempts per ten-minute window; manual stops, normal exits and launcher shutdown do not trigger recovery.
 
 ### Remaining work
 - Enforce LAN-only versus Internet-only policies safely, or remove those options; the current preference is informational only.
@@ -61,4 +62,4 @@ This document records implemented behavior and remaining work. The Studio page s
 
 ## Current status
 
-The local vanilla server manager is implemented in code: verified official JAR download, isolated server folders, explicit EULA acceptance, conservative memory limits, start/stop/delete lifecycle, file-based stdout/stderr logging, live console UI, LAN IPv4 display, single-line command input, graceful shutdown fallback, up to 10 backups, rollback-safe restore, per-server ports and log diagnostics for common port, Java, EULA and memory failures. **Not yet verified in a real desktop run.** Network preferences remain informational only; automatic crash recovery and physical desktop testing remain pending. Vampire-account cosmetics backend, asset storage, cross-device sync and in-game cape renderer are not implemented. Do not represent these remaining items as working features.
+The local vanilla server manager is implemented in code: verified official JAR download, isolated server folders, explicit EULA acceptance, conservative memory limits, start/stop/delete lifecycle, file-based stdout/stderr logging, live console UI, LAN IPv4 display, single-line command input, graceful shutdown fallback, up to 10 backups, rollback-safe restore, per-server ports and log diagnostics for common port, Java, EULA and memory failures. **Not yet verified in a real desktop run.** Network preferences remain informational only; automatic crash recovery is now opt-in and bounded; physical desktop testing remains pending. Vampire-account cosmetics backend, asset storage, cross-device sync and in-game cape renderer are not implemented. Do not represent these remaining items as working features.

@@ -52,3 +52,8 @@ export function analyzeWorldServerLog(log: string): WorldServerDiagnostic[] {
   }
   return findings;
 }
+
+export function shouldAutoRestartWorldServer(exitCode: number | null, manualStop: boolean, attempts: number[], now = Date.now()): boolean {
+  if (manualStop || exitCode === 0) return false;
+  return attempts.filter(at => Number.isFinite(at) && now - at >= 0 && now - at < 10 * 60_000).length < 3;
+}

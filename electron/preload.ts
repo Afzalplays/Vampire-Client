@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("vampire", {
   createInstance: (name: string) => ipcRenderer.invoke("instances:create", name),
   deleteInstance: (id: string) => ipcRenderer.invoke("instances:delete", id),
   listWorldServers: () => ipcRenderer.invoke("servers:list"),
+  setWorldServerAutoRestart: (args: { id: string; enabled: boolean }) => ipcRenderer.invoke("servers:setAutoRestart", args),
   createWorldServer: (args: { name: string; version: string; ramGB?: number; port?: number }) => ipcRenderer.invoke("servers:create", args),
   setWorldServerPort: (args: { id: string; port: number }) => ipcRenderer.invoke("servers:setPort", args),
   startWorldServer: (args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }) => ipcRenderer.invoke("servers:start", args),

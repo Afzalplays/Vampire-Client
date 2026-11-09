@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — World server crash recovery
+
+- Added an opt-in per-server automatic restart setting for unexpected non-zero exits, capped at three attempts within ten minutes.
+- Manual stops, normal exits and launcher shutdown suppress automatic restarts; disabling the setting cancels a pending restart.
+- Added regression coverage for restart policy limits.
+
 All notable Vampire Client changes are recorded here.
 
 ## Unreleased — Java 25 support
