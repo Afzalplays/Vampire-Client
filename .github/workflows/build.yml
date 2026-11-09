@@ -68,7 +68,7 @@ jobs:
       - name: Cache electron-builder downloads
         uses: actions/cache@v4
         with:
-          path: ~/.cache/electron-builder
+          path: .cache/electron-builder
           key: ${{ runner.os }}-electron-builder-${{ hashFiles('package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-electron-builder-
@@ -82,6 +82,8 @@ jobs:
         run: npm test
       - name: Package desktop app (retry transient download failures)
         shell: bash
+        env:
+          ELECTRON_BUILDER_CACHE: ${{ github.workspace }}/.cache/electron-builder
         run: |
           for attempt in 1 2 3 4 5; do
             echo "electron-builder attempt $attempt/5"
