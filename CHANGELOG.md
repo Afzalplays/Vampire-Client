@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Local player nameplate gradients
+
+- Added a client-side player-nameplate mixin that applies the saved gradient while preserving each text segment's existing style metadata.
+- The setting is local-only and does not identify remote Vampire Client users or synchronize cosmetics.
+
 ## Unreleased — Launcher reliability and loader safety
 
 - Added opt-in per-server world crash recovery with a three-restart/ten-minute limit; manual stops, clean exits and launcher shutdown never trigger it, and memory is revalidated before restart.

@@ -73,6 +73,26 @@ public final class VampireIdentity {
         return text;
     }
 
+    public static MutableText gradientText(Text original) {
+        if (original == null) return Text.empty();
+        String full = original.getString();
+        int total = full.length();
+        int[] index = {0};
+        int start = parseHex(gradientStart, 0xFFFF526F);
+        int end = parseHex(gradientEnd, 0xFF9B5CFF);
+        MutableText result = Text.empty();
+        original.visit((style, segment) -> {
+            for (int i = 0; i < segment.length(); i++) {
+                float t = total <= 1 ? 0f : (float) index[0] / (total - 1);
+                int color = interpolate(start, end, t);
+                result.append(Text.literal(segment.substring(i, i + 1)).setStyle(style.withColor(color)));
+                index[0]++;
+            }
+            return Optional.empty();
+        }, Style.EMPTY);
+        return result;
+    }
+
     public static MutableText gradientText(String value) {
         String input = value == null ? "" : value;
         int start = parseHex(gradientStart, 0xFFFF526F);
