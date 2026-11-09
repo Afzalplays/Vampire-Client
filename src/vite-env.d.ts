@@ -3,7 +3,7 @@ interface Window {
   vampire?: {
     version: string;
     openBillingPortal(): Promise<{ success: boolean }>;
-    checkForUpdates(): Promise<{ currentVersion: string; latestVersion: string | null; updateAvailable: boolean; releaseUrl: string; releaseName?: string; publishedAt?: string; releaseNotes?: string; assets: Array<{ name: string; downloadUrl: string; sha256: string | null; size: number }>; reason?: "no-release" | "prerelease" | "invalid-release" }>;
+    checkForUpdates(): Promise<{ currentVersion: string; latestVersion: string | null; updateAvailable: boolean; canDownload?: boolean; releaseUrl: string; releaseName?: string; publishedAt?: string; releaseNotes?: string; assets: Array<{ name: string; downloadUrl: string; sha256: string | null; size: number }>; reason?: "no-release" | "prerelease" | "invalid-release" }>;
     downloadLatestUpdate(): Promise<{ success: boolean; fileName: string; version: string; sha256: string; filePath: string }>;
     revealDownloadedUpdate(): Promise<{ success: boolean }>;
     platform: string;

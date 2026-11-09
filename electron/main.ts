@@ -255,7 +255,9 @@ ipcMain.handle("updates:check", async () => {
     assets: [], reason: "no-release"
   };
   if (!response.ok) throw new Error("GitHub release check failed (" + response.status + ").");
-  return summarizeLatestRelease(await response.json(), currentVersion);
+  const summary = summarizeLatestRelease(await response.json(), currentVersion);
+  const platformAsset = selectPlatformUpdateAsset(summary.assets, process.platform, process.arch);
+  return { ...summary, canDownload: !!platformAsset?.sha256 };
 });
 
 ipcMain.handle("updates:download", async () => {
@@ -278,7 +280,7 @@ ipcMain.handle("updates:download", async () => {
   const download = await fetch(assetUrl);
   if (!download.ok || !download.body) throw new Error("Installer download failed (" + download.status + ").");
   const finalUrl = new URL(download.url);
-  if (finalUrl.protocol !== "https:" || !["github.com", "release-assets.githubusercontent.com"].includes(finalUrl.hostname)) {
+  if (finalUrl.protocol !== "https:" || !["github.com", "release-assets.githubusercontent.com", "objects.githubusercontent.com"].includes(finalUrl.hostname)) {
     throw new Error("The installer redirected to an untrusted download host.");
   }
   const maxBytes = 2 * 1024 * 1024 * 1024;

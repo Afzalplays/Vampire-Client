@@ -162,4 +162,4 @@ Forge builds are selected from the official Forge Maven metadata for the chosen 
 
 ## Manual update checks
 
-The Settings page can query the official GitHub Releases API and compare the latest stable release with the installed launcher version. Release pages and asset downloads are accepted only from the Vampire Client GitHub repository. This is a manual update checker; it does not silently download, replace or execute an installer. No public release is currently guaranteed to exist.
+The Settings page can query the official GitHub Releases API, compare the latest stable release with the installed launcher version, and download the platform-matched installer when GitHub publishes a SHA-256 asset digest. The launcher verifies the download digest and size, then reveals the file in the system file manager for the user to run manually. It never silently replaces or executes the running launcher. Release pages and assets are accepted only from the Vampire Client GitHub repository. No public release is currently guaranteed to exist.
