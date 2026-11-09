@@ -68,7 +68,7 @@ function parsePaxRecords(data: Buffer): Map<string, string> {
     const space = data.indexOf(0x20, offset);
     if (space < 0) throw new Error("Malformed TAR PAX record length.");
     const lengthText = data.subarray(offset, space).toString("ascii");
-    if (!/^\\d+$/.test(lengthText)) throw new Error("Malformed TAR PAX record length.");
+    if (!/^\d+$/.test(lengthText)) throw new Error("Malformed TAR PAX record length.");
     const length = Number(lengthText);
     const end = offset + length;
     if (!Number.isSafeInteger(length) || length <= space - offset + 3 || end > data.length || data[end - 1] !== 0x0a) {
