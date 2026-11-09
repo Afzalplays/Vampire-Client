@@ -79,15 +79,17 @@ function paxRecord(key, value) {
   }
 }
 
-function makePaxArchive(paxPath, entryType = "0") {
-  const metadata = paxRecord("path", paxPath);
+function makePaxMetadataArchive(metadata, headerType = "x", entryType = "0") {
   const file = Buffer.from("verified java archive fixture");
   const pad = data => Buffer.concat([data, Buffer.alloc((512 - data.length % 512) % 512)]);
   return gzipSync(Buffer.concat([
-    tarHeader("PaxHeaders.0/file", metadata.length, "x"), pad(metadata),
+    tarHeader("PaxHeaders.0/file", metadata.length, headerType), pad(metadata),
     tarHeader("short-name.txt", entryType === "5" ? 0 : file.length, entryType), ...(entryType === "5" ? [] : [pad(file)]),
     Buffer.alloc(1024)
   ]));
+}
+function makePaxArchive(paxPath, entryType = "0") {
+  return makePaxMetadataArchive(paxRecord("path", paxPath), "x", entryType);
 }
 
 test("extracts a valid PAX extended path from a Temurin-style TAR.GZ", async () => {
@@ -119,6 +121,44 @@ test("creates PAX-named directories without retaining a trailing separator", asy
     await extractTarGz(makePaxArchive(directory, "5"), root);
     const stat = await fs.stat(path.join(root, directory));
     assert.equal(stat.isDirectory(), true);
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+
+test("rejects malformed PAX record lengths instead of interpreting them", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-invalid-"));
+  try {
+    await assert.rejects(
+      extractTarGz(makePaxMetadataArchive(Buffer.from("x path=runtime/file.txt\\n")), root),
+      /Malformed TAR PAX record length/
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects PAX link metadata and global path overrides", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-invalid-"));
+  try {
+    const linkMetadata = paxRecord("linkpath", "../../outside");
+    await assert.rejects(extractTarGz(makePaxMetadataArchive(linkMetadata), root), /link and sparse-file metadata/);
+    const globalPath = paxRecord("path", "../../outside");
+    await assert.rejects(extractTarGz(makePaxMetadataArchive(globalPath, "g"), root), /Global TAR path overrides/);
+    await assert.rejects(fs.access(path.join(root, "outside")));
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects an archive ending with an unused PAX path header", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-invalid-"));
+  try {
+    const metadata = paxRecord("path", "runtime/orphan.txt");
+    const pad = Buffer.concat([metadata, Buffer.alloc((512 - metadata.length % 512) % 512)]);
+    const archive = gzipSync(Buffer.concat([tarHeader("PaxHeaders.0/orphan", metadata.length, "x"), pad, Buffer.alloc(1024)]));
+    await assert.rejects(extractTarGz(archive, root), /ended after a PAX header/);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

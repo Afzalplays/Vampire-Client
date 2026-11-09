@@ -19,3 +19,8 @@ A verified installation is staged beside the active runtime. Activation first mo
 ## Verification limits
 
 Automated tests cover Java version parsing, runtime-directory replacement/rollback, PAX long-path extraction and PAX path-traversal rejection. The actual Adoptium download, archive extraction and Java process startup still require platform-specific CI or desktop execution. This installer targets Java 21; it is not a universal runtime selector for every Minecraft release.
+
+
+## POSIX PAX TAR metadata
+
+The TAR.GZ reader supports per-entry PAX `path` metadata for long runtime filenames. It rejects malformed length-prefixed records, link/sparse metadata, global path overrides, unsupported size overrides and a dangling extended header. These checks are covered by archive regression tests.

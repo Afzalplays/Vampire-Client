@@ -2,6 +2,10 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Java archive regression coverage
+
+- Added malformed PAX record, link metadata, global path override and dangling-header rejection tests for Java runtime TAR.GZ extraction.
+
 ## Unreleased — CI packaging reliability
 
 - Cache electron-builder downloads between CI runs and extend packaging retries to five attempts with a 45-second delay to tolerate transient upstream HTTP 5xx/504 failures.
