@@ -2,6 +2,12 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — world server download hardening
+
+- Stream official Minecraft server metadata and JAR downloads with strict size limits and 30-second timeouts.
+- Validate both original and final redirect URLs against exact HTTPS Mojang host allowlists before accepting response bytes.
+- Preserve the published SHA-1 check before the server JAR is written to disk.
+
 ## Unreleased — World server network port controls
 
 - Added per-server TCP port selection and stopped-server port changes, with 1024–65535 validation and duplicate-port prevention across local servers.

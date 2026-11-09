@@ -13,7 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
-import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam } from "./world-server-utils";
+import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam, validateWorldServerArtifactUrl } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -28,6 +28,38 @@ const worldServerStopTimers = new Map<string, ReturnType<typeof setTimeout>>();
 let downloadedUpdatePath: string | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
+
+async function fetchWorldServerArtifact(urlValue: string, allowedHosts: string[], maxBytes: number, label: string): Promise<Buffer> {
+  const url = validateWorldServerArtifactUrl(urlValue, allowedHosts);
+  const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
+  // Fetch follows redirects by default; validate the final URL as well as the original.
+  validateWorldServerArtifactUrl(response.url || url.toString(), allowedHosts);
+  if (!response.ok) throw new Error(label + " failed (" + response.status + ").");
+  const declaredSize = Number(response.headers.get("content-length") || 0);
+  if (declaredSize > maxBytes) throw new Error(label + " exceeds the " + Math.round(maxBytes / 1024 / 1024) + " MB safety limit.");
+  if (!response.body) throw new Error(label + " returned an empty response body.");
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel();
+        throw new Error(label + " exceeds the " + Math.round(maxBytes / 1024 / 1024) + " MB safety limit.");
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  if (!total) throw new Error(label + " returned an empty response body.");
+  return Buffer.concat(chunks, total);
+}
+
 const gameRoot = (version?: string, loader = "vanilla", instanceId = "default") => {
   if (!version) return path.join(dataRoot(), "game");
   return instanceId === "default"
@@ -429,26 +461,17 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   const port = validateWorldServerPort(args.port ?? 25565);
   if (records.some(record => Number(record.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
   sendStatus("Fetching official Minecraft " + version + " server metadata…");
-  const manifestResponse = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
-  if (!manifestResponse.ok) throw new Error("Could not fetch the official Minecraft version manifest.");
-  const manifest = await manifestResponse.json() as any;
+  const manifestBytes = await fetchWorldServerArtifact("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", ["piston-meta.mojang.com"], 8 * 1024 * 1024, "Official Minecraft version manifest");
+  const manifest = JSON.parse(manifestBytes.toString("utf8")) as any;
   const entry = Array.isArray(manifest.versions) ? manifest.versions.find((item: any) => item.id === version) : null;
   if (!entry?.url) throw new Error("Minecraft version was not found in Mojang's official manifest.");
-  const metadataUrl = new URL(String(entry.url));
-  if (metadataUrl.protocol !== "https:" || !["piston-meta.mojang.com", "launchermeta.mojang.com"].includes(metadataUrl.hostname)) throw new Error("Minecraft metadata host was rejected.");
-  const metadataResponse = await fetch(metadataUrl);
-  if (!metadataResponse.ok) throw new Error("Could not fetch official server metadata.");
-  const metadata = await metadataResponse.json() as any;
+  const metadataUrl = validateWorldServerArtifactUrl(String(entry.url), ["piston-meta.mojang.com", "launchermeta.mojang.com"]);
+  const metadataBytes = await fetchWorldServerArtifact(metadataUrl.toString(), ["piston-meta.mojang.com", "launchermeta.mojang.com"], 16 * 1024 * 1024, "Official Minecraft version metadata");
+  const metadata = JSON.parse(metadataBytes.toString("utf8")) as any;
   const serverArtifact = metadata?.downloads?.server;
   if (!serverArtifact?.url || !/^[a-f0-9]{40}$/i.test(String(serverArtifact.sha1 || ""))) throw new Error("This Minecraft version does not publish a verifiable official server JAR.");
-  const jarUrl = new URL(String(serverArtifact.url));
-  if (jarUrl.protocol !== "https:" || !["piston-data.mojang.com", "launcher.mojang.com"].includes(jarUrl.hostname)) throw new Error("Minecraft server download host was rejected.");
-  const download = await fetch(jarUrl);
-  if (!download.ok) throw new Error("Official Minecraft server download failed (" + download.status + ").");
-  const declaredSize = Number(download.headers.get("content-length") || 0);
-  if (declaredSize > 200 * 1024 * 1024) throw new Error("Server JAR exceeds the 200 MB safety limit.");
-  const bytes = Buffer.from(await download.arrayBuffer());
-  if (!bytes.length || bytes.length > 200 * 1024 * 1024) throw new Error("Server JAR size is invalid or exceeds 200 MB.");
+  const jarUrl = validateWorldServerArtifactUrl(String(serverArtifact.url), ["piston-data.mojang.com", "launcher.mojang.com"]);
+  const bytes = await fetchWorldServerArtifact(jarUrl.toString(), ["piston-data.mojang.com", "launcher.mojang.com"], 200 * 1024 * 1024, "Official Minecraft server download");
   const actualSha1 = createHash("sha1").update(bytes).digest("hex");
   if (actualSha1.toLowerCase() !== String(serverArtifact.sha1).toLowerCase()) throw new Error("Official server JAR checksum verification failed.");
   const id = randomUUID();

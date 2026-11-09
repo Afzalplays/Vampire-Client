@@ -32,3 +32,15 @@ test("rejects unsafe world server heap sizes", () => {
  assert.throws(()=>validateWorldServerRam(1,2*gib,1.5*gib),/Not enough currently available memory/);
  assert.throws(()=>validateWorldServerRam(1.5,8*gib,7*gib),/whole number/);
 });
+
+import { validateWorldServerArtifactUrl } from "../electron/world-server-utils.ts";
+
+test("accepts only HTTPS Mojang artifact hosts without embedded credentials", () => {
+  assert.equal(validateWorldServerArtifactUrl("https://piston-meta.mojang.com/meta.json", ["piston-meta.mojang.com"]).hostname, "piston-meta.mojang.com");
+  for (const url of [
+    "http://piston-meta.mojang.com/meta.json",
+    "https://evil.example/payload",
+    "https://user:pass@piston-meta.mojang.com/meta.json",
+    "file:///etc/passwd"
+  ]) assert.throws(() => validateWorldServerArtifactUrl(url, ["piston-meta.mojang.com"]));
+});

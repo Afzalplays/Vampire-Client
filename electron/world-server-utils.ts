@@ -26,3 +26,12 @@ export function validateWorldServerRam(value: unknown, totalBytes: number, freeB
   if (ram > maximum) throw new Error("This PC can safely allocate up to " + maximum + " GB right now. At least 2 GB is reserved for the operating system and 1 GB of free memory is kept available.");
   return ram;
 }
+
+export function validateWorldServerArtifactUrl(value: string, allowedHosts: string[]): URL {
+  let url: URL;
+  try { url = new URL(String(value)); } catch { throw new Error("Invalid official Minecraft server artifact URL."); }
+  if (url.protocol !== "https:" || url.username || url.password || !allowedHosts.includes(url.hostname.toLowerCase())) {
+    throw new Error("Minecraft server download host was rejected.");
+  }
+  return url;
+}
