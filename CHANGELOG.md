@@ -8,6 +8,7 @@ All notable Vampire Client changes are recorded here.
 - Verify the extracted runtime by launching `java -version` and requiring Java 21 before activation.
 - Stage runtime updates separately and preserve/restore the previous runtime if activation fails.
 - Added regression tests for runtime replacement, rollback and Java version parsing. See [Java runtime installation](docs/JAVA_RUNTIME_INSTALLATION.md).
+- Added safe POSIX PAX extended-path support for TAR.GZ runtimes and tests for long paths and traversal rejection.
 
 ## Unreleased — Vampire Client Studio foundation
 

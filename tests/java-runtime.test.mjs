@@ -47,3 +47,66 @@ test("Java runtime parser still handles legacy and modern version output", () =>
   assert.equal(parseJavaMajorVersion('java version "1.8.0_402"'), 8);
   assert.equal(parseJavaMajorVersion('openjdk version "17.0.10" 2024-01-16'), 17);
 });
+
+import { gzipSync } from "node:zlib";
+import { extractTarGz } from "../electron/java-runtime.ts";
+
+function tarHeader(name, size, type = "0") {
+  const header = Buffer.alloc(512);
+  header.write(name, 0, 100, "utf8");
+  header.write("0000644\0", 100, 8, "ascii");
+  header.write("0000000\0", 108, 8, "ascii");
+  header.write("0000000\0", 116, 8, "ascii");
+  header.write(size.toString(8).padStart(11, "0") + "\0", 124, 12, "ascii");
+  header.write("00000000000\0", 136, 12, "ascii");
+  header.fill(0x20, 148, 156);
+  header.write(type, 156, 1, "ascii");
+  header.write("ustar\0", 257, 6, "ascii");
+  header.write("00", 263, 2, "ascii");
+  let checksum = 0;
+  for (const byte of header) checksum += byte;
+  header.write(checksum.toString(8).padStart(6, "0") + "\0 ", 148, 8, "ascii");
+  return header;
+}
+
+function paxRecord(key, value) {
+  const body = key + "=" + value + "\n";
+  let length = Buffer.byteLength(body) + 2;
+  while (true) {
+    const next = Buffer.byteLength(String(length) + " " + body);
+    if (next === length) return Buffer.from(String(length) + " " + body);
+    length = next;
+  }
+}
+
+function makePaxArchive(paxPath) {
+  const metadata = paxRecord("path", paxPath);
+  const file = Buffer.from("verified java archive fixture");
+  const pad = data => Buffer.concat([data, Buffer.alloc((512 - data.length % 512) % 512)]);
+  return gzipSync(Buffer.concat([
+    tarHeader("PaxHeaders.0/file", metadata.length, "x"), pad(metadata),
+    tarHeader("short-name.txt", file.length), pad(file),
+    Buffer.alloc(1024)
+  ]));
+}
+
+test("extracts a valid PAX extended path from a Temurin-style TAR.GZ", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-"));
+  const nested = "runtime/" + "long-directory-name/".repeat(5) + "release-notes.txt";
+  try {
+    await extractTarGz(makePaxArchive(nested), root);
+    assert.equal(await fs.readFile(path.join(root, nested), "utf8"), "verified java archive fixture");
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects path traversal supplied by TAR PAX metadata", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-"));
+  try {
+    await assert.rejects(extractTarGz(makePaxArchive("../../escape.txt"), root), /path traversal|Unsafe runtime archive path/);
+    await assert.rejects(fs.access(path.join(root, "escape.txt")));
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});

@@ -61,25 +61,59 @@ async function extractZip(bytes: Buffer, root: string) {
     await writeEntry(root,e.name,data);
   }
 }
-async function extractTarGz(bytes: Buffer, root: string) {
+function parsePaxRecords(data: Buffer): Map<string, string> {
+  const records = new Map<string, string>();
+  let offset = 0;
+  while (offset < data.length) {
+    const space = data.indexOf(0x20, offset);
+    if (space < 0) throw new Error("Malformed TAR PAX record length.");
+    const lengthText = data.subarray(offset, space).toString("ascii");
+    if (!/^\\d+$/.test(lengthText)) throw new Error("Malformed TAR PAX record length.");
+    const length = Number(lengthText);
+    const end = offset + length;
+    if (!Number.isSafeInteger(length) || length <= space - offset + 3 || end > data.length || data[end - 1] !== 0x0a) {
+      throw new Error("Malformed TAR PAX record.");
+    }
+    const record = data.subarray(space + 1, end - 1).toString("utf8");
+    const equals = record.indexOf("=");
+    if (equals <= 0) throw new Error("Malformed TAR PAX key/value.");
+    records.set(record.slice(0, equals), record.slice(equals + 1));
+    offset = end;
+  }
+  return records;
+}
+
+export async function extractTarGz(bytes: Buffer, root: string) {
   const tar=gunzipSync(bytes,{maxOutputLength:MAX_EXPANDED});
-  let off=0,total=0,count=0;
+  let off=0,total=0,count=0,pendingPath:string|null=null;
   while(off+512<=tar.length){
     const h=tar.subarray(off,off+512);if(h.every(v=>v===0))break;
     const stored=parseInt(h.subarray(148,156).toString("ascii").replace(/\0.*$/,"").trim()||"0",8);
     let sum=0;for(let i=0;i<512;i++)sum+=i>=148&&i<156?32:h[i];
     if(stored!==sum)throw new Error("Invalid TAR header checksum.");
     const field=(a:number,b:number)=>h.subarray(a,b).toString("utf8").replace(/\0.*$/,"");
-    const name=field(0,100),prefix=field(345,500),full=prefix?prefix+"/"+name:name;
+    const name=field(0,100),prefix=field(345,500),headerName=prefix?prefix+"/"+name:name;
     const sizeText=field(124,136).trim(),size=sizeText?parseInt(sizeText,8):0,type=field(156,157)||"0";
     if(!Number.isSafeInteger(size)||size<0||size>MAX_FILE||++count>MAX_ENTRIES)throw new Error("Invalid TAR entry size/count.");
+    const start=off+512,end=start+size;if(end>tar.length)throw new Error("Truncated TAR entry.");
+    const payload=tar.subarray(start,end);
+    if(type==="x"||type==="g"){
+      const records=parsePaxRecords(payload);
+      if(records.has("linkpath")||records.has("GNU.sparse.name"))throw new Error("TAR link and sparse-file metadata are rejected.");
+      if(records.has("size")&&Number(records.get("size"))!==size)throw new Error("TAR PAX size overrides are not supported.");
+      if(type==="g"&&records.has("path"))throw new Error("Global TAR path overrides are not supported.");
+      if(type==="x")pendingPath=records.get("path")||null;
+      off=start+Math.ceil(size/512)*512;
+      continue;
+    }
     if(!["0","\0","5"].includes(type))throw new Error("TAR links and special files are rejected.");
     total+=size;if(total>MAX_EXPANDED)throw new Error("TAR expanded size limit exceeded.");
-    const start=off+512,end=start+size;if(end>tar.length)throw new Error("Truncated TAR entry.");
-    if(type==="5")await writeEntry(root,full+"/",Buffer.alloc(0),true);
-    else await writeEntry(root,full,Buffer.from(tar.subarray(start,end)));
+    const full=pendingPath||headerName;pendingPath=null;
+    if(type==="5")await writeEntry(root,full.replace(/\\/$/,"")+"/",Buffer.alloc(0),true);
+    else await writeEntry(root,full,Buffer.from(payload));
     off=start+Math.ceil(size/512)*512;
   }
+  if(pendingPath)throw new Error("TAR archive ended after a PAX header without its file entry.");
 }
 async function findJava(dir:string,depth=0):Promise<string|null>{
   if(depth>8)return null;
