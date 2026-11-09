@@ -47,6 +47,7 @@ contextBridge.exposeInMainWorld("vampire", {
   getInstallStatus: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("game:installStatus", args),
   launchGame: (args: { username: string; version: string; ram: number; javaPath?: string; instanceId?: string }) => ipcRenderer.invoke("game:launch", args),
   stopGame: () => ipcRenderer.invoke("game:stop"),
+  searchMods: (args: { query: string; version: string; loader: string }) => ipcRenderer.invoke("mods:search", args),
   listMods: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("mods:list", args),
   bulkToggleMods: (args: { version: string; loader: string; enabled: boolean; instanceId?: string }) => ipcRenderer.invoke("mods:bulkToggle", args),
   exportModpack: (args: { version: string; loader: string ; instanceId?: string }) => ipcRenderer.invoke("mods:exportPack", args),

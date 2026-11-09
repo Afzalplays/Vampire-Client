@@ -1,5 +1,5 @@
 /// <reference types="vite/client" />
-type ModrinthSearchHit = { project_id: string; slug: string; title: string; description: string; icon_url?: string | null; downloads?: number; author?: string; categories?: string[] };
+type ModrinthSearchHit = { project_id: string; slug: string; title: string; description: string; downloads: number; icon_url?: string };
 
 interface Window {
   vampire?: {
@@ -45,6 +45,7 @@ interface Window {
     getInstallStatus(args: { version: string; loader: string ; instanceId?: string }): Promise<{ installed: boolean; launchVersion: string | null; reason: string | null }>;
     launchGame(args: { username: string; version: string; ram: number; javaPath?: string; instanceId?: string }): Promise<{ success: boolean; pid?: number }>;
     stopGame(): Promise<{ success: boolean; stopped: boolean; pid?: number }>;
+    searchMods(args: { query: string; version: string; loader: string }): Promise<ModrinthSearchHit[]>;
     listMods(args: { version: string; loader: string ; instanceId?: string }): Promise<Array<{ fileName: string; enabled: boolean }>>;
     bulkToggleMods(args: { version: string; loader: string; enabled: boolean; instanceId?: string }): Promise<{ success: boolean; changed: number }>;
     exportModpack(args: { version: string; loader: string ; instanceId?: string }): Promise<{ canceled?: boolean; filePath?: string; count?: number }>;

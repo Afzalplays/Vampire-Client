@@ -1207,7 +1207,7 @@ async function installModrinthTree(projectId: string, mcVersion: string, loader:
     const file = selected.files.find((item: any) => item.primary) || selected.files[0];
     const fileUrl = new URL(String(file?.url || ""));
     if (fileUrl.protocol !== "https:" || fileUrl.hostname !== "cdn.modrinth.com") throw new Error("Mod download host was rejected.");
-    const download = await fetch(fileUrl);
+    const download = await fetch(fileUrl, { headers: MODRINTH_HEADERS });
     if (!download.ok) throw new Error("Mod download failed (" + download.status + ").");
     const bytes = await verifyModrinthDownload(download, file);
     const fileName = path.basename(String(file.filename || "mod.jar")).replace(/[^A-Za-z0-9._-]/g, "_");
@@ -1620,7 +1620,7 @@ ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: s
     if (!entry.projectId || !entry.versionId || !entry.fileName) continue;
     const response = await fetch("https://api.modrinth.com/v2/project/" + encodeURIComponent(entry.projectId) +
       "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version])) +
-      "&loaders=" + encodeURIComponent(JSON.stringify([args.loader])));
+      "&loaders=" + encodeURIComponent(JSON.stringify([args.loader])), { headers: MODRINTH_HEADERS });
     if (!response.ok) continue;
     const versions = await response.json() as any[];
     const latest = versions[0];
@@ -1794,7 +1794,7 @@ ipcMain.handle("performance:set", async (_event, args: { profile: string; versio
   const endpoint = "https://api.modrinth.com/v2/project/" + projectId +
     "/version?game_versions=" + encodeURIComponent(JSON.stringify([args.version])) +
     "&loaders=" + encodeURIComponent(JSON.stringify(["fabric"]));
-  const response = await fetch(endpoint);
+  const response = await fetch(endpoint, { headers: MODRINTH_HEADERS });
   if (!response.ok) throw new Error("Modrinth renderer lookup failed (" + response.status + ").");
   const versions = await response.json() as any[];
   const selected = versions[0];
@@ -1802,7 +1802,7 @@ ipcMain.handle("performance:set", async (_event, args: { profile: string; versio
   const file = selected.files.find((item: any) => item.primary) || selected.files[0];
   const url = new URL(file.url);
   if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Renderer download host was rejected.");
-  const download = await fetch(url);
+  const download = await fetch(url, { headers: MODRINTH_HEADERS });
   if (!download.ok) throw new Error("Renderer download failed (" + download.status + ").");
   const bytes = await verifyModrinthDownload(download, file);
   const fileName = path.basename(String(file.filename || profile + ".jar")).replace(/[^A-Za-z0-9._-]/g, "_");
