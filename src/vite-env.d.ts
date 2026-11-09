@@ -10,8 +10,9 @@ interface Window {
     listInstances(): Promise<Array<{ id: string; name: string; createdAt: string }>>;
     createInstance(name: string): Promise<{ id: string; name: string; createdAt: string }>;
     deleteInstance(id: string): Promise<{ success: boolean }>;
-    listWorldServers(): Promise<Array<{ id: string; name: string; version: string; createdAt: string; ramGB: number; running: boolean }>>;
-    createWorldServer(args: { name: string; version: string; ramGB?: number }): Promise<{ id: string; name: string; version: string; createdAt: string; ramGB: number; running: boolean; eulaAccepted: boolean }>;
+    listWorldServers(): Promise<Array<{ id: string; name: string; version: string; createdAt: string; ramGB: number; port: number; running: boolean }>>;
+    createWorldServer(args: { name: string; version: string; ramGB?: number; port?: number }): Promise<{ id: string; name: string; version: string; createdAt: string; ramGB: number; port: number; running: boolean; eulaAccepted: boolean }>;
+    setWorldServerPort(args: { id: string; port: number }): Promise<{ success: boolean; port: number }>;
     startWorldServer(args: { id: string; javaPath?: string; ramGB?: number; acceptEula: boolean }): Promise<{ success: boolean; pid?: number }>;
     stopWorldServer(id: string): Promise<{ success: boolean; stopped: boolean }>;
     getWorldServerInfo(id: string): Promise<{ logs: string; running: boolean; lanAddresses: string[]; port: number; lastExitCode: number | null; lastError: string | null; lastExitAt: string | null }>;

@@ -366,7 +366,7 @@ ipcMain.handle("instances:delete", async (_event, idValue: string) => {
   return { success: true };
 });
 
-type WorldServerRecord = { id: string; name: string; version: string; createdAt: string; ramGB: number; };
+type WorldServerRecord = { id: string; name: string; version: string; createdAt: string; ramGB: number; port?: number; };
 const worldServersFile = () => path.join(dataRoot(), "world-servers.json");
 const worldServerRoot = (id: string) => {
   if (!/^[a-f0-9-]{36}$/.test(String(id || ""))) throw new Error("Invalid world server ID.");
@@ -411,10 +411,10 @@ async function listWorldServerBackups(serverId: string): Promise<WorldServerBack
 }
 async function listWorldServers() {
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
-  return records.map(record => ({ ...record, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
+  return records.map(record => ({ ...record, port: Number(record.port) || 25565, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
 }
 ipcMain.handle("servers:list", async () => listWorldServers());
-ipcMain.handle("servers:create", async (_event, args: { name: string; version: string; ramGB?: number }) => {
+ipcMain.handle("servers:create", async (_event, args: { name: string; version: string; ramGB?: number; port?: number }) => {
   const name = String(args.name || "").trim();
   const version = String(args.version || "");
   if (name.length < 2 || name.length > 32 || !/^[A-Za-z0-9 _.-]+$/.test(name)) throw new Error("Server name must be 2–32 letters, numbers, spaces, dots or dashes.");
@@ -423,6 +423,9 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   if (records.length >= 10) throw new Error("You can create up to 10 local world servers.");
   if (records.some(record => record.name.toLowerCase() === name.toLowerCase())) throw new Error("A world server with this name already exists.");
   const ramGB = Math.max(1, Math.min(16, Math.round(Number(args.ramGB || 2))));
+  const port = Number(args.port ?? 25565);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Server port must be a whole number from 1024 to 65535.");
+  if (records.some(record => Number(record.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
   sendStatus("Fetching official Minecraft " + version + " server metadata…");
   const manifestResponse = await fetch("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json");
   if (!manifestResponse.ok) throw new Error("Could not fetch the official Minecraft version manifest.");
@@ -452,11 +455,11 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   await fs.writeFile(path.join(root, "server.jar"), bytes, { flag: "wx" });
   await fs.writeFile(path.join(root, "eula.txt"), "eula=false\n", "utf8");
   await fs.writeFile(path.join(root, "server.properties"), [
-    "server-port=25565", "server-ip=", "online-mode=true", "enable-rcon=false",
+    "server-port=" + port, "server-ip=", "online-mode=true", "enable-rcon=false",
     "enable-command-block=false", "max-players=10", "view-distance=6",
     "simulation-distance=4", "motd=Vampire Client World", "white-list=false", ""
   ].join("\n"), "utf8");
-  const record: WorldServerRecord = { id, name, version, createdAt: new Date().toISOString(), ramGB };
+  const record: WorldServerRecord = { id, name, version, createdAt: new Date().toISOString(), ramGB, port };
   records.push(record);
   await writeJson(worldServersFile(), records);
   sendStatus("World server " + name + " downloaded and verified. EULA acceptance is required before first start.");
@@ -591,6 +594,25 @@ ipcMain.handle("servers:deleteBackup", async (_event, args: { id: string; backup
   await fs.rm(directory, { recursive: true, force: true });
   return { success: true };
 });
+ipcMain.handle("servers:setPort", async (_event, args: { id: string; port: number }) => {
+  const id = String(args?.id || "");
+  const port = Number(args?.port);
+  if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error("Server port must be a whole number from 1024 to 65535.");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  const record = records.find(item => item.id === id);
+  if (!record) throw new Error("World server not found.");
+  const proc = worldServerProcesses.get(id);
+  if (proc && proc.exitCode === null) throw new Error("Stop the world server before changing its port.");
+  if (records.some(item => item.id !== id && Number(item.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
+  const propertiesFile = path.join(worldServerRoot(id), "server.properties");
+  let properties = await fs.readFile(propertiesFile, "utf8");
+  if (/^server-port=.*$/m.test(properties)) properties = properties.replace(/^server-port=.*$/m, "server-port=" + port);
+  else properties += "\nserver-port=" + port + "\n";
+  await fs.writeFile(propertiesFile, properties, "utf8");
+  record.port = port;
+  await writeJson(worldServersFile(), records);
+  return { success: true, port };
+});
 ipcMain.handle("servers:info", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
@@ -601,9 +623,15 @@ ipcMain.handle("servers:info", async (_event, idValue: string) => {
   const addresses = Object.values(networkInterfaces()).flatMap(items => (items || [])
     .filter(item => item.family === "IPv4" && !item.internal)
     .map(item => item.address)).filter((value, index, all) => all.indexOf(value) === index);
+  let port = Number(records.find(record => record.id === id)?.port) || 25565;
+  try {
+    const properties = await fs.readFile(path.join(root, "server.properties"), "utf8");
+    const match = /^server-port=(\\d+)$/m.exec(properties);
+    if (match) port = Number(match[1]);
+  } catch {}
   const proc = worldServerProcesses.get(id);
   const lastExit = worldServerLastExit.get(id) || null;
-  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port: 25565, lastExitCode: lastExit?.code ?? null, lastError: lastExit?.error ?? null, lastExitAt: lastExit?.at ?? null };
+  return { logs, running: Boolean(proc && proc.exitCode === null), lanAddresses: addresses, port, lastExitCode: lastExit?.code ?? null, lastError: lastExit?.error ?? null, lastExitAt: lastExit?.at ?? null };
 });
 ipcMain.handle("servers:command", async (_event, args: { id: string; command: string }) => {
   const id = String(args?.id || "");
