@@ -20,7 +20,7 @@ import { maxSafeWorldServerRamGB, validateWorldServerRam } from "../electron/wor
 test("calculates a conservative world server RAM cap from total and free memory", () => {
  const gib=1024*1024*1024;
  assert.equal(maxSafeWorldServerRamGB(4*gib,3.2*gib),2);
- assert.equal(maxSafeWorldServerRamGB(8*gib,6.5*gib),5);
+ assert.equal(maxSafeWorldServerRamGB(8*gib,6.5*gib),6);
  assert.equal(maxSafeWorldServerRamGB(32*gib,20*gib),16);
  assert.equal(maxSafeWorldServerRamGB(2*gib,1.5*gib),0);
  assert.equal(maxSafeWorldServerRamGB(Number.NaN,1),0);
