@@ -543,7 +543,7 @@ export default function App() {
   const visibleInstalled = useMemo(() => installed.filter(file => file.fileName.toLowerCase().includes(installedFilter.trim().toLowerCase()) && (installedStatusFilter === "all" || (installedStatusFilter === "enabled" ? file.enabled : !file.enabled))), [installed, installedFilter, installedStatusFilter]);
   const enabledModCount = useMemo(() => installed.filter(file => file.enabled).length, [installed]);
   const disabledModCount = installed.length - enabledModCount;
-  const compatibilityWarnings = useMemo(() => scanModConflicts(installed), [installed]);
+  const compatibilityWarnings = useMemo(() => scanModConflicts(installed, loader), [installed, loader]);
   const logIssues = useMemo(() => extractLogIssues(logText), [logText]);
   const logIssueContext = useMemo(() => extractLogIssueContext(logText), [logText]);
   const logIssueSummary = useMemo(() => summarizeLogIssues(logText), [logText]);

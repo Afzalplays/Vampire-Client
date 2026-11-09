@@ -86,3 +86,16 @@ test("parses common Java runtime version output", () => {
 test("rejects Java version output that cannot be identified", () => {
   assert.throws(() => parseJavaMajorVersion("not a Java runtime"), /Could not determine/);
 });
+
+test("does not incorrectly require Fabric API in Forge and NeoForge profiles", () => {
+  assert.deepEqual(scanModConflicts([{ fileName: "jei.jar", enabled: true }], "forge"), []);
+  assert.deepEqual(scanModConflicts([{ fileName: "jei.jar", enabled: true }], "neoforge"), []);
+});
+
+test("warns about duplicate Embeddium and Rubidium renderer forks", () => {
+  const warnings = scanModConflicts([
+    { fileName: "embeddium.jar", enabled: true },
+    { fileName: "rubidium.jar", enabled: true }
+  ], "forge");
+  assert.ok(warnings.some(warning => /alternative renderer forks/.test(warning)));
+});
