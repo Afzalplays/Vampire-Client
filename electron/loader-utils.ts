@@ -26,11 +26,13 @@ export function selectForgeVersion(xml: unknown, minecraftVersion: string): stri
 }
 
 export function selectNeoForgeVersion(xml: unknown, minecraftVersion: string): string {
-  const match = /^1\.(\d+)\.(\d+)$/.exec(minecraftVersion);
-  if (!match || Number(match[1]) < 20 || (Number(match[1]) === 20 && Number(match[2]) < 2)) {
+  const match = /^1\.(\d+)(?:\.(\d+))?$/.exec(minecraftVersion);
+  const minecraftMinor = match ? Number(match[1]) : 0;
+  const minecraftPatch = match ? Number(match[2] || 0) : 0;
+  if (!match || minecraftMinor < 20 || (minecraftMinor === 20 && minecraftPatch < 2)) {
     throw new Error("NeoForge automatic installation requires Minecraft 1.20.2 or newer.");
   }
-  const prefix = match[1] + "." + match[2] + ".";
+  const prefix = minecraftMinor + "." + minecraftPatch + ".";
   const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix) && !/(?:alpha|beta|rc)/i.test(version));
   if (!candidates.length) throw new Error("No stable NeoForge build is available for Minecraft " + minecraftVersion + ".");
   return candidates[candidates.length - 1];
