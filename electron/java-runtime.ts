@@ -222,10 +222,13 @@ export async function activateRuntimeDirectory(temporary: string, destination: s
 }
 
 export function requiredJavaMajorForMinecraft(version: string): number {
-  const match = /^1\.(\d+)(?:\.(\d+))?/.exec(String(version || ""));
+  const match = /^(\\d+)\\.(\\d+)(?:\\.(\\d+))?/.exec(String(version || ""));
   if (!match) return 21;
-  const minor = Number(match[1]);
-  const patch = Number(match[2] || 0);
+  const releaseMajor = Number(match[1]);
+  const minor = Number(match[2]);
+  const patch = Number(match[3] || 0);
+  if (releaseMajor >= 26) return 25;
+  if (releaseMajor > 1) return 21;
   if (minor > 20 || (minor === 20 && patch >= 5)) return 21;
   if (minor >= 17) return 17;
   return 8;
