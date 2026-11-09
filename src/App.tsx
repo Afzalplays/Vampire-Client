@@ -166,7 +166,24 @@ export default function App() {
     if (!window.vampire) return;
     return window.vampire.onWorldServerOutput(event => {
       if (event.id === activeWorldServerId) setWorldServerLogs(previous => (previous + event.text + "\\n").slice(-80000));
-      if (event.text.includes("Server stopped with exit code")) void window.vampire?.listWorldServers().then(setWorldServers);
+      if (event.text.includes("Server stopped with exit code")) {
+        void window.vampire?.listWorldServers().then(setWorldServers);
+        if (event.id === activeWorldServerId) {
+          // Allow the asynchronous log append to finish before fetching the final
+          // diagnostic snapshot, so the crash cause is available immediately.
+          window.setTimeout(() => {
+            void window.vampire?.getWorldServerInfo(event.id).then(info => {
+              setWorldServerLogs(info.logs);
+              setWorldServerDiagnostics(info.diagnostics || []);
+              setWorldServerExitStatus(info.lastError
+                ? "Server process error: " + info.lastError
+                : info.lastExitCode !== null
+                  ? "Server exited with code " + info.lastExitCode + (info.lastExitAt ? " at " + new Date(info.lastExitAt).toLocaleString() : "") + "."
+                  : "Server stopped.");
+            }).catch(() => undefined);
+          }, 500);
+        }
+      }
     });
   }, [activeWorldServerId]);
 
