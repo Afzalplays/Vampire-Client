@@ -2,6 +2,11 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — World server network port controls
+
+- Added per-server TCP port selection and stopped-server port changes, with 1024–65535 validation and duplicate-port prevention across local servers.
+- The chosen port is persisted to `server.properties` and shown with each server's LAN connection details. Online-mode remains enabled and RCON remains disabled by default.
+
 ## Unreleased — Local world server backups
 
 - Added up to 10 per-server snapshots, with a 20 GB safety limit and symlink rejection.
