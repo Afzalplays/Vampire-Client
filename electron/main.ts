@@ -12,7 +12,7 @@ import { getVersionList, install, getLoaderArtifactListFor, installFabric, insta
 import { selectQuiltLoaderVersion } from "./loader-utils";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
-import { installJava21Runtime, parseJavaMajorVersion } from "./java-runtime";
+import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease } from "./update-utils";
 
@@ -621,9 +621,11 @@ ipcMain.handle("logs:export", async () => {
   return { canceled: false, filePath: choice.filePath };
 });
 
-ipcMain.handle("java:install", async () => {
+ipcMain.handle("java:install", async (_event, args: { major?: number }) => {
   if (gameProcess && gameProcess.exitCode === null) throw new Error("Stop Minecraft before installing Java.");
-  return installJava21Runtime(dataRoot(), process.platform, process.arch, message => sendStatus(message));
+  const major = Number(args?.major);
+  if (![8, 17, 21].includes(major)) throw new Error("Select a supported Java version: 8, 17 or 21.");
+  return installJavaRuntime(dataRoot(), process.platform, process.arch, major, message => sendStatus(message));
 });
 
 ipcMain.handle("java:detect", async (_event, args: { javaPath?: string }) => {

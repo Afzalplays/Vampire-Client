@@ -127,7 +127,7 @@ async function findJava(dir:string,depth=0):Promise<string|null>{
 function targetFor(os:string,arch:string){
   const platform=os==="win32"?"windows":os==="darwin"?"mac":os==="linux"?"linux":"";
   const architecture=arch==="x64"?"x64":arch==="arm64"?"aarch64":arch==="ia32"?"x86":"";
-  if(!platform||!architecture||(platform==="windows"&&architecture==="aarch64")||(platform==="mac"&&architecture==="x86"))throw new Error("Java 21 auto-install is unavailable for this platform/architecture.");
+  if(!platform||!architecture||(platform==="windows"&&architecture==="aarch64")||(platform==="mac"&&architecture==="x86"))throw new Error("Automatic Java installation is unavailable for this platform/architecture.");
   return {platform,architecture};
 }
 
@@ -189,7 +189,7 @@ async function readLimitedResponse(response: Response, declaredSize: number): Pr
   if (!total || (declaredSize > 0 && total !== declaredSize)) throw new Error("Java package size verification failed.");
   return Buffer.concat(chunks, total);
 }
-async function verifyJava21Executable(executable: string): Promise<void> {
+async function verifyJavaExecutable(executable: string, expectedMajor: number): Promise<void> {
   let output = "";
   try {
     const result = await execFileAsync(executable, ["-version"], { timeout: 15_000, windowsHide: true, cwd: path.dirname(executable), maxBuffer: 64 * 1024 });
@@ -199,7 +199,7 @@ async function verifyJava21Executable(executable: string): Promise<void> {
     throw new Error("The downloaded Java runtime failed its startup check." + (detail ? " " + detail : ""));
   }
   const major = parseJavaMajorVersion(output);
-  if (major !== 21) throw new Error("The downloaded runtime reported Java " + major + "; Java 21 was expected.");
+  if (major !== expectedMajor) throw new Error("The downloaded runtime reported Java " + major + "; Java " + expectedMajor + " was expected.");
 }
 
 export async function activateRuntimeDirectory(temporary: string, destination: string): Promise<void> {
@@ -221,11 +221,22 @@ export async function activateRuntimeDirectory(temporary: string, destination: s
   if (previousRuntimeMoved) await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 }
 
-export async function installJava21Runtime(root:string,os:string,arch:string,onProgress?:(message:string)=>void){
+export function requiredJavaMajorForMinecraft(version: string): number {
+  const match = /^1\\.(\\d+)(?:\\.(\\d+))?/.exec(String(version || ""));
+  if (!match) return 21;
+  const minor = Number(match[1]);
+  const patch = Number(match[2] || 0);
+  if (minor > 20 || (minor === 20 && patch >= 5)) return 21;
+  if (minor >= 17) return 17;
+  return 8;
+}
+
+export async function installJavaRuntime(root:string,os:string,arch:string,major:number,onProgress?:(message:string)=>void){
+  if (![8,17,21].includes(major)) throw new Error("Supported automatic Java runtimes are Java 8, 17 and 21.");
   const target=targetFor(os,arch);
-  const api=new URL("https://api.adoptium.net/v3/assets/latest/21/hotspot");
+  const api=new URL("https://api.adoptium.net/v3/assets/latest/"+major+"/hotspot");
   api.search=new URLSearchParams({architecture:target.architecture,heap_size:"normal",image_type:"jre",jvm_impl:"hotspot",os:target.platform,vendor:"eclipse",page_size:"1"}).toString();
-  onProgress?.("Finding official Eclipse Temurin Java 21…");
+  onProgress?.("Finding official Eclipse Temurin Java "+major+"…");
   const meta=await fetch(api,{redirect:"error",signal:AbortSignal.timeout(15_000),headers:{accept:"application/json"}});
   if(!meta.ok)throw new Error("Java metadata request failed ("+meta.status+").");
   const metadataText=await meta.text();
@@ -234,18 +245,18 @@ export async function installJava21Runtime(root:string,os:string,arch:string,onP
   try{data=JSON.parse(metadataText);}catch{throw new Error("Java metadata response was not valid JSON.");}
   const asset=Array.isArray(data)?data[0]:null,pkg=asset?.binary?.package;
   const packageName=String(pkg?.name||"");
-  if(typeof pkg?.link!=="string"||typeof pkg?.checksum!=="string"||! /\.(zip|tar\.gz)$/i.test(packageName))throw new Error("No supported Temurin Java 21 JRE package was returned.");
+  if(typeof pkg?.link!=="string"||typeof pkg?.checksum!=="string"||! /\.(zip|tar\.gz)$/i.test(packageName))throw new Error("No supported Temurin Java "+major+" JRE package was returned.");
   const url=new URL(pkg.link);
   assertTemurinDownloadUrl(url);
   const declared=Number(pkg.size||0);
   if(!Number.isSafeInteger(declared)||declared<=0||declared>MAX_ARCHIVE)throw new Error("Java package size is missing or exceeds 300 MB.");
   const expected=String(pkg.checksum).toLowerCase();
   if(!/^[a-f0-9]{64}$/.test(expected))throw new Error("Java package checksum metadata is invalid.");
-  onProgress?.("Downloading Java 21 for "+target.platform+"/"+target.architecture+"…");
+  onProgress?.("Downloading Java "+major+" for "+target.platform+"/"+target.architecture+"…");
   const response=await fetchTemurinPackage(url);
   const bytes=await readLimitedResponse(response,declared);
   if(createHash("sha256").update(bytes).digest("hex")!==expected)throw new Error("Java SHA-256 verification failed.");
-  const destination=path.join(root,"java-runtime");
+  const destination=path.join(root,"java-runtime-"+major);
   const temporary=destination+".installing-"+randomUUID();
   await fs.mkdir(root,{recursive:true});
   await fs.mkdir(temporary,{recursive:true});
@@ -256,14 +267,18 @@ export async function installJava21Runtime(root:string,os:string,arch:string,onP
     if(!executable)throw new Error("Java executable missing after extraction.");
     if(os!=="win32")await fs.chmod(executable,0o755);
     onProgress?.("Checking the extracted Java runtime…");
-    await verifyJava21Executable(executable);
+    await verifyJavaExecutable(executable, major);
     const relative=path.relative(temporary,executable);
     await activateRuntimeDirectory(temporary,destination);
     const installed=path.join(destination,relative);
-    onProgress?.("Java 21 installed and startup-verified.");
-    return {success:true,executable:installed,version:"21",platform:os,architecture:arch};
+    onProgress?.("Java "+major+" installed and startup-verified.");
+    return {success:true,executable:installed,version:String(major),platform:os,architecture:arch};
   }catch(error){
     await fs.rm(temporary,{recursive:true,force:true});
     throw error;
   }
+}
+
+export async function installJava21Runtime(root:string,os:string,arch:string,onProgress?:(message:string)=>void){
+  return installJavaRuntime(root,os,arch,21,onProgress);
 }

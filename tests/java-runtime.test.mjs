@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { activateRuntimeDirectory, parseJavaMajorVersion } from "../electron/java-runtime.ts";
+import { activateRuntimeDirectory, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "../electron/java-runtime.ts";
 
 test("activates a verified runtime and replaces the previous directory", async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-java-"));
@@ -162,4 +162,13 @@ test("rejects an archive ending with an unused PAX path header", async () => {
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }
+});
+
+test("selects a compatible Temurin runtime for Minecraft version families", () => {
+  assert.equal(requiredJavaMajorForMinecraft("1.16.5"), 8);
+  assert.equal(requiredJavaMajorForMinecraft("1.17.1"), 17);
+  assert.equal(requiredJavaMajorForMinecraft("1.20.4"), 17);
+  assert.equal(requiredJavaMajorForMinecraft("1.20.5"), 21);
+  assert.equal(requiredJavaMajorForMinecraft("1.21.1"), 21);
+  assert.equal(requiredJavaMajorForMinecraft("invalid-version"), 21);
 });
