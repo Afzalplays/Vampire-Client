@@ -5,7 +5,7 @@
 Vampire Identity is a client-side cosmetic system. It stores local preferences in `config/vampire-identity.properties`:
 
 - Chat-name gradient toggle and two validated six-digit HEX gradient endpoints.
-- Overhead nametag gradient preference (the renderer hook is not implemented yet).
+- Overhead nametag gradient toggle, applied by the player-nameplate renderer mixin on this client.
 - Local chat badge visibility preference.
 - Built-in font presets: Minecraft Default, Minecraft Uniform and Minecraft Alt.
 
