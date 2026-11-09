@@ -131,7 +131,7 @@ Use Inspect beside an imported pack to read its root `pack.mcmeta` summary and a
 
 ## Java runtime detection
 
-The Settings page detects an existing Java runtime and can install Eclipse Temurin Java 8, 17 or 21 automatically. It selects Java 8 for Minecraft versions before 1.17, Java 17 for 1.17–1.20.4, and Java 21 for 1.20.5 and newer. Runtime metadata comes from Adoptium; downloads are SHA-256 verified before extraction. ZIP/TAR entries are checked for path traversal, links, unsupported entry types, oversized files and excessive expansion. Each Java major is stored in its own user-data folder and selected for the active instance. Minecraft launch also checks the installed version metadata and refuses a Java runtime that is too old.
+The Settings page detects an existing Java runtime and can install Eclipse Temurin Java 8, 17, 21 or 25 automatically. It selects Java 8 for Minecraft versions before 1.17, Java 17 for 1.17–1.20.4, Java 21 for 1.20.5–1.21.x, and Java 25 for Minecraft 26.1 and newer. Runtime metadata comes from Adoptium; downloads are SHA-256 verified before extraction. ZIP/TAR entries are checked for path traversal, links, unsupported entry types, oversized files and excessive expansion. Each Java major is stored in its own user-data folder and selected for the active instance. Minecraft launch also checks the installed version metadata and refuses a Java runtime that is too old.
 
 ## In-game Right Shift menu (Fabric)
 
