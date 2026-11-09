@@ -2,6 +2,13 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Java runtime reliability
+
+- Hardened the Temurin Java 21 download path with manual HTTPS redirect validation, a five-redirect ceiling, streamed package-size enforcement and strict Adoptium metadata validation.
+- Verify the extracted runtime by launching `java -version` and requiring Java 21 before activation.
+- Stage runtime updates separately and preserve/restore the previous runtime if activation fails.
+- Added regression tests for runtime replacement, rollback and Java version parsing. See [Java runtime installation](docs/JAVA_RUNTIME_INSTALLATION.md).
+
 ## Unreleased — Vampire Client Studio foundation
 
 - Added automatic Eclipse Temurin Java 21 JRE installation for supported Windows, Linux and macOS architectures. Downloads are SHA-256 verified and archives are safely extracted with traversal/link/size checks; installed Java is selected and saved for the active instance.
@@ -30,7 +37,7 @@ All notable Vampire Client changes are recorded here.
 
 ### Known limitations
 
-- Microsoft sign-in has not yet been tested with the project owner's registered Client ID.
+- Microsoft sign-in has not yet been tested with the project's registered Client ID.
 - Game installation and launch code compiles but still requires testing on a real Windows PC and Minecraft account.
 - Forge, NeoForge and Quilt are not yet supported by the launcher runtime.
 - Mod updates, dependency resolution, conflict detection and modpacks are not implemented.

@@ -1,8 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 import { gunzipSync, inflateRawSync } from "node:zlib";
 
+const execFileAsync = promisify(execFile);
 const MAX_ARCHIVE = 300 * 1024 * 1024;
 const MAX_EXPANDED = 800 * 1024 * 1024;
 const MAX_FILE = 128 * 1024 * 1024;
@@ -101,10 +104,87 @@ export function parseJavaMajorVersion(output: string): number {
   const legacy = version.match(/^1\.(\d+)/);
   const current = version.match(/^(\d+)/);
   const major = Number(legacy?.[1] || current?.[1] || 0);
-  if (!Number.isInteger(major) || major < 1) {
-    throw new Error("Could not determine the selected Java version. Check the Java executable in Settings.");
-  }
+  if (!Number.isInteger(major) || major < 1) throw new Error("Could not determine the selected Java version. Check the Java executable in Settings.");
   return major;
+}
+
+const TEMURIN_DOWNLOAD_HOSTS = ["github.com", "githubusercontent.com", "objects.githubusercontent.com", "release-assets.githubusercontent.com"];
+function assertTemurinDownloadUrl(url: URL) {
+  if (url.protocol !== "https:" || !TEMURIN_DOWNLOAD_HOSTS.some(host => url.hostname === host || url.hostname.endsWith("." + host))) {
+    throw new Error("Java download host rejected.");
+  }
+}
+async function fetchTemurinPackage(initialUrl: URL): Promise<Response> {
+  let url = initialUrl;
+  for (let redirect = 0; redirect <= 5; redirect++) {
+    assertTemurinDownloadUrl(url);
+    const response = await fetch(url, { redirect: "manual", signal: AbortSignal.timeout(120_000) });
+    if ([301,302,303,307,308].includes(response.status)) {
+      const location = response.headers.get("location");
+      if (!location || redirect === 5) throw new Error("Java download returned too many or invalid redirects.");
+      url = new URL(location, url);
+      continue;
+    }
+    if (!response.ok) throw new Error("Java download failed (" + response.status + ").");
+    assertTemurinDownloadUrl(new URL(response.url || url.href));
+    return response;
+  }
+  throw new Error("Java download redirect limit exceeded.");
+}
+async function readLimitedResponse(response: Response, declaredSize: number): Promise<Buffer> {
+  const headerSize = Number(response.headers.get("content-length") || 0);
+  if (Number.isFinite(headerSize) && headerSize > MAX_ARCHIVE) throw new Error("Java package exceeds 300 MB.");
+  if (declaredSize > 0 && headerSize > 0 && headerSize !== declaredSize) throw new Error("Java package size metadata does not match the download.");
+  if (!response.body) throw new Error("Java download returned an empty response body.");
+  const reader = response.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = Buffer.from(value);
+      total += chunk.length;
+      if (total > MAX_ARCHIVE || (declaredSize > 0 && total > declaredSize)) {
+        await reader.cancel().catch(() => undefined);
+        throw new Error("Java package exceeded its declared download size.");
+      }
+      chunks.push(chunk);
+    }
+  } finally { reader.releaseLock(); }
+  if (!total || (declaredSize > 0 && total !== declaredSize)) throw new Error("Java package size verification failed.");
+  return Buffer.concat(chunks, total);
+}
+async function verifyJava21Executable(executable: string): Promise<void> {
+  let output = "";
+  try {
+    const result = await execFileAsync(executable, ["-version"], { timeout: 15_000, windowsHide: true, cwd: path.dirname(executable), maxBuffer: 64 * 1024 });
+    output = String(result.stderr || "") + "\n" + String(result.stdout || "");
+  } catch (error: any) {
+    const detail = String(error?.stderr || error?.stdout || error?.message || "").trim().slice(0, 300);
+    throw new Error("The downloaded Java runtime failed its startup check." + (detail ? " " + detail : ""));
+  }
+  const major = parseJavaMajorVersion(output);
+  if (major !== 21) throw new Error("The downloaded runtime reported Java " + major + "; Java 21 was expected.");
+}
+
+export async function activateRuntimeDirectory(temporary: string, destination: string): Promise<void> {
+  const backup = destination + ".previous-" + randomUUID();
+  let previousRuntimeMoved = false;
+  try {
+    try { await fs.rename(destination, backup); previousRuntimeMoved = true; }
+    catch (error: any) { if (error?.code !== "ENOENT") throw error; }
+    await fs.rename(temporary, destination);
+  } catch (error) {
+    if (previousRuntimeMoved) {
+      try { await fs.rename(backup, destination); }
+      catch (restoreError: any) {
+        throw new Error("Could not activate the new Java runtime and could not restore the previous runtime. Previous files remain at " + backup + ". Original error: " + String((error as Error)?.message || error) + ". Restore error: " + String(restoreError?.message || restoreError));
+      }
+    }
+    throw error;
+  }
+  if (previousRuntimeMoved) await fs.rm(backup, { recursive: true, force: true }).catch(() => undefined);
 }
 
 export async function installJava21Runtime(root:string,os:string,arch:string,onProgress?:(message:string)=>void){
@@ -112,30 +192,44 @@ export async function installJava21Runtime(root:string,os:string,arch:string,onP
   const api=new URL("https://api.adoptium.net/v3/assets/latest/21/hotspot");
   api.search=new URLSearchParams({architecture:target.architecture,heap_size:"normal",image_type:"jre",jvm_impl:"hotspot",os:target.platform,vendor:"eclipse",page_size:"1"}).toString();
   onProgress?.("Finding official Eclipse Temurin Java 21…");
-  const meta=await fetch(api);if(!meta.ok)throw new Error("Java metadata request failed ("+meta.status+").");
-  const data=await meta.json() as any,asset=Array.isArray(data)?data[0]:null,pkg=asset?.binary?.package;
-  if(!pkg?.link||!pkg?.checksum||!String(pkg.name||"").match(/\.(zip|tar\.gz)$/))throw new Error("No supported Temurin Java 21 JRE package was returned.");
-  const url=new URL(String(pkg.link));
-  const hosts=["github.com","githubusercontent.com","objects.githubusercontent.com","release-assets.githubusercontent.com"];
-  if(url.protocol!=="https:"||!hosts.some(h=>url.hostname===h||url.hostname.endsWith("."+h)))throw new Error("Java download host rejected.");
-  const declared=Number(pkg.size||0);if(declared>MAX_ARCHIVE)throw new Error("Java package exceeds 300 MB.");
-  onProgress?.("Downloading Java 21 for "+target.platform+"/"+target.architecture+"…");
-  const response=await fetch(url);if(!response.ok)throw new Error("Java download failed ("+response.status+").");
-  const finalUrl=new URL(response.url);if(finalUrl.protocol!=="https:"||!hosts.some(h=>finalUrl.hostname===h||finalUrl.hostname.endsWith("."+h)))throw new Error("Java redirect host rejected.");
-  const bytes=Buffer.from(await response.arrayBuffer());
-  if(!bytes.length||bytes.length>MAX_ARCHIVE||(declared>0&&bytes.length!==declared))throw new Error("Java package size verification failed.");
+  const meta=await fetch(api,{redirect:"error",signal:AbortSignal.timeout(15_000),headers:{accept:"application/json"}});
+  if(!meta.ok)throw new Error("Java metadata request failed ("+meta.status+").");
+  const metadataText=await meta.text();
+  if(metadataText.length>1024*1024)throw new Error("Java metadata response is unexpectedly large.");
+  let data:any;
+  try{data=JSON.parse(metadataText);}catch{throw new Error("Java metadata response was not valid JSON.");}
+  const asset=Array.isArray(data)?data[0]:null,pkg=asset?.binary?.package;
+  const packageName=String(pkg?.name||"");
+  if(typeof pkg?.link!=="string"||typeof pkg?.checksum!=="string"||! /\.(zip|tar\.gz)$/i.test(packageName))throw new Error("No supported Temurin Java 21 JRE package was returned.");
+  const url=new URL(pkg.link);
+  assertTemurinDownloadUrl(url);
+  const declared=Number(pkg.size||0);
+  if(!Number.isSafeInteger(declared)||declared<=0||declared>MAX_ARCHIVE)throw new Error("Java package size is missing or exceeds 300 MB.");
   const expected=String(pkg.checksum).toLowerCase();
-  if(!/^[a-f0-9]{64}$/.test(expected)||createHash("sha256").update(bytes).digest("hex")!==expected)throw new Error("Java SHA-256 verification failed.");
-  const destination=path.join(root,"java-runtime"),temporary=destination+".installing-"+Date.now();
-  await fs.rm(temporary,{recursive:true,force:true});await fs.mkdir(temporary,{recursive:true});
+  if(!/^[a-f0-9]{64}$/.test(expected))throw new Error("Java package checksum metadata is invalid.");
+  onProgress?.("Downloading Java 21 for "+target.platform+"/"+target.architecture+"…");
+  const response=await fetchTemurinPackage(url);
+  const bytes=await readLimitedResponse(response,declared);
+  if(createHash("sha256").update(bytes).digest("hex")!==expected)throw new Error("Java SHA-256 verification failed.");
+  const destination=path.join(root,"java-runtime");
+  const temporary=destination+".installing-"+randomUUID();
+  await fs.mkdir(root,{recursive:true});
+  await fs.mkdir(temporary,{recursive:true});
   try{
     onProgress?.("SHA-256 verified. Safely extracting Java…");
-    if(String(pkg.name).endsWith(".zip"))await extractZip(bytes,temporary);else await extractTarGz(bytes,temporary);
-    const executable=await findJava(temporary);if(!executable)throw new Error("Java executable missing after extraction.");
+    if(packageName.toLowerCase().endsWith(".zip"))await extractZip(bytes,temporary);else await extractTarGz(bytes,temporary);
+    const executable=await findJava(temporary);
+    if(!executable)throw new Error("Java executable missing after extraction.");
+    if(os!=="win32")await fs.chmod(executable,0o755);
+    onProgress?.("Checking the extracted Java runtime…");
+    await verifyJava21Executable(executable);
     const relative=path.relative(temporary,executable);
-    await fs.rm(destination,{recursive:true,force:true});await fs.rename(temporary,destination);
-    const installed=path.join(destination,relative);if(os!=="win32")await fs.chmod(installed,0o755);
-    onProgress?.("Java 21 installed.");
+    await activateRuntimeDirectory(temporary,destination);
+    const installed=path.join(destination,relative);
+    onProgress?.("Java 21 installed and startup-verified.");
     return {success:true,executable:installed,version:"21",platform:os,architecture:arch};
-  }catch(error){await fs.rm(temporary,{recursive:true,force:true});throw error;}
+  }catch(error){
+    await fs.rm(temporary,{recursive:true,force:true});
+    throw error;
+  }
 }
