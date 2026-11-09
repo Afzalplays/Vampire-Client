@@ -5,6 +5,7 @@ All notable Vampire Client changes are recorded here.
 ## Unreleased — Manual release update checker
 
 - Added an official GitHub Releases check in Settings, semantic version comparison, and allowlisted release/download URLs. The launcher opens the selected official release page; it does not silently install or execute updates.
+- Corrected strict semantic-version parsing and distinguished missing stable releases from malformed release metadata in the update status.
 
 ## Unreleased — Launcher loader selection
 
