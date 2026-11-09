@@ -63,4 +63,4 @@ export function analyzeLauncherLog(log: string): DiagnosticFinding[] {
   return findings;
 }
 
-export { redactDiagnosticLog } from "../../electron/log-redaction";
+export { redactDiagnosticLog } from "../../electron/log-redaction.ts";
