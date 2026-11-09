@@ -15,6 +15,7 @@ import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease } from "./update-utils";
+import { redactDiagnosticLog } from "../src/features/diagnostics";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
@@ -617,8 +618,9 @@ ipcMain.handle("logs:export", async () => {
   try { await fs.access(source); } catch { throw new Error("No launcher log is available yet."); }
   const choice = await dialog.showSaveDialog(mainWindow!, { title: "Export Vampire Client logs", defaultPath: "VampireClient-launcher.log", filters: [{ name: "Log files", extensions: ["log", "txt"] }] });
   if (choice.canceled || !choice.filePath) return { canceled: true };
-  await fs.copyFile(source, choice.filePath);
-  return { canceled: false, filePath: choice.filePath };
+  const rawLog = await fs.readFile(source, "utf8");
+  await fs.writeFile(choice.filePath, redactDiagnosticLog(rawLog), { encoding: "utf8", mode: 0o600 });
+  return { canceled: false, filePath: choice.filePath, redacted: true };
 });
 
 ipcMain.handle("java:install", async (_event, args: { major?: number }) => {
