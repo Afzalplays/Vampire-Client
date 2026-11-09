@@ -65,6 +65,13 @@ jobs:
         with:
           node-version: 22
       - run: npm install
+      - name: Cache electron-builder downloads
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/electron-builder
+          key: ${{ runner.os }}-electron-builder-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-electron-builder-
       - name: Report dependency advisories
         if: runner.os == 'Linux'
         run: |
@@ -76,17 +83,17 @@ jobs:
       - name: Package desktop app (retry transient download failures)
         shell: bash
         run: |
-          for attempt in 1 2 3; do
-            echo "electron-builder attempt $attempt/3"
+          for attempt in 1 2 3 4 5; do
+            echo "electron-builder attempt $attempt/5"
             if npx electron-builder ${{ matrix.args }}; then
               exit 0
             fi
-            if [ "$attempt" -lt 3 ]; then
-              echo "Packaging failed; waiting 20 seconds before retry."
-              sleep 20
+            if [ "$attempt" -lt 5 ]; then
+              echo "Packaging failed; waiting 45 seconds before retry."
+              sleep 45
             fi
           done
-          echo "Packaging failed after 3 attempts."
+          echo "Packaging failed after 5 attempts."
           exit 1
       - uses: actions/upload-artifact@v4
         with:

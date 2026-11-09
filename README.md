@@ -66,7 +66,7 @@ Offline profiles do not authenticate Minecraft ownership or grant access to onli
 
 ## Build verification
 
-GitHub Actions run [#42240935446](https://github.com/Afzalplays/Vampire-Client/actions/runs/42240935446) on commit `1d49ba030709de1c2f686a69ffa0a96f18230134` completed successfully for Windows x64, Windows x86, Linux x64, macOS universal and the Fabric companion mod. The release-publish job was skipped because this was a branch build, not a version-tag release. CI success confirms automated build, regression tests and packaging steps, not physical-device testing, code signing/notarization or real Microsoft account verification.
+GitHub Actions runs on `main` validate Windows x64, Windows x86, Linux x64, macOS universal and the Fabric companion mod. A successful workflow run must complete both regression tests and packaging on every platform. A branch build does not publish a GitHub Release; publishing is reserved for version tags. CI success confirms automated checks, not physical-device testing, code signing/notarization or real Microsoft account verification.
 
 ## Billing
 

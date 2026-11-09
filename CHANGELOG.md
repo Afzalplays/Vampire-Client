@@ -2,6 +2,10 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — CI packaging reliability
+
+- Cache electron-builder downloads between CI runs and extend packaging retries to five attempts with a 45-second delay to tolerate transient upstream HTTP 5xx/504 failures.
+
 ## Unreleased — Resource pack management
 
 - Fixed resource-pack inspection filename validation so ordinary `.zip` files can be inspected; shared the strict filename check between inspect and remove handlers.
