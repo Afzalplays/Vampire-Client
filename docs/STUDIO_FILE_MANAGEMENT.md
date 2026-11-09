@@ -9,7 +9,7 @@ Vampire Client's Studio page includes per-instance file libraries for Replay Mod
 - Instance directory: `replay_recordings/`
 - Actions: import, list, remove and open folder
 
-Replay Mod must be installed in the selected Minecraft profile to record or play these files. Vampire Client does not implement the Replay Mod recording engine.
+Use the Studio **Install Replay Mod** action on a compatible Fabric or Forge profile to resolve and install a Modrinth build plus required dependencies. Replay Mod itself performs recording and playback; Vampire Client manages the files but does not implement the recording engine.
 
 ## Schematics
 
@@ -18,7 +18,7 @@ Replay Mod must be installed in the selected Minecraft profile to record or play
 - Instance directory: `schematics/`
 - Actions: import, list, remove and open folder
 
-Install a compatible schematic mod such as Litematica or WorldEdit to preview or place the files in-game. Importing a file does not place it into a world.
+Use the Studio **Install Litematica** action on a Fabric profile to resolve and install Litematica plus required dependencies, or install another compatible schematic mod such as WorldEdit. The compatible mod performs preview and placement; importing a file does not place it into a world.
 
 ## Safety and isolation
 

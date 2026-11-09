@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased — Studio mod setup shortcuts
+
+- Added one-click Modrinth installation for Replay Mod on Fabric/Forge profiles and Litematica on Fabric profiles from the Studio replay and schematic libraries.
+- Installation reuses the launcher's compatibility resolution, required-dependency installation and tracked-mod update workflow.
+
 ## Unreleased — Local player nameplate gradients
 
 - Added a client-side player-nameplate mixin that applies the saved gradient while preserving each text segment's existing style metadata.
