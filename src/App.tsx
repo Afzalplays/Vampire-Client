@@ -168,6 +168,7 @@ export default function App() {
 
   async function selectWorldServer(id: string) {
     if (!window.vampire) return;
+    if (!id) { setActiveWorldServerId(""); setWorldServerBackups([]); setWorldServerLogs(""); setWorldServerAddresses([]); setWorldServerExitStatus(""); return; }
     setActiveWorldServerId(id);
     try {
       const info = await window.vampire.getWorldServerInfo(id);
@@ -267,7 +268,7 @@ export default function App() {
     try {
       await window.vampire.deleteWorldServer(id);
       setWorldServers(await window.vampire.listWorldServers());
-      if (activeWorldServerId === id) { setActiveWorldServerId(""); setWorldServerLogs(""); setWorldServerAddresses([]); }
+      if (activeWorldServerId === id) { setActiveWorldServerId(""); setWorldServerBackups([]); setWorldServerLogs(""); setWorldServerAddresses([]); setWorldServerExitStatus(""); }
       notify("World server files deleted.");
     } catch (e) { notify(e instanceof Error ? e.message : "Could not delete world server."); }
   }
