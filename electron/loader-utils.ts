@@ -6,3 +6,32 @@ export function selectQuiltLoaderVersion(payload: unknown): string {
   }
   throw new Error("No usable Quilt loader version is available for this Minecraft release.");
 }
+
+function readMavenVersions(xml: unknown): string[] {
+  if (typeof xml !== "string" || xml.length > 5_000_000) throw new Error("Maven metadata is missing or too large.");
+  const block = /<versions>([\\s\\S]*?)<\\/versions>/i.exec(xml)?.[1];
+  if (!block) throw new Error("Maven metadata does not contain a versions list.");
+  return Array.from(block.matchAll(/<version>([^<]{1,120})<\\/version>/gi), match => match[1].trim())
+    .filter(version => /^[0-9A-Za-z][0-9A-Za-z.+_-]{0,119}$/.test(version));
+}
+
+export function selectForgeVersion(xml: unknown, minecraftVersion: string): string {
+  if (!/^1\\.[0-9]+(?:\\.[0-9]+)?$/.test(minecraftVersion)) throw new Error("Invalid Minecraft version for Forge.");
+  const prefix = minecraftVersion + "-";
+  const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix))
+    .map(version => version.slice(prefix.length))
+    .filter(version => version.length > 0 && !/(?:alpha|beta|rc)/i.test(version));
+  if (!candidates.length) throw new Error("No stable Forge build is available for Minecraft " + minecraftVersion + ".");
+  return candidates[candidates.length - 1];
+}
+
+export function selectNeoForgeVersion(xml: unknown, minecraftVersion: string): string {
+  const match = /^1\\.(\\d+)\\.(\\d+)$/.exec(minecraftVersion);
+  if (!match || Number(match[1]) < 20 || (Number(match[1]) === 20 && Number(match[2]) < 2)) {
+    throw new Error("NeoForge automatic installation requires Minecraft 1.20.2 or newer.");
+  }
+  const prefix = match[1] + "." + match[2] + ".";
+  const candidates = readMavenVersions(xml).filter(version => version.startsWith(prefix) && !/(?:alpha|beta|rc)/i.test(version));
+  if (!candidates.length) throw new Error("No stable NeoForge build is available for Minecraft " + minecraftVersion + ".");
+  return candidates[candidates.length - 1];
+}

@@ -8,8 +8,8 @@ import { pathToFileURL } from "node:url";
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { totalmem, freemem, networkInterfaces } from "node:os";
 import { launch, Version } from "@xmcl/core";
-import { getVersionList, install, getLoaderArtifactListFor, installFabric, installQuiltVersion, installDependencies } from "@xmcl/installer";
-import { selectQuiltLoaderVersion } from "./loader-utils";
+import { getVersionList, install, getLoaderArtifactListFor, installFabric, installQuiltVersion, installForge, installNeoForged, installDependencies } from "@xmcl/installer";
+import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } from "./loader-utils";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion } from "./java-runtime";
@@ -170,7 +170,7 @@ async function verifyModrinthDownload(response: Response, file: any) {
 
 function safeInstance(version: string, loader: string, instanceId = "default") {
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(version || ""))) throw new Error("Invalid Minecraft instance version.");
-  if (!["vanilla", "fabric", "quilt"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
+  if (!["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(String(loader || ""))) throw new Error("Invalid Minecraft mod loader.");
   if (instanceId !== "default" && !/^[a-f0-9-]{36}$/.test(String(instanceId))) throw new Error("Invalid Minecraft instance ID.");
   return { root: gameRoot(version, loader, instanceId), mods: modsRoot(version, loader, instanceId) };
 }
@@ -599,7 +599,7 @@ ipcMain.handle("settings:save", async (_event, settings: { ram?: number; javaPat
     javaPath: requestedInstanceId === "default" ? javaPath : current.javaPath,
     instanceSettings,
     version: typeof settings.version === "string" && /^[A-Za-z0-9._-]{1,64}$/.test(settings.version) ? settings.version : current.version,
-    loader: ["vanilla", "fabric", "quilt"].includes(String(settings.loader)) ? settings.loader : current.loader,
+    loader: ["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(String(settings.loader)) ? settings.loader : current.loader,
     clientId: typeof settings.clientId === "string" && settings.clientId.length <= 64 ? settings.clientId : current.clientId,
     instanceId: requestedInstanceId
   };
@@ -642,7 +642,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
   const versionId = String(args.version || "");
   const loader = String(args.loader || "vanilla");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId)) throw new Error("Invalid Minecraft version ID.");
-  if (!["vanilla", "fabric", "quilt"].includes(loader)) throw new Error("This build supports Vanilla, Fabric and Quilt profiles.");
+  if (!["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(loader)) throw new Error("This build supports Vanilla, Fabric, Quilt, Forge and NeoForge profiles.");
   sendStatus("Preparing Minecraft " + versionId + " installation…");
   const manifest = await getVersionList();
   const metadata = manifest.versions.find((v: any) => v.id === versionId);
@@ -668,6 +668,30 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     launchVersion = await installQuiltVersion({ minecraftVersion: versionId, version: quiltVersion, minecraft: root });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
+  } else if (loader === "forge") {
+    sendStatus("Finding the latest compatible Forge build for Minecraft " + versionId + "…");
+    const response = await fetch("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml");
+    if (!response.ok) throw new Error("Forge version metadata request failed (" + response.status + ").");
+    const forgeVersion = selectForgeVersion(await response.text(), versionId);
+    const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
+    sendStatus("Installing Forge " + forgeVersion + " for Minecraft " + versionId + "…");
+    launchVersion = await installForge({ version: forgeVersion, mcversion: versionId }, root, { java: savedSettings.javaPath || "java", side: "client" });
+    const resolved = await Version.parse(root, launchVersion);
+    await installDependencies(resolved, {});
+  } else if (loader === "neoforge") {
+    if (!/^1\\.(20\\.(?:2|3|4|5|6)|21\\.|22\\.|23\\.|24\\.|25\\.|26\\.)/.test(versionId)) {
+      throw new Error("NeoForge automatic installation currently supports Minecraft 1.20.2 and newer. Use Forge for older versions.");
+    }
+    sendStatus("Finding the latest compatible NeoForge build for Minecraft " + versionId + "…");
+    const response = await fetch("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml");
+    if (!response.ok) throw new Error("NeoForge version metadata request failed (" + response.status + ").");
+    const neoForgeVersion = selectNeoForgeVersion(await response.text(), versionId);
+    const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
+    const installerVersion = versionId + "-" + neoForgeVersion;
+    sendStatus("Installing NeoForge " + neoForgeVersion + " for Minecraft " + versionId + "…");
+    launchVersion = await installNeoForged("neoforge", installerVersion, root, { java: savedSettings.javaPath || "java", side: "client" });
+    const resolved = await Version.parse(root, launchVersion);
+    await installDependencies(resolved, {});
   }
 
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
@@ -680,7 +704,7 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
 ipcMain.handle("game:installStatus", async (_event, args: { version: string; loader: string; instanceId?: string }) => {
   const versionId = String(args.version || "");
   const loader = String(args.loader || "");
-  if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric", "quilt"].includes(loader)) {
+  if (!/^[A-Za-z0-9._-]{1,64}$/.test(versionId) || !["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(loader)) {
     throw new Error("Invalid Minecraft version or loader.");
   }
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
@@ -702,7 +726,7 @@ ipcMain.handle("game:launch", async (_event, args: { username: string; version: 
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(args.version)) throw new Error("Invalid Minecraft version.");
   const settings = await readJson<{ ram: number; javaPath: string; version: string; loader: string; clientId: string; instanceId?: string; instanceSettings?: Record<string, { ram?: number; javaPath?: string }> }>(settingsFile(), { ram: 2, javaPath: "java", version: "1.21.1", loader: "fabric", clientId: "", instanceId: "default", instanceSettings: {} });
   const installed = await readJson<Record<string, string>>(installedVersionsFile(), {});
-  const activeLoader = ["vanilla", "fabric", "quilt"].includes(settings.loader) ? settings.loader : "vanilla";
+  const activeLoader = ["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(settings.loader) ? settings.loader : "vanilla";
   const activeInstanceId = args.instanceId || settings.instanceId || "default";
   const installKey = instanceKey(args.version, activeLoader, activeInstanceId);
   const launchVersion = installed[installKey] || (activeInstanceId === "default" ? installed[args.version + ":" + activeLoader] : undefined);
@@ -898,7 +922,7 @@ ipcMain.handle("mods:install", async (_event, args: { projectId: string; minecra
   const projectId = String(args.projectId || "");
   if (!/^[A-Za-z0-9_-]{3,64}$/.test(projectId)) throw new Error("Invalid Modrinth project ID.");
   const loader = String(args.loader || "fabric");
-  if (!["fabric", "quilt"].includes(loader)) throw new Error("Select a Fabric or Quilt profile before installing mods.");
+  if (!["fabric", "quilt", "forge", "neoforge"].includes(loader)) throw new Error("Select a mod-loader profile before installing mods.");
   const mcVersion = String(args.minecraftVersion || "");
   if (!/^[0-9A-Za-z._-]{1,32}$/.test(mcVersion)) throw new Error("Invalid Minecraft version.");
   const result = await installModrinthTree(projectId, mcVersion, loader, args.instanceId || "default");
@@ -945,7 +969,7 @@ ipcMain.handle("mods:importPack", async (_event, args: { version: string; loader
   const manifest = JSON.parse(await fs.readFile(choice.filePaths[0], "utf8"));
   if (manifest?.format !== "vampire-modpack" || manifest?.formatVersion !== 1 || !Array.isArray(manifest.projects) || manifest.projects.length > 200) throw new Error("Invalid or unsupported Vampire modpack manifest.");
   if (manifest.minecraftVersion !== args.version || manifest.loader !== args.loader) throw new Error("This modpack targets Minecraft " + manifest.minecraftVersion + " / " + manifest.loader + ". Select that exact profile before importing.");
-  if (!["fabric", "quilt"].includes(args.loader)) throw new Error("Modpack imports require a Fabric or Quilt profile.");
+  if (!["fabric", "quilt", "forge", "neoforge"].includes(args.loader)) throw new Error("Modpack imports require a mod-loader profile.");
   const projectIds: string[] = manifest.projects.map((item: unknown) => { const value = (item as { projectId?: unknown } | null)?.projectId; return typeof value === "string" ? value : ""; }).filter((id: string) => /^[A-Za-z0-9_-]{3,64}$/.test(id));
   const projects: string[] = Array.from(new Set<string>(projectIds));
   const failed: string[] = [];
@@ -1222,7 +1246,7 @@ ipcMain.handle("mods:updates", async (_event, args: { version: string; loader: s
 
 ipcMain.handle("mods:update", async (_event, args: { version: string; loader: string; projectId: string ; instanceId?: string}) => {
   const instance = (await safeInstanceAsync(args.version, args.loader, args.instanceId || "default"));
-  if (!["fabric", "quilt"].includes(args.loader)) throw new Error("Mod updates require a Fabric or Quilt instance.");
+  if (!["fabric", "quilt", "forge", "neoforge"].includes(args.loader)) throw new Error("Mod updates require a mod-loader instance.");
   const directory = instance.mods;
   const registryFile = path.join(directory, ".vampire-mods.json");
   const registry = await readJson<Array<{ projectId: string; versionId: string; fileName: string }>>(registryFile, []);
@@ -1358,7 +1382,7 @@ ipcMain.handle("performance:applyPreset", async (_event, args: { preset: string;
   const preset = presets[String(args.preset || "")];
   if (!preset) throw new Error("Unknown performance preset.");
   if (!/^[A-Za-z0-9._-]{1,64}$/.test(String(args.version || ""))) throw new Error("Invalid Minecraft version.");
-  if (!["vanilla", "fabric", "quilt"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
+  if (!["vanilla", "fabric", "quilt", "forge", "neoforge"].includes(String(args.loader || ""))) throw new Error("Invalid Minecraft loader.");
   const optionsFile = path.join((await safeInstanceAsync(args.version, args.loader, args.instanceId || "default")).root, "options.txt");
   await fs.mkdir(path.dirname(optionsFile), { recursive: true });
   let existing = "";
