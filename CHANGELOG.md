@@ -2,6 +2,10 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Launcher loader selection
+
+- Added a loader selector directly to the Versions screen so users can choose Vanilla, Fabric or Quilt before installation. CI cache keys now follow package.json because the repository does not contain a package-lock.json.
+
 ## Unreleased — Quilt loader support
 
 - Added official Quilt loader installation for supported Minecraft versions, per-instance install/launch status, Modrinth Quilt mod discovery and install/update, and Fabric/Quilt modpack import/export. Fabric-only renderer tooling remains restricted to Fabric profiles.
