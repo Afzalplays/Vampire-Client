@@ -14,7 +14,7 @@ import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
-import { summarizeLatestRelease } from "./update-utils";
+import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
@@ -24,6 +24,7 @@ let gameStopTimer: ReturnType<typeof setTimeout> | null = null;
 const worldServerProcesses = new Map<string, ChildProcess>();
 const worldServerLastExit = new Map<string, { code: number | null; error: string | null; at: string }>();
 const worldServerStopTimers = new Map<string, ReturnType<typeof setTimeout>>();
+let downloadedUpdatePath: string | null = null;
 
 const dataRoot = () => path.join(app.getPath("userData"), "vampire-client");
 const gameRoot = (version?: string, loader = "vanilla", instanceId = "default") => {
@@ -255,6 +256,75 @@ ipcMain.handle("updates:check", async () => {
   };
   if (!response.ok) throw new Error("GitHub release check failed (" + response.status + ").");
   return summarizeLatestRelease(await response.json(), currentVersion);
+});
+
+ipcMain.handle("updates:download", async () => {
+  const response = await fetch("https://api.github.com/repos/Afzalplays/Vampire-Client/releases/latest", {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "Vampire-Client" }
+  });
+  if (response.status === 404) throw new Error("No public Vampire Client release is available to download yet.");
+  if (!response.ok) throw new Error("GitHub release check failed (" + response.status + ").");
+  const summary = summarizeLatestRelease(await response.json(), app.getVersion());
+  if (!summary.updateAvailable || !summary.latestVersion) throw new Error("There is no newer stable Vampire Client release to download.");
+  const asset = selectPlatformUpdateAsset(summary.assets, process.platform, process.arch);
+  if (!asset) throw new Error("No installer for this operating system and architecture is attached to the latest release.");
+  if (!asset.sha256) throw new Error("This release asset has no SHA-256 digest. Use the official release page for a manual download instead.");
+  if (!/^[A-Za-z0-9._-]{1,180}$/.test(asset.name) || path.basename(asset.name) !== asset.name) throw new Error("The release asset filename is unsafe.");
+  const assetUrl = new URL(asset.downloadUrl);
+  if (assetUrl.protocol !== "https:" || assetUrl.hostname !== "github.com" ||
+      !assetUrl.pathname.startsWith("/Afzalplays/Vampire-Client/releases/download/")) {
+    throw new Error("The release download URL was rejected.");
+  }
+  const download = await fetch(assetUrl);
+  if (!download.ok || !download.body) throw new Error("Installer download failed (" + download.status + ").");
+  const finalUrl = new URL(download.url);
+  if (finalUrl.protocol !== "https:" || !["github.com", "release-assets.githubusercontent.com"].includes(finalUrl.hostname)) {
+    throw new Error("The installer redirected to an untrusted download host.");
+  }
+  const maxBytes = 2 * 1024 * 1024 * 1024;
+  if (asset.size > maxBytes) throw new Error("The release installer exceeds the 2 GB safety limit.");
+  const contentLength = Number(download.headers.get("content-length") || 0);
+  if (contentLength > maxBytes) throw new Error("The release installer exceeds the 2 GB safety limit.");
+  const directory = path.join(dataRoot(), "updates");
+  await fs.mkdir(directory, { recursive: true });
+  const destination = path.join(directory, summary.latestVersion + "-" + asset.name);
+  const temporary = destination + ".download";
+  const file = await fs.open(temporary, "w", 0o600);
+  const hash = createHash("sha256");
+  let total = 0;
+  const reader = download.body.getReader();
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      const bytes = Buffer.from(chunk.value);
+      total += bytes.length;
+      if (total > maxBytes || (asset.size > 0 && total > asset.size)) throw new Error("Installer download exceeded its declared size.");
+      hash.update(bytes);
+      await file.write(bytes);
+    }
+    if (asset.size > 0 && total !== asset.size) throw new Error("Installer download size does not match GitHub release metadata.");
+    if (hash.digest("hex") !== asset.sha256) throw new Error("Installer SHA-256 verification failed; the downloaded file was rejected.");
+    await file.sync();
+  } catch (error) {
+    await fs.rm(temporary, { force: true });
+    throw error;
+  } finally {
+    reader.releaseLock();
+    await file.close();
+  }
+  await fs.rm(destination, { force: true });
+  await fs.rename(temporary, destination);
+  downloadedUpdatePath = destination;
+  return { success: true, fileName: asset.name, version: summary.latestVersion, sha256: asset.sha256, filePath: destination };
+});
+
+ipcMain.handle("updates:revealDownloaded", async () => {
+  if (!downloadedUpdatePath) throw new Error("Download an update installer first.");
+  const directory = path.join(dataRoot(), "updates");
+  if (path.dirname(downloadedUpdatePath) !== directory) throw new Error("The stored update path is invalid.");
+  await shell.showItemInFolder(downloadedUpdatePath);
+  return { success: true };
 });
 ipcMain.handle("instances:create", async (_event, nameValue: string) => {
   const name = String(nameValue || "").trim();

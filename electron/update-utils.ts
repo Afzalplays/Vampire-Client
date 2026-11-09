@@ -6,7 +6,7 @@ export type UpdateCheckResult = {
   releaseName?: string;
   publishedAt?: string;
   releaseNotes?: string;
-  assets: Array<{ name: string; downloadUrl: string }>;
+  assets: Array<{ name: string; downloadUrl: string; sha256: string | null; size: number }>;
   reason?: "no-release" | "prerelease" | "invalid-release";
 };
 
@@ -48,7 +48,9 @@ export function summarizeLatestRelease(payload: unknown, currentVersion: string)
       const url = new URL(asset.browser_download_url);
       if (url.protocol !== "https:" || url.hostname !== "github.com" ||
           !url.pathname.startsWith("/Afzalplays/Vampire-Client/releases/download/")) return [];
-      return [{ name: asset.name.slice(0, 180), downloadUrl: url.href }];
+      const digest = typeof asset.digest === "string" ? /^sha256:([a-f0-9]{64})$/i.exec(asset.digest)?.[1]?.toLowerCase() || null : null;
+      const size = Number.isSafeInteger(asset.size) && asset.size >= 0 ? asset.size : 0;
+      return [{ name: asset.name.slice(0, 180), downloadUrl: url.href, sha256: digest, size }];
     } catch { return []; }
   }) : [];
   return {
@@ -61,4 +63,23 @@ export function summarizeLatestRelease(payload: unknown, currentVersion: string)
     releaseNotes: typeof release.body === "string" ? release.body.slice(0, 6000) : "",
     assets
   };
+}
+
+export function selectPlatformUpdateAsset(
+  assets: UpdateCheckResult["assets"],
+  platform: string,
+  architecture: string
+): UpdateCheckResult["assets"][number] | null {
+  if (platform === "win32") {
+    const arch = architecture === "ia32" ? "ia32" : architecture === "x64" ? "x64" : "";
+    if (!arch) return null;
+    return assets.find(asset => asset.name.includes("Setup") && asset.name.toLowerCase().endsWith(".exe") && asset.name.includes("-" + arch + ".")) || null;
+  }
+  if (platform === "darwin") {
+    return assets.find(asset => asset.name.toLowerCase().endsWith(".dmg") && asset.name.includes("mac-universal")) || null;
+  }
+  if (platform === "linux") {
+    return assets.find(asset => asset.name.toLowerCase().endsWith(".appimage") && asset.name.includes("linux-" + architecture)) || null;
+  }
+  return null;
 }

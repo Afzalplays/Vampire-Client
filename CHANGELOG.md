@@ -2,6 +2,12 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Verified manual installer downloads
+
+- Added platform-specific Windows, Linux and macOS release asset selection.
+- Added an explicit download action that streams the selected installer to the launcher data directory, enforces a 2 GB ceiling, checks declared size and SHA-256 digest, and only reveals the file in the system file manager. It never silently executes or replaces the running launcher.
+- Release assets without a published SHA-256 digest remain available through the official manual release links but are not eligible for verified in-app downloads.
+
 ## Unreleased — Forge and NeoForge support
 
 - Added automatic stable Forge and NeoForge loader installation from official HTTPS Maven metadata, per-instance install tracking, and loader-aware launch validation.
