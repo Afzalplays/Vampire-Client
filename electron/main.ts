@@ -293,6 +293,7 @@ ipcMain.handle("updates:download", async () => {
   const hash = createHash("sha256");
   let total = 0;
   const reader = download.body.getReader();
+  let downloadError: unknown = null;
   try {
     while (true) {
       const chunk = await reader.read();
@@ -301,20 +302,28 @@ ipcMain.handle("updates:download", async () => {
       total += bytes.length;
       if (total > maxBytes || (asset.size > 0 && total > asset.size)) throw new Error("Installer download exceeded its declared size.");
       hash.update(bytes);
-      await file.write(bytes);
+      await file.writeFile(bytes);
     }
     if (asset.size > 0 && total !== asset.size) throw new Error("Installer download size does not match GitHub release metadata.");
     if (hash.digest("hex") !== asset.sha256) throw new Error("Installer SHA-256 verification failed; the downloaded file was rejected.");
     await file.sync();
   } catch (error) {
-    await fs.rm(temporary, { force: true });
-    throw error;
+    downloadError = error;
   } finally {
     reader.releaseLock();
     await file.close();
   }
-  await fs.rm(destination, { force: true });
-  await fs.rename(temporary, destination);
+  if (downloadError) {
+    await fs.rm(temporary, { force: true });
+    throw downloadError;
+  }
+  try {
+    await fs.rm(destination, { force: true });
+    await fs.rename(temporary, destination);
+  } catch (error) {
+    await fs.rm(temporary, { force: true });
+    throw error;
+  }
   downloadedUpdatePath = destination;
   return { success: true, fileName: asset.name, version: summary.latestVersion, sha256: asset.sha256, filePath: destination };
 });
