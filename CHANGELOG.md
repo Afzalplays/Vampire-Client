@@ -2,6 +2,23 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Forge and NeoForge support
+
+- Added automatic stable Forge and NeoForge loader installation from official HTTPS Maven metadata, per-instance install tracking, and loader-aware launch validation.
+- Forge installer downloads use the official HTTPS Maven endpoint and SHA-1 sidecar verification; both installers use the Java executable selected in Settings and validate the recommended Java major before processor execution.
+- Enabled Modrinth search, compatible mod installation, updates and modpack import/export for Forge and NeoForge. Fabric-only renderer profiles remain Fabric-specific.
+- Added regression tests for Maven version selection, NeoForge version mapping (including Minecraft 1.21), and unsupported legacy NeoForge versions.
+
+## Unreleased — Minecraft-aware Java runtimes
+
+- Generalized the verified Temurin installer to Java 8, 17 and 21 with separate runtime directories and exact major-version startup verification.
+- Settings now selects the recommended Java major for the chosen Minecraft version, and launch rejects runtimes below the Minecraft metadata requirement.
+
+## Unreleased — Privacy-safe diagnostics
+
+- Exported launcher logs now redact common credentials, OAuth tokens, email addresses, UUIDs, IP/MAC addresses and home-directory usernames before writing the exported copy.
+- Made mod-conflict diagnostics loader-aware so Forge and NeoForge instances are not incorrectly warned about missing Fabric API; added duplicate renderer-fork detection.
+
 ## Unreleased — Crash diagnostics
 
 - Record fatal Electron/Node exception stacks and runtime warnings without suppressing the normal crash behavior.
@@ -38,7 +55,7 @@ All notable Vampire Client changes are recorded here.
 ## Unreleased — Java runtime reliability
 
 - Hardened the Temurin Java 21 download path with manual HTTPS redirect validation, a five-redirect ceiling, streamed package-size enforcement and strict Adoptium metadata validation.
-- Verify the extracted runtime by launching java -version and requiring Java 21 before activation.
+- Verify the extracted runtime by launching java -version and requiring the requested Java major before activation.
 - Stage runtime updates separately and preserve/restore the previous runtime if activation fails.
 - Added regression tests for runtime replacement, rollback and Java version parsing. See Java runtime installation docs.
 - Added safe POSIX PAX extended-path support for TAR.GZ runtimes and tests for long paths, directory entries and traversal rejection.
@@ -46,7 +63,7 @@ All notable Vampire Client changes are recorded here.
 
 ## Unreleased — Vampire Client Studio foundation
 
-- Added automatic Eclipse Temurin Java 21 JRE installation for supported Windows, Linux and macOS architectures. Downloads are SHA-256 verified and archives are safely extracted with traversal/link/size checks; installed Java is selected and saved for the active instance.
+- Added automatic Eclipse Temurin Java 8, 17 and 21 JRE installation for supported Windows, Linux and macOS architectures, selected according to the Minecraft version. Downloads are SHA-256 verified and archives are safely extracted with traversal/link/size checks; installed Java is selected and saved for the active instance.
 - Added local Skin & Cape Studio with validated PNG uploads/previews, three Vampire cape themes, centered emblem/glitter/sparkle controls, local persistence and 64×32 cape texture export. Cloud upload, multiplayer rendering and purchases remain pending.
 - Added a Studio hub UI with HD cape design previews and selectable cape themes.
 - Added local gradient name/chat identity and nametag mark preference controls.
@@ -71,8 +88,8 @@ All notable Vampire Client changes are recorded here.
 
 - Microsoft sign-in has not yet been tested with the project's registered Client ID.
 - Game installation and launch code compiles but still requires testing on a real Windows PC and Minecraft account.
-- Forge, NeoForge and Quilt are not yet supported by the launcher runtime.
-- Mod updates, dependency resolution, conflict detection and modpacks are not implemented.
-- Sodium/VulkanMod profile switching and full HUD editing are not implemented.
+- Forge, NeoForge and Quilt installation is implemented; broad version coverage and real desktop launch testing remain pending.
+- Modrinth updates, required-dependency resolution, basic filename-based conflict diagnostics and Vampire modpack import/export are implemented; broader dependency/conflict analysis remains pending.
+- Sodium/VulkanMod profile switching is implemented for Fabric; full visual HUD editing and real in-game behavior testing remain pending.
 - Android is a separate future project.
 - No final public installer release has been published.
