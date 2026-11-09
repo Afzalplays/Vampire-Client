@@ -8,8 +8,8 @@ export function selectQuiltLoaderVersion(payload: unknown): string {
 }
 
 function compareNumericVersion(left: string, right: string): number {
-  const a = left.split(/[.+_-]/).map(part => /^\\d+$/.test(part) ? Number(part) : part.toLowerCase());
-  const b = right.split(/[.+_-]/).map(part => /^\\d+$/.test(part) ? Number(part) : part.toLowerCase());
+  const a = left.split(/[.+_-]/).map(part => /^\d+$/.test(part) ? Number(part) : part.toLowerCase());
+  const b = right.split(/[.+_-]/).map(part => /^\d+$/.test(part) ? Number(part) : part.toLowerCase());
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
     const x = a[i] ?? 0, y = b[i] ?? 0;
     if (x === y) continue;
