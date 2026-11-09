@@ -111,6 +111,15 @@ npm run dist:mac
 
 Run `npm test` to execute Node's built-in test runner against crash classification, log summaries/context, mod conflict warnings and best-effort diagnostic redaction. The tests use Node 22's built-in TypeScript stripping and require no extra test dependency.
 
+## Replay recordings and schematic files
+
+The Studio page can import and manage files for the selected Minecraft instance:
+
+- Replay Mod recordings: `.mcpr` files, up to 2 GB each, stored in `replay_recordings/`.
+- Schematics: `.litematic`, `.schem`, `.schematic` and `.nbt` files, up to 128 MB each, stored in `schematics/`.
+
+Files are copied as-is, names are sanitized, and the launcher rejects unsupported extensions, oversized files and symbolic links. These are file-management tools only: recording/playback requires a compatible Replay Mod build, while schematic preview/placement requires Litematica, WorldEdit or another compatible mod. The launcher does not parse, execute or automatically place these files. See [Studio file management](docs/STUDIO_FILE_MANAGEMENT.md).
+
 ## Resource pack import validation
 
 Resource pack ZIP imports are checked without extracting archive contents. The importer rejects unsafe paths, duplicate names, encrypted or unsupported entries, symbolic links, malformed local headers, ZIP64/multi-disk archives, excessive expansion ratios and oversized archives. The root `pack.mcmeta` must also be valid JSON with `pack.pack_format` represented as a JSON number (not a numeric string), and that number must be a positive integer from 1 through 10,000; this is structural validation, not a full Minecraft compatibility test.
