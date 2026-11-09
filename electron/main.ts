@@ -372,6 +372,43 @@ const worldServerRoot = (id: string) => {
   if (!/^[a-f0-9-]{36}$/.test(String(id || ""))) throw new Error("Invalid world server ID.");
   return path.join(dataRoot(), "world-servers", id);
 };
+
+type WorldServerBackupRecord = { id: string; serverId: string; serverName: string; version: string; createdAt: string; bytes: number };
+const worldServerBackupRoot = (id: string) => {
+  worldServerRoot(id);
+  return path.join(dataRoot(), "world-server-backups", id);
+};
+async function measureWorldServerDirectory(root: string): Promise<number> {
+  let total = 0;
+  const pending = [root];
+  while (pending.length) {
+    const current = pending.pop()!;
+    const entries = await fs.readdir(current, { withFileTypes: true });
+    for (const entry of entries) {
+      const target = path.join(current, entry.name);
+      if (entry.isSymbolicLink()) throw new Error("World server backups do not follow symbolic links.");
+      if (entry.isDirectory()) pending.push(target);
+      else if (entry.isFile()) {
+        const stat = await fs.stat(target);
+        total += stat.size;
+        if (total > 20 * 1024 * 1024 * 1024) throw new Error("World server backup exceeds the 20 GB safety limit.");
+      }
+    }
+  }
+  return total;
+}
+async function listWorldServerBackups(serverId: string): Promise<WorldServerBackupRecord[]> {
+  const root = worldServerBackupRoot(serverId);
+  let entries;
+  try { entries = await fs.readdir(root, { withFileTypes: true }); } catch { return []; }
+  const backups: WorldServerBackupRecord[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !/^[a-f0-9-]{36}$/.test(entry.name)) continue;
+    const manifest = await readJson<WorldServerBackupRecord | null>(path.join(root, entry.name, ".vampire-backup.json"), null);
+    if (manifest && manifest.id === entry.name && manifest.serverId === serverId && Number.isFinite(manifest.bytes)) backups.push(manifest);
+  }
+  return backups.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
 async function listWorldServers() {
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   return records.map(record => ({ ...record, running: Boolean(worldServerProcesses.get(record.id) && worldServerProcesses.get(record.id)!.exitCode === null) }));
@@ -480,6 +517,68 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   append("launcher", "Starting " + record.name + " with " + Math.round(requestedRam) + " GB RAM.");
   return { success: true, pid: proc.pid };
 });
+ipcMain.handle("servers:backups", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (!records.some(record => record.id === id)) throw new Error("World server not found.");
+  return listWorldServerBackups(id);
+});
+ipcMain.handle("servers:backup", async (_event, idValue: string) => {
+  const id = String(idValue || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  const record = records.find(item => item.id === id);
+  if (!record) throw new Error("World server not found.");
+  const proc = worldServerProcesses.get(id);
+  if (proc && proc.exitCode === null) throw new Error("Stop the world server before creating a consistent backup.");
+  const existing = await listWorldServerBackups(id);
+  if (existing.length >= 10) throw new Error("This server already has 10 backups. Delete an old backup before creating another.");
+  const source = worldServerRoot(id);
+  const bytes = await measureWorldServerDirectory(source);
+  const backupId = randomUUID();
+  const destination = path.join(worldServerBackupRoot(id), backupId);
+  await fs.mkdir(path.dirname(destination), { recursive: true });
+  await fs.cp(source, destination, { recursive: true, errorOnExist: true });
+  const backup: WorldServerBackupRecord = {
+    id: backupId, serverId: id, serverName: record.name, version: record.version,
+    createdAt: new Date().toISOString(), bytes
+  };
+  await writeJson(path.join(destination, ".vampire-backup.json"), backup);
+  return backup;
+});
+ipcMain.handle("servers:restoreBackup", async (_event, args: { id: string; backupId: string }) => {
+  const id = String(args?.id || "");
+  const backupId = String(args?.backupId || "");
+  const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
+  if (!records.some(item => item.id === id)) throw new Error("World server not found.");
+  if (!/^[a-f0-9-]{36}$/.test(backupId)) throw new Error("Invalid world server backup ID.");
+  const proc = worldServerProcesses.get(id);
+  if (proc && proc.exitCode === null) throw new Error("Stop the world server before restoring a backup.");
+  const backupDirectory = path.join(worldServerBackupRoot(id), backupId);
+  const manifest = await readJson<WorldServerBackupRecord | null>(path.join(backupDirectory, ".vampire-backup.json"), null);
+  if (!manifest || manifest.id !== backupId || manifest.serverId !== id) throw new Error("The selected backup is missing or does not belong to this server.");
+  const root = worldServerRoot(id);
+  const temporary = root + ".restore-" + randomUUID();
+  const previous = root + ".previous-" + randomUUID();
+  await fs.cp(backupDirectory, temporary, {
+    recursive: true,
+    filter: source => path.basename(source) !== ".vampire-backup.json"
+  });
+  let movedPrevious = false;
+  try {
+    try { await fs.access(root); await fs.rename(root, previous); movedPrevious = true; } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+    }
+    await fs.rename(temporary, root);
+    if (movedPrevious) await fs.rm(previous, { recursive: true, force: true });
+  } catch (error) {
+    await fs.rm(temporary, { recursive: true, force: true });
+    if (movedPrevious) {
+      try { await fs.rename(previous, root); } catch { /* keep the previous snapshot for manual recovery */ }
+    }
+    throw error;
+  }
+  return { success: true, restoredBackupId: backupId };
+});
 ipcMain.handle("servers:info", async (_event, idValue: string) => {
   const id = String(idValue || "");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
@@ -558,6 +657,7 @@ ipcMain.handle("servers:delete", async (_event, idValue: string) => {
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   if (!records.some(record => record.id === id)) throw new Error("World server not found.");
   await fs.rm(worldServerRoot(id), { recursive: true, force: true });
+  await fs.rm(worldServerBackupRoot(id), { recursive: true, force: true });
   await writeJson(worldServersFile(), records.filter(record => record.id !== id));
   return { success: true };
 });
