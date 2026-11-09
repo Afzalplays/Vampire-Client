@@ -13,7 +13,7 @@ import { selectQuiltLoaderVersion, selectForgeVersion, selectNeoForgeVersion } f
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
-import { validateWorldServerPort, parseWorldServerPort } from "./world-server-utils";
+import { validateWorldServerPort, parseWorldServerPort, validateWorldServerRam } from "./world-server-utils";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease, selectPlatformUpdateAsset } from "./update-utils";
 import { redactDiagnosticLog } from "./log-redaction";
@@ -425,7 +425,7 @@ ipcMain.handle("servers:create", async (_event, args: { name: string; version: s
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   if (records.length >= 10) throw new Error("You can create up to 10 local world servers.");
   if (records.some(record => record.name.toLowerCase() === name.toLowerCase())) throw new Error("A world server with this name already exists.");
-  const ramGB = Math.max(1, Math.min(16, Math.round(Number(args.ramGB || 2))));
+  const ramGB = validateWorldServerRam(args.ramGB ?? 2, totalmem(), freemem());
   const port = validateWorldServerPort(args.port ?? 25565);
   if (records.some(record => Number(record.port || 25565) === port)) throw new Error("Another local world server already uses port " + port + ".");
   sendStatus("Fetching official Minecraft " + version + " server metadata…");
@@ -479,8 +479,7 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   await fs.access(path.join(root, "server.jar"));
   const javaPath = typeof args.javaPath === "string" && args.javaPath.trim() ? args.javaPath.trim() : "java";
   if (javaPath.length > 1024) throw new Error("Java executable path is too long.");
-  const requestedRam = Number(args.ramGB ?? record.ramGB);
-  if (!Number.isFinite(requestedRam) || requestedRam < 1 || requestedRam > 16) throw new Error("Server RAM must be between 1 and 16 GB.");
+  const requestedRam = validateWorldServerRam(args.ramGB ?? record.ramGB, totalmem(), freemem());
   await fs.writeFile(path.join(root, "eula.txt"), "eula=true\n", "utf8");
   const proc = spawn(javaPath, ["-Xms512M", "-Xmx" + Math.round(requestedRam) + "G", "-jar", "server.jar", "nogui"], {
     cwd: root, windowsHide: true, stdio: ["pipe", "pipe", "pipe"]

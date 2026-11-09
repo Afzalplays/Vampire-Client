@@ -1,6 +1,6 @@
 # Vampire Client: Hosting and Cosmetics Architecture
 
-This document records implemented behavior and remaining work. The Studio page stores the user's network-mode preference locally; that preference is not yet enforced by the server runtime.
+This document records implemented behavior and remaining work. The Studio page stores a network-access preference for guidance only; the Minecraft server currently binds using its default network behavior. The app never changes firewall/router rules or creates UPnP mappings.
 
 ## World hosting: LAN + Internet
 
@@ -8,7 +8,7 @@ This document records implemented behavior and remaining work. The Studio page s
 - Default mode: **Both LAN and Internet**.
 - Also offer LAN-only and Internet-only modes.
 - The user must explicitly accept the Minecraft server EULA before the first server start.
-- The user chooses a server version and a memory limit. Enforce a conservative configurable cap and never allocate all detected system RAM.
+- The user chooses a server version and memory limit. The launcher reserves at least 2 GiB for the OS/apps and 1 GiB of currently free memory; the backend enforces the calculated cap again immediately before server start.
 - Provide Start, Stop, live console output, process exit status, and a clear server directory.
 - Persist the selected mode and server settings, but never persist a public IP address or router credentials.
 
@@ -21,14 +21,19 @@ This document records implemented behavior and remaining work. The Studio page s
 - Keep server files isolated under the app's user-data directory. Validate paths and server download checksums before execution.
 - Do not run downloaded server JARs until the user has reviewed and accepted the EULA and confirmed the server version.
 
-### Planned implementation sequence
-1. Download official vanilla server artifacts using version metadata and verify SHA-1/SHA-256 where published.
-2. Create an isolated server instance and generate a minimal `server.properties`.
-3. Add explicit EULA consent, RAM bounds, Java executable selection, and start/stop process lifecycle.
-4. Stream console output through a narrow preload IPC API; never expose arbitrary shell execution to the renderer.
-5. Implement LAN address discovery and show connection instructions.
-6. Add Internet mode as a guided manual port-forward/tunnel workflow with a persistent warning; do not automate router changes.
-7. Add world backup, graceful shutdown, and crash recovery before calling the feature production-ready.
+### Implemented sequence
+1. Download official vanilla server artifacts from Mojang metadata and verify the published SHA-1 before writing the JAR.
+2. Create isolated server folders and generate a default `server.properties` with online-mode enabled and RCON disabled.
+3. Require explicit EULA acceptance and enforce a conservative Java heap cap based on total and currently free system memory.
+4. Stream stdout/stderr through a narrow preload IPC API; renderer commands are single-line and bounded, with `stop` reserved for the Stop button.
+5. Display local IPv4 addresses and the configured TCP port for LAN connection instructions.
+6. Provide manual Internet port-forward/tunnel guidance; network preference is not enforced by the server process and no router/firewall changes are automated.
+7. Support graceful stop with timed termination fallback, server logs, up to 10 stopped-server backups, rollback-safe restore, backup deletion and per-server ports.
+
+### Remaining work
+- Enforce LAN-only versus Internet-only policies safely, or remove those options; the current preference is informational only.
+- Add automatic crash recovery/restart policy with explicit user controls.
+- Test install/start/stop/backup/restore/delete on a physical desktop across Windows, macOS and Linux.
 
 ## Cosmetics: Vampire account sync
 
@@ -56,4 +61,4 @@ This document records implemented behavior and remaining work. The Studio page s
 
 ## Current status
 
-The local vanilla server manager is implemented in code: verified official JAR download, isolated server folders, explicit EULA acceptance, bounded heap argument, start/stop/delete lifecycle, and file-based stdout/stderr logging. **Not yet verified in a real desktop run.** Live console UI, basic LAN IPv4 display, and single-line server command input are now implemented in code. Enforced network modes, process exit/error UI, Internet port-forward guidance, backups, crash recovery, and production hardening remain pending. Vampire-account cosmetics backend, asset storage, cross-device sync, and in-game cape renderer are not implemented. Do not represent these remaining items as working features.
+The local vanilla server manager is implemented in code: verified official JAR download, isolated server folders, explicit EULA acceptance, conservative memory limits, start/stop/delete lifecycle, file-based stdout/stderr logging, live console UI, LAN IPv4 display, single-line command input, graceful shutdown fallback, up to 10 backups, rollback-safe restore and per-server ports. **Not yet verified in a real desktop run.** Network preferences remain informational only; automatic crash recovery and physical desktop testing remain pending. Vampire-account cosmetics backend, asset storage, cross-device sync and in-game cape renderer are not implemented. Do not represent these remaining items as working features.

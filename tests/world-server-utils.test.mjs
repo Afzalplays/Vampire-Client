@@ -15,3 +15,20 @@ test("reads a valid server-port property and safely falls back for malformed val
   assert.equal(parseWorldServerPort("server-port=80", 25565), 25565);
   assert.equal(parseWorldServerPort("no-port-here", 25566), 25566);
 });
+
+import { maxSafeWorldServerRamGB, validateWorldServerRam } from "../electron/world-server-utils.ts";
+test("calculates a conservative world server RAM cap from total and free memory", () => {
+ const gib=1024*1024*1024;
+ assert.equal(maxSafeWorldServerRamGB(4*gib,3.2*gib),2);
+ assert.equal(maxSafeWorldServerRamGB(8*gib,6.5*gib),5);
+ assert.equal(maxSafeWorldServerRamGB(32*gib,20*gib),16);
+ assert.equal(maxSafeWorldServerRamGB(2*gib,1.5*gib),0);
+ assert.equal(maxSafeWorldServerRamGB(Number.NaN,1),0);
+});
+test("rejects unsafe world server heap sizes", () => {
+ const gib=1024*1024*1024;
+ assert.equal(validateWorldServerRam(2,4*gib,3.2*gib),2);
+ assert.throws(()=>validateWorldServerRam(3,4*gib,3.2*gib),/up to 2 GB/);
+ assert.throws(()=>validateWorldServerRam(1,2*gib,1.5*gib),/Not enough currently available memory/);
+ assert.throws(()=>validateWorldServerRam(1.5,8*gib,7*gib),/whole number/);
+});
