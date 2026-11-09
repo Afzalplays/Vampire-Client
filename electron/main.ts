@@ -15,7 +15,7 @@ import { PublicClientApplication } from "@azure/msal-node";
 import { installJavaRuntime, parseJavaMajorVersion } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease } from "./update-utils";
-import { redactDiagnosticLog } from "../src/features/diagnostics";
+import { redactDiagnosticLog } from "./log-redaction";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
