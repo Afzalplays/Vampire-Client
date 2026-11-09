@@ -673,9 +673,19 @@ ipcMain.handle("game:install", async (_event, args: { version: string; loader: s
     const response = await fetch("https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml");
     if (!response.ok) throw new Error("Forge version metadata request failed (" + response.status + ").");
     const forgeVersion = selectForgeVersion(await response.text(), versionId);
+    const forgeArtifactVersion = versionId + "-" + forgeVersion;
+    const installerUrl = "https://maven.minecraftforge.net/net/minecraftforge/forge/" + forgeArtifactVersion + "/forge-" + forgeArtifactVersion + "-installer.jar";
+    const checksumResponse = await fetch(installerUrl + ".sha1");
+    if (!checksumResponse.ok) throw new Error("Forge installer checksum request failed (" + checksumResponse.status + ").");
+    const installerSha1 = (await checksumResponse.text()).trim().split(/\\s+/)[0];
+    if (!/^[a-f0-9]{40}$/i.test(installerSha1)) throw new Error("Forge installer checksum metadata is invalid.");
     const savedSettings = await readJson<{ javaPath?: string }>(settingsFile(), { javaPath: "java" });
     sendStatus("Installing Forge " + forgeVersion + " for Minecraft " + versionId + "…");
-    launchVersion = await installForge({ version: forgeVersion, mcversion: versionId }, root, { java: savedSettings.javaPath || "java", side: "client" });
+    launchVersion = await installForge({
+      version: forgeVersion,
+      mcversion: versionId,
+      installer: { path: installerUrl, sha1: installerSha1 }
+    }, root, { java: savedSettings.javaPath || "java", side: "client" });
     const resolved = await Version.parse(root, launchVersion);
     await installDependencies(resolved, {});
   } else if (loader === "neoforge") {
