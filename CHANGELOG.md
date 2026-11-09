@@ -2,6 +2,10 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Manual release update checker
+
+- Added an official GitHub Releases check in Settings, semantic version comparison, and allowlisted release/download URLs. The launcher opens the selected official release page; it does not silently install or execute updates.
+
 ## Unreleased — Launcher loader selection
 
 - Added a loader selector directly to the Versions screen so users can choose Vanilla, Fabric or Quilt before installation. CI cache keys now follow package.json because the repository does not contain a package-lock.json.

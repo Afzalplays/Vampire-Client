@@ -3,6 +3,7 @@ import { contextBridge, ipcRenderer } from "electron";
 contextBridge.exposeInMainWorld("vampire", {
   version: "0.3.0",
   openBillingPortal: () => ipcRenderer.invoke("billing:openPortal"),
+  checkForUpdates: () => ipcRenderer.invoke("updates:check"),
   platform: process.platform,
   listInstances: () => ipcRenderer.invoke("instances:list"),
   createInstance: (name: string) => ipcRenderer.invoke("instances:create", name),

@@ -3,6 +3,7 @@ interface Window {
   vampire?: {
     version: string;
     openBillingPortal(): Promise<{ success: boolean }>;
+    checkForUpdates(): Promise<{ currentVersion: string; latestVersion: string | null; updateAvailable: boolean; releaseUrl: string; releaseName?: string; publishedAt?: string; releaseNotes?: string; assets: Array<{ name: string; downloadUrl: string }>; reason?: "no-release" | "prerelease" | "invalid-release" }>;
     platform: string;
     listInstances(): Promise<Array<{ id: string; name: string; createdAt: string }>>;
     createInstance(name: string): Promise<{ id: string; name: string; createdAt: string }>;

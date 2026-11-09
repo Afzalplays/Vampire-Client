@@ -14,6 +14,7 @@ import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
 import { installJava21Runtime, parseJavaMajorVersion } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
+import { summarizeLatestRelease } from "./update-utils";
 
 const allowedHosts = new Set(["modrinth.com", "www.modrinth.com", "github.com", "www.github.com", "billing.vampirenodes.in"]);
 let mainWindow: BrowserWindow | null = null;
@@ -232,6 +233,19 @@ async function listVersions() {
 
 ipcMain.handle("instances:list", async () => readJson<Array<{ id: string; name: string; createdAt: string }>>(instancesFile(), [{ id: "default", name: "Default", createdAt: "" }]));
 ipcMain.handle("billing:openPortal", async () => { await shell.openExternal("https://billing.vampirenodes.in/"); return { success: true }; });
+ipcMain.handle("updates:check", async () => {
+  const currentVersion = app.getVersion();
+  const response = await fetch("https://api.github.com/repos/Afzalplays/Vampire-Client/releases/latest", {
+    headers: { Accept: "application/vnd.github+json", "User-Agent": "Vampire-Client" }
+  });
+  if (response.status === 404) return {
+    currentVersion, latestVersion: null, updateAvailable: false,
+    releaseUrl: "https://github.com/Afzalplays/Vampire-Client/releases",
+    assets: [], reason: "no-release"
+  };
+  if (!response.ok) throw new Error("GitHub release check failed (" + response.status + ").");
+  return summarizeLatestRelease(await response.json(), currentVersion);
+});
 ipcMain.handle("instances:create", async (_event, nameValue: string) => {
   const name = String(nameValue || "").trim();
   if (name.length < 2 || name.length > 32 || !/^[A-Za-z0-9 _.-]+$/.test(name)) throw new Error("Instance name must be 2–32 letters, numbers, spaces, dots or dashes.");

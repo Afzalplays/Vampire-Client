@@ -154,3 +154,8 @@ Minecraft is a trademark of Mojang Studios. Vampire Client is an independent com
 ## Quilt loader
 
 Quilt profiles are installed from the official Quilt metadata service and the selected loader version is resolved per Minecraft version. Modrinth search, compatible mod installation, updates and Vampire modpack import/export support both Fabric and Quilt profiles. Renderer-specific controls such as Sodium/VulkanMod switching remain Fabric-only until their Quilt compatibility is independently verified.
+
+
+## Manual update checks
+
+The Settings page can query the official GitHub Releases API and compare the latest stable release with the installed launcher version. Release pages and asset downloads are accepted only from the Vampire Client GitHub repository. This is a manual update checker; it does not silently download, replace or execute an installer. No public release is currently guaranteed to exist.
