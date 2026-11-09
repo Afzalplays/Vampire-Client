@@ -760,6 +760,12 @@ ipcMain.handle("servers:delete", async (_event, idValue: string) => {
   if (proc && proc.exitCode === null) throw new Error("Stop this world server before deleting it.");
   const records = await readJson<WorldServerRecord[]>(worldServersFile(), []);
   if (!records.some(record => record.id === id)) throw new Error("World server not found.");
+  const restartTimer = worldServerRestartTimers.get(id);
+  if (restartTimer) clearTimeout(restartTimer);
+  worldServerRestartTimers.delete(id);
+  worldServerRestartAttempts.delete(id);
+  worldServerLaunchConfigs.delete(id);
+  worldServerManualStops.delete(id);
   await fs.rm(worldServerRoot(id), { recursive: true, force: true });
   await fs.rm(worldServerBackupRoot(id), { recursive: true, force: true });
   await writeJson(worldServersFile(), records.filter(record => record.id !== id));
