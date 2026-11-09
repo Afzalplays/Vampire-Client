@@ -572,6 +572,7 @@ ipcMain.handle("servers:start", async (_event, args: { id: string; javaPath?: st
   const requestedRam = validateWorldServerRam(args.ramGB ?? record.ramGB, totalmem(), freemem());
   await fs.writeFile(path.join(root, "eula.txt"), "eula=true\n", "utf8");
   worldServerManualStops.delete(id);
+  worldServerRestartAttempts.delete(id);
   const pending = worldServerRestartTimers.get(id); if (pending) clearTimeout(pending); worldServerRestartTimers.delete(id);
   const proc = spawnWorldServer(id, record, javaPath, requestedRam);
   return { success: true, pid: proc.pid };
