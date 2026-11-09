@@ -5,8 +5,6 @@ This document records implemented behavior and remaining work. The Studio page s
 ## World hosting: LAN + Internet
 
 ### User-facing behavior
-- Default mode: **Both LAN and Internet**.
-- Also offer LAN-only and Internet-only modes.
 - The user must explicitly accept the Minecraft server EULA before the first server start.
 - The user chooses a server version and memory limit. The launcher reserves at least 2 GiB for the OS/apps and 512 MiB of currently free memory; the backend enforces the calculated cap again immediately before server start.
 - Provide Start, Stop, live console output, process exit status, and a clear server directory.
@@ -14,7 +12,8 @@ This document records implemented behavior and remaining work. The Studio page s
 
 ### Network safety
 - LAN mode should bind only to the local network interface where practical.
-- Internet mode must be a separate, explicit action. Explain that remote access requires a router port-forward or a trusted tunnel; do not silently edit router/firewall rules or create UPnP mappings.
+- The server currently binds using Minecraft defaults (all local interfaces). Explain that remote access requires a router port-forward or a trusted tunnel; do not silently edit router/firewall rules or create UPnP mappings.
+- Do not present LAN-only or Internet-only mode selectors until the launcher can enforce them safely.
 - Before Internet mode starts, show the exact listening port (default Minecraft Java TCP 25565), explain exposure risks, and require confirmation.
 - Never expose RCON by default. If RCON is later supported, generate a strong local password, store it securely, and bind it to loopback unless the user explicitly configures otherwise.
 - Include a Stop control that terminates the child process and a recovery path for a stale process.
@@ -32,8 +31,7 @@ This document records implemented behavior and remaining work. The Studio page s
 8. Optional per-server crash recovery: restart after an unexpected non-zero exit, with a maximum of three attempts per ten-minute window; manual stops, normal exits and launcher shutdown do not trigger recovery.
 
 ### Remaining work
-- Enforce LAN-only versus Internet-only policies safely, or remove those options; the current preference is informational only.
-- Add automatic crash recovery/restart policy with explicit user controls.
+- Strict per-interface network policies remain unsupported; the UI no longer offers non-enforced LAN-only/Internet-only selectors. Users must configure OS firewall rules manually when isolation is required.
 - Test install/start/stop/backup/restore/delete on a physical desktop across Windows, macOS and Linux.
 
 ## Cosmetics: Vampire account sync
