@@ -1735,7 +1735,7 @@ ipcMain.handle("shaders:download", async (_event, args: { slug: string; version:
   if (!file?.url) throw new Error("Modrinth did not provide a shader ZIP download.");
   const url = new URL(String(file.url));
   if (url.protocol !== "https:" || url.hostname !== "cdn.modrinth.com") throw new Error("Shader download host was rejected.");
-  const download = await fetch(url);
+  const download = await fetch(url, { headers: MODRINTH_HEADERS });
   if (!download.ok) throw new Error("Shader download failed (" + download.status + ").");
   const bytes = await verifyModrinthDownload(download, file);
   const fileName = path.basename(String(file.filename || "shader.zip")).replace(/[^A-Za-z0-9._ -]/g, "_");
