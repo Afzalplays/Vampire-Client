@@ -1,6 +1,6 @@
 # Java runtime installation
 
-Vampire Client can install an Eclipse Temurin Java 21 JRE into its application data directory.
+Vampire Client can install Eclipse Temurin Java 8, 17 or 21 JREs into separate application-data directories. Settings selects the recommended major for the chosen Minecraft version: Java 8 before 1.17, Java 17 for 1.17–1.20.4, and Java 21 for 1.20.5 and newer. The launch path independently checks the installed Minecraft metadata and refuses a runtime below its declared Java requirement.
 
 ## Download and verification
 
@@ -12,13 +12,13 @@ Vampire Client can install an Eclipse Temurin Java 21 JRE into its application d
 
 ## Extraction and activation
 
-Archive extraction rejects traversal paths, symbolic links, unsupported TAR entries, encrypted or unsupported ZIP entries, excessive entry counts, oversized files and excessive expansion. TAR.GZ extraction supports per-file POSIX PAX path metadata (used by some Temurin archives) while rejecting link, sparse-file and unsafe global path overrides. The extracted Java executable is then launched with `-version`; installation succeeds only when it reports Java 21.
+Archive extraction rejects traversal paths, symbolic links, unsupported TAR entries, encrypted or unsupported ZIP entries, excessive entry counts, oversized files and excessive expansion. TAR.GZ extraction supports per-file POSIX PAX path metadata (used by some Temurin archives) while rejecting link, sparse-file and unsafe global path overrides. The extracted Java executable is then launched with `-version`; installation succeeds only when it reports the exact requested major version.
 
 A verified installation is staged beside the active runtime. Activation first moves the existing runtime to a uniquely named backup, then renames the staged directory into place. If activation fails, the previous runtime is restored. A backup is removed only after successful activation.
 
 ## Verification limits
 
-Automated tests cover Java version parsing, runtime-directory replacement/rollback, PAX long-path extraction and PAX path-traversal rejection. The actual Adoptium download, archive extraction and Java process startup still require platform-specific CI or desktop execution. This installer targets Java 21; it is not a universal runtime selector for every Minecraft release.
+Automated tests cover Java version parsing, Minecraft-to-Java major selection, runtime-directory replacement/rollback, PAX long-path extraction and PAX path-traversal rejection. The actual Adoptium downloads, archive extraction and Java process startup still require platform-specific CI or desktop execution. The current automatic choices are Java 8, 17 and 21; other Java majors can still be selected manually through the Java executable path.
 
 
 ## POSIX PAX TAR metadata
