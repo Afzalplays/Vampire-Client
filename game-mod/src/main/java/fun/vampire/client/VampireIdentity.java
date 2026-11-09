@@ -5,6 +5,7 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
+import java.util.Optional;
 
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.text.MutableText;
