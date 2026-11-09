@@ -9,6 +9,10 @@ export function scanModConflicts(files: ModFile[], loader = "fabric"): string[] 
   if (has(/sodium/) && has(/rubidium|embeddium/)) warnings.push("Sodium and Rubidium/Embeddium are both enabled; avoid combining renderer replacements.");
   if (has(/lithium/) && has(/canary/)) warnings.push("Lithium and Canary overlap in game-logic optimizations and may conflict.");
   if (has(/embeddium/) && has(/rubidium/)) warnings.push("Embeddium and Rubidium are alternative renderer forks; do not install both.");
+  if (has(/starlight/) && has(/phosphor/)) warnings.push("Starlight and Phosphor both replace lighting-engine behavior; remove one before testing lighting issues.");
+  if (has(/iris/) && has(/oculus/)) warnings.push("Iris and Oculus are alternative shader-loader implementations for different loader ecosystems; keep only the one compatible with this profile.");
+  if ((loader === "forge" || loader === "neoforge") && has(/fabric-api|fabric-api-[0-9]/)) warnings.push("Fabric API was detected in a Forge/NeoForge profile. Remove it unless you intentionally use a compatible Fabric Connector setup.");
+  if (has(/optifine/) && has(/sodium/)) warnings.push("OptiFine and Sodium both replace major rendering paths and are not a supported combination.");
   if (loader === "fabric" && names.length && !has(/fabric-api/)) warnings.push("Fabric API was not detected by filename; some Fabric mods require it.");
   return warnings;
 }

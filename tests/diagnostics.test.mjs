@@ -99,3 +99,10 @@ test("warns about duplicate Embeddium and Rubidium renderer forks", () => {
   ], "forge");
   assert.ok(warnings.some(warning => /alternative renderer forks/.test(warning)));
 });
+
+test("detects additional lighting, shader-loader and cross-loader conflicts", () => {
+  assert.ok(scanModConflicts([{ fileName: "starlight.jar", enabled: true }, { fileName: "phosphor.jar", enabled: true }]).some(message => /Starlight and Phosphor/.test(message)));
+  assert.ok(scanModConflicts([{ fileName: "iris.jar", enabled: true }, { fileName: "oculus.jar", enabled: true }]).some(message => /Iris and Oculus/.test(message)));
+  assert.ok(scanModConflicts([{ fileName: "fabric-api.jar", enabled: true }], "forge").some(message => /Forge\/NeoForge profile/.test(message)));
+  assert.ok(scanModConflicts([{ fileName: "optifine.jar", enabled: true }, { fileName: "sodium.jar", enabled: true }]).some(message => /OptiFine and Sodium/.test(message)));
+});
