@@ -545,7 +545,10 @@ function spawnWorldServer(id: string, record: WorldServerRecord, javaPath: strin
         void (async () => {
           const latest = (await readJson<WorldServerRecord[]>(worldServersFile(), [])).find(item => item.id === id);
           const config = worldServerLaunchConfigs.get(id);
-          if (latest?.autoRestart && config) spawnWorldServer(id, latest, config.javaPath, config.ramGB);
+          if (latest?.autoRestart && config) {
+            const safeRam = validateWorldServerRam(config.ramGB, totalmem(), freemem());
+            spawnWorldServer(id, latest, config.javaPath, safeRam);
+          }
         })().catch(error => append("auto-restart", error instanceof Error ? error.message : String(error)));
       }, 5000);
       restart.unref(); worldServerRestartTimers.set(id, restart);
