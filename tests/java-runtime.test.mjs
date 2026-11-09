@@ -79,13 +79,13 @@ function paxRecord(key, value) {
   }
 }
 
-function makePaxArchive(paxPath) {
+function makePaxArchive(paxPath, entryType = "0") {
   const metadata = paxRecord("path", paxPath);
   const file = Buffer.from("verified java archive fixture");
   const pad = data => Buffer.concat([data, Buffer.alloc((512 - data.length % 512) % 512)]);
   return gzipSync(Buffer.concat([
     tarHeader("PaxHeaders.0/file", metadata.length, "x"), pad(metadata),
-    tarHeader("short-name.txt", file.length), pad(file),
+    tarHeader("short-name.txt", entryType === "5" ? 0 : file.length, entryType), ...(entryType === "5" ? [] : [pad(file)]),
     Buffer.alloc(1024)
   ]));
 }
@@ -106,6 +106,19 @@ test("rejects path traversal supplied by TAR PAX metadata", async () => {
   try {
     await assert.rejects(extractTarGz(makePaxArchive("../../escape.txt"), root), /path traversal|Unsafe runtime archive path/);
     await assert.rejects(fs.access(path.join(root, "escape.txt")));
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
+});
+
+
+test("creates PAX-named directories without retaining a trailing separator", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "vampire-pax-dir-"));
+  try {
+    const directory = "runtime/" + "nested-folder/".repeat(4);
+    await extractTarGz(makePaxArchive(directory, "5"), root);
+    const stat = await fs.stat(path.join(root, directory));
+    assert.equal(stat.isDirectory(), true);
   } finally {
     await fs.rm(root, { recursive: true, force: true });
   }

@@ -109,7 +109,7 @@ export async function extractTarGz(bytes: Buffer, root: string) {
     if(!["0","\0","5"].includes(type))throw new Error("TAR links and special files are rejected.");
     total+=size;if(total>MAX_EXPANDED)throw new Error("TAR expanded size limit exceeded.");
     const full=pendingPath||headerName;pendingPath=null;
-    if(type==="5")await writeEntry(root,full.replace(/\\/$/,"")+"/",Buffer.alloc(0),true);
+    if(type==="5")await writeEntry(root,full.replace(/\/$/,"")+"/",Buffer.alloc(0),true);
     else await writeEntry(root,full,Buffer.from(payload));
     off=start+Math.ceil(size/512)*512;
   }
