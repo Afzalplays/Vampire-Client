@@ -2,6 +2,12 @@
 
 All notable Vampire Client changes are recorded here.
 
+## Unreleased — Local world server backups
+
+- Added up to 10 per-server snapshots, with a 20 GB safety limit and symlink rejection.
+- Added stopped-server-only restore using a temporary copy and rollback to the previous server directory if activation fails.
+- Added backup listing and deletion controls to the World Hosting panel.
+
 ## Unreleased — Verified manual installer downloads
 
 - Added platform-specific Windows, Linux and macOS release asset selection.
