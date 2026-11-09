@@ -12,7 +12,7 @@ import { getVersionList, install, getLoaderArtifactListFor, installFabric, insta
 import { selectQuiltLoaderVersion } from "./loader-utils";
 import { offline, MicrosoftAuthenticator, MojangClient } from "@xmcl/user";
 import { PublicClientApplication } from "@azure/msal-node";
-import { installJavaRuntime, parseJavaMajorVersion, requiredJavaMajorForMinecraft } from "./java-runtime";
+import { installJavaRuntime, parseJavaMajorVersion } from "./java-runtime";
 import { isSafeResourcePackFilename } from "./resource-pack-utils";
 import { summarizeLatestRelease } from "./update-utils";
 
